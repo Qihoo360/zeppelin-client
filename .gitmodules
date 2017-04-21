@@ -1,0 +1,6 @@
+[submodule "third/pink"]
+	path = third/pink
+	url = git@github.com:Qihoo360/pink.git
+[submodule "third/slash"]
+	path = third/slash
+	url = git@github.com:baotiao/slash.git
