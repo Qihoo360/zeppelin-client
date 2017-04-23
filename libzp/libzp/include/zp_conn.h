@@ -9,25 +9,24 @@
 #include <string>
 #include <map>
 
-#include "include/pb_cli.h"
-#include "slash_status.h"
+#include "pink/include/pink_cli.h"
 
-#include "include/zp_meta.pb.h"
-#include "include/zp_table.h"
+#include "libzp/src/zp_meta.pb.h"
+#include "libzp/include/zp_table.h"
 
 
 namespace libzp {
 
-typedef slash::Status Status;
+using slash::Status;
 
 struct ZpCli {
  public:
   explicit ZpCli(const Node& node);
   ~ZpCli();
-  Status CheckTimeout();
+  bool CheckTimeout();
 
   Node node;
-  pink::PbCli* cli;
+  pink::PinkCli* cli;
   uint64_t lastchecktime;
 };
 

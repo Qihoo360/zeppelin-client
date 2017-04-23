@@ -5,36 +5,40 @@
 #ifndef CLIENT_INCLUDE_ZP_CLUSTER_H_
 #define CLIENT_INCLUDE_ZP_CLUSTER_H_
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
-#include <memory>
-#include <utility>
 #include <unordered_map>
 
+#include "pink/include/pink_cli.h"
+#include "pink/include/bg_thread.h"
 
-#include "slash_status.h"
-#include "include/pb_cli.h"
-#include "include/bg_thread.h"
-
-#include "include/zp_meta.pb.h"
-#include "include/client.pb.h"
-
-#include "include/zp_table.h"
-#include "include/zp_conn.h"
-#include "include/zp_const.h"
+#include "libzp/src/zp_meta.pb.h"
+#include "libzp/src/client.pb.h"
+#include "libzp/include/zp_table.h"
+#include "libzp/include/zp_conn.h"
 
 namespace libzp {
 
-typedef slash::Status Status;
+using ZPMeta::MetaCmd;
+using ZPMeta::MetaCmdResponse;
+using client::CmdRequest;
+using client::CmdResponse;
+
+struct Options {
+  std::vector<Node> meta_addr;
+  Options() {
+  }
+};
+
 struct CmdRpcArg;
 
 class Cluster {
- public :
-
+public:
   explicit Cluster(const Options& options);
-  explicit Cluster(const std::string& ip, const int port);
+  Cluster(const std::string& ip, int port);
   virtual ~Cluster();
+
   Status Connect();
 
   // data cmd
@@ -74,17 +78,16 @@ class Cluster {
   const Table::Partition* GetPartition(const std::string& table,
       const std::string& key);
 
- private :
+ private:
   static void DoSubmitDataCmd(void* arg);
   void DistributeDataRpc(
       const std::map<Node, CmdRpcArg*>& key_distribute);
-
-  void InitParam();
-  Node GetRandomMetaAddr();
+  
+  ZpCli* GetMetaConnection();
   Status TryGetDataMaster(const std::string& table,
       const std::string& key, Node* master);
   Status GetDataMaster(const std::string& table,
-      const std::string& key, Node* master, bool has_pull = false);
+      const std::string& key, Node* master, bool has_pull= false);
 
   Status SubmitDataCmd(const std::string& table, const std::string& key,
       client::CmdRequest& req, client::CmdResponse *res, bool has_pull = false);
@@ -92,14 +95,12 @@ class Cluster {
       client::CmdRequest& req, client::CmdResponse *res,
       int attempt = 0);
   Status SubmitMetaCmd(int attempt = 0);
-  Status ResetClusterMap(const ZPMeta::MetaCmdResponse_Pull& pull);
+  void ResetClusterMap(const ZPMeta::MetaCmdResponse_Pull& pull);
 
   // meta info
   int64_t epoch_;
   std::vector<Node> meta_addr_;
   std::unordered_map<std::string, Table*> tables_;
-
-  // BgWorker for executing command concorrent
   std::map<Node, pink::BGThread*> cmd_workers_;
 
   // connection pool
@@ -125,9 +126,10 @@ class Client {
   Status Set(const std::string& key, const std::string& value,
       int32_t ttl = -1);
   Status Get(const std::string& key, std::string* value);
-  Status Delete(const std::string& key);
   Status Mget(const std::vector<std::string>& keys,
       std::map<std::string, std::string>* values);
+  Status Delete(const std::string& key);
+
 
  private :
   Cluster* cluster_;
@@ -135,6 +137,6 @@ class Client {
 };
 
 
-};  // namespace libzp
+} // namespace libzp
 
 #endif  // CLIENT_INCLUDE_ZP_CLUSTER_H_

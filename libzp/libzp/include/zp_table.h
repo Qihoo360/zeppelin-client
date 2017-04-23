@@ -14,13 +14,11 @@
 #include <unordered_map>
 #include <utility>
 
-#include "include/pb_cli.h"
+#include "pink/include/pink_cli.h"
 
-#include "include/zp_meta.pb.h"
-
+#include "libzp/src/zp_meta.pb.h"
 
 namespace libzp {
-
 
 struct Node {
   Node();
@@ -95,16 +93,6 @@ class Table {
   std::string table_name_;
   int partition_num_;
   std::map<int, Partition*> partitions_;
-};
-
-
-class Options {
- public :
-  Options() {
-  }
-  ~Options() {
-  }
-  std::vector<Node> meta_addr;
 };
 
 }  // namespace libzp

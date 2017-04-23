@@ -2,38 +2,47 @@ RPATH = /usr/local/zeppelin/lib/
 LFLAGS = -Wl,-rpath=$(RPATH)
 
 CXX = g++
-#ifeq ($(__PERF), 1)
+ifeq ($(__PERF), 1)
 	CXXFLAGS = -O0 -g -pg -pipe -fPIC -D__XDEBUG__ -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -std=c++11 -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls
-#else
-#	CXXFLAGS = -O2 -g -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls -Wno-sign-compare
-	# CXXFLAGS = -Wall -W -DDEBUG -g -O0 -D__XDEBUG__ -D__STDC_FORMAT_MACROS -fPIC -std=c++11 -gdwarf-2
-#endif
-THIRD_PATH = ../third
+else
+	CXXFLAGS = -O2 -g -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls -Wno-sign-compare
+endif
+
+ifndef SLASH_PATH
+SLASH_PATH = ../../slash
+endif
+
+ifndef PINK_PATH 
+PINK_PATH = ../../pink
+endif
+
+ifndef GLOG_PATH 
+GLOG_PATH = ../../glog
+endif
+
 SRC_DIR := ./src/
 INC_DIR := ./include/
-OUTPUT := ./output/
+OUTPUT := ./lib/
 
 
-INCLUDE_PATH = -I./ \
-			   -I./include/ \
-			   -I$(THIRD_PATH)/glog/src/ \
-			   -I$(THIRD_PATH)/slash/output/include/ \
-			   -I$(THIRD_PATH)/pink/output/include/ \
-			   -I$(THIRD_PATH)/pink/output/ 
+INCLUDE_PATH = -I../ \
+							 -I src/ \
+							 -I$(GLOG_PATH)/src \
+							 -I$(SLASH_PATH) \
+							 -I$(PINK_PATH)
 
 
-LIB_PATH = -L./ \
-		   -L/usr/local/lib/google/ \
-		   -L$(THIRD_PATH)/slash/output/lib/ \
-		   -L$(THIRD_PATH)/pink/output/lib/ 
+LIB_PATH = -L/usr/local/lib/google/ \
+					 -L$(SLASH_PATH)/slash/lib/ \
+					 -L$(PINK_PATH)/pink/lib/ 
 
 
 
 LIBS = -lpthread \
-	   -lprotobuf \
-	   -lglog \
-	   -lslash \
-		 -lpink
+			 -lprotobuf \
+			 -lglog \
+			 -lslash \
+			 -lpink
 
 LIBRARY = libzp.a
 
@@ -48,19 +57,14 @@ OBJS = $(patsubst %.cc,%.o,$(BASE_OBJS))
 
 
 all: $(LIBRARY)
-	make -C third/linenoise
 	@echo "Success, go, go, go..."
 
 $(LIBRARY): $(OBJS)
 	rm -rf $(OUTPUT)
 	mkdir $(OUTPUT)
-	mkdir $(OUTPUT)/include
-	mkdir $(OUTPUT)/lib
 	rm -rf $@
 	ar -rcs $@ $(OBJS)
-	cp -r ./include $(OUTPUT)/
-	mv $@ $(OUTPUT)/lib/
-	#make -C hizeppelin
+	mv $@ $(OUTPUT)
 
 
 $(OBJECT): $(OBJS)
@@ -69,7 +73,6 @@ $(OBJECT): $(OBJS)
 $(OBJS): %.o : %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) $(LIBS)
 clean: 
-	make -C hizeppelin clean
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)/*
 	rm -rf $(OUTPUT)

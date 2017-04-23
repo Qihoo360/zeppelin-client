@@ -2,8 +2,7 @@
  * "Copyright [2016] qihoo"
  * "Author <hrxwwd@163.com>"
  */
-#include "include/zp_table.h"
-
+#include "libzp/include/zp_table.h"
 
 namespace libzp {
 
@@ -106,7 +105,7 @@ void Table::GetNodes(std::vector<Node>* nodes) {
   std::sort(nodes->begin(), nodes->end());
   nodes->erase(
       std::unique(nodes->begin(),
-                  nodes->end()),
+        nodes->end()),
       nodes->end());
 }
 
