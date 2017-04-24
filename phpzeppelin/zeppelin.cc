@@ -29,8 +29,8 @@ extern "C"
 }
 
 #include "php_zeppelin.h"
-#include "include/zp_cluster.h"
-#include "status.h"
+#include "libzp/include/zp_cluster.h"
+#include "slash/include/slash_status.h"
 #include "zend.h"
 
 /* If you declare any globals in php_zeppelin.h uncomment this: 

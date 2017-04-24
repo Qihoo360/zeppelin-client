@@ -41,12 +41,9 @@ if test "$PHP_ZEPPELIN" != "no"; then
   dnl fi
 
   dnl # --with-zeppelin -> add include path
-  PHP_ADD_INCLUDE(../../output)
-  PHP_ADD_INCLUDE(../../output/include)
-  PHP_ADD_INCLUDE(../../../third/pink/output)
-  PHP_ADD_INCLUDE(../../../third/pink/output/include)
-  PHP_ADD_INCLUDE(../../../third/slash/output)
-  PHP_ADD_INCLUDE(../../../third/slash/output/include)
+  PHP_ADD_INCLUDE(../libzp)
+  PHP_ADD_INCLUDE(../third/pink)
+  PHP_ADD_INCLUDE(../third/slash)
 
   dnl # --with-zeppelin -> check for lib and symbol presence
   dnl LIBNAME=zeppelin # you may want to change this
@@ -66,10 +63,10 @@ if test "$PHP_ZEPPELIN" != "no"; then
 
   PHP_REQUIRE_CXX()
   PHP_ADD_LIBRARY(stdc++, 1, EXTRA_LDFLAGS)
-  PHP_ADD_LIBRARY(protobuf, 1, EXTRA_LDFLAGS)
-  PHP_ADD_LIBRARY_WITH_PATH(zp, ../../output/lib, EXTRA_LDFLAGS)
-  PHP_ADD_LIBRARY_WITH_PATH(zp, ../../../third/pink/output/lib, EXTRA_LDFLAGS)
-  PHP_ADD_LIBRARY_WITH_PATH(zp, ../../../third/slash/output/lib, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY(protobuf, 1, lprotobuf)
+  PHP_ADD_LIBRARY_WITH_PATH(zp, ../libzp/libzp/lib, libzp)
+  PHP_ADD_LIBRARY_WITH_PATH(zp, ../third/pink/pink/lib, libpink)
+  PHP_ADD_LIBRARY_WITH_PATH(zp, ../third/slash/slash/lib, libslash)
   
   CPPFILE="zeppelin.cc"
 
