@@ -3,6 +3,7 @@
  * "Author <hrxwwd@163.com>"
  */
 #include "libzp/include/zp_table.h"
+#include <iostream>
 
 namespace libzp {
 

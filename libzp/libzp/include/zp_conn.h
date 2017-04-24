@@ -9,15 +9,14 @@
 #include <string>
 #include <map>
 
-#include "pink/include/pink_cli.h"
-
-#include "libzp/src/zp_meta.pb.h"
+#include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/zp_table.h"
 
+namespace pink {
+  class PinkCli;
+}
 
 namespace libzp {
-
-using slash::Status;
 
 struct ZpCli {
  public:

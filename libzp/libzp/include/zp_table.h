@@ -6,17 +6,10 @@
 #define CLIENT_INCLUDE_ZP_TABLE_H_
 
 #include <string>
-#include <list>
 #include <map>
 #include <vector>
-#include <memory>
-#include <iostream>
-#include <unordered_map>
-#include <utility>
 
-#include "pink/include/pink_cli.h"
-
-#include "libzp/src/zp_meta.pb.h"
+#include "libzp/include/zp_meta.pb.h"
 
 namespace libzp {
 

@@ -9,6 +9,8 @@
 #include <string>
 
 #include "slash/include/slash_string.h"
+#include "pink/include/bg_thread.h"
+#include "pink/include/pink_cli.h"
 
 #include "libzp/src/zp_const.h"
 

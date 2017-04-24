@@ -2,10 +2,10 @@
  * "Copyright [2016] qihoo"
  * "Author <hrxwwd@163.com>"
  */
+#include "libzp/include/zp_conn.h"
 
 #include <sys/time.h>
-
-#include "libzp/include/zp_conn.h"
+#include "pink/include/pink_cli.h"
 #include "libzp/include/zp_table.h"
 
 namespace libzp {
@@ -30,7 +30,6 @@ ZpCli::ZpCli(const Node& node)
 ZpCli::~ZpCli() {
   delete cli;
 }
-
 
 bool ZpCli::CheckTimeout() {
   uint64_t now = NowMicros();

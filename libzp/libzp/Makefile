@@ -9,52 +9,37 @@ else
 endif
 
 ifndef SLASH_PATH
-SLASH_PATH = ../../slash
+SLASH_PATH = ../../third/slash
 endif
 
 ifndef PINK_PATH 
-PINK_PATH = ../../pink
-endif
-
-ifndef GLOG_PATH 
-GLOG_PATH = ../../glog
+PINK_PATH = ../../third/pink
 endif
 
 SRC_DIR := ./src/
 INC_DIR := ./include/
 OUTPUT := ./lib/
 
-
 INCLUDE_PATH = -I../ \
-							 -I src/ \
-							 -I$(GLOG_PATH)/src \
 							 -I$(SLASH_PATH) \
 							 -I$(PINK_PATH)
 
-
-LIB_PATH = -L/usr/local/lib/google/ \
-					 -L$(SLASH_PATH)/slash/lib/ \
-					 -L$(PINK_PATH)/pink/lib/ 
-
-
+LIB_PATH = -L$(SLASH_PATH)/pink/lib/ \
+					 -L$(PINK_PATH)/slash/lib/ 
 
 LIBS = -lpthread \
 			 -lprotobuf \
-			 -lglog \
-			 -lslash \
-			 -lpink
+			 -lpink \
+			 -lslash
 
 LIBRARY = libzp.a
 
-
 .PHONY: all clean
-
 
 BASE_OBJS := $(wildcard $(SRC_DIR)/*.cc)
 BASE_OBJS += $(wildcard $(SRC_DIR)/*.c)
 BASE_OBJS += $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst %.cc,%.o,$(BASE_OBJS))
-
 
 all: $(LIBRARY)
 	@echo "Success, go, go, go..."
@@ -66,12 +51,9 @@ $(LIBRARY): $(OBJS)
 	ar -rcs $@ $(OBJS)
 	mv $@ $(OUTPUT)
 
-
-$(OBJECT): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) -Wl,-Bdynamic $(LIBS)
-
 $(OBJS): %.o : %.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) $(LIBS)
+
 clean: 
 	rm -rf $(SRC_DIR)/*.o
 	rm -rf $(OUTPUT)/*

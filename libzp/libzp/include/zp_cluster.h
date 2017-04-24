@@ -10,20 +10,20 @@
 #include <vector>
 #include <unordered_map>
 
-#include "pink/include/pink_cli.h"
-#include "pink/include/bg_thread.h"
+#include "slash/include/slash_status.h"
 
-#include "libzp/src/zp_meta.pb.h"
-#include "libzp/src/client.pb.h"
 #include "libzp/include/zp_table.h"
 #include "libzp/include/zp_conn.h"
+#include "libzp/include/zp_meta.pb.h"
+#include "libzp/include/client.pb.h"
+
+namespace pink {
+  class BGThread;
+}
 
 namespace libzp {
 
-using ZPMeta::MetaCmd;
-using ZPMeta::MetaCmdResponse;
-using client::CmdRequest;
-using client::CmdResponse;
+using slash::Status;
 
 struct Options {
   std::vector<Node> meta_addr;
