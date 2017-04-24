@@ -7,7 +7,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "include/zp_cluster.h"
+#include "libzp/include/zp_cluster.h"
 
 
 void usage() {

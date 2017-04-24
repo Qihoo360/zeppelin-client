@@ -9,11 +9,11 @@ else
 endif
 
 ifndef SLASH_PATH
-SLASH_PATH = ../../third/slash
+SLASH_PATH = $(realpath ./../third/slash)
 endif
 
 ifndef PINK_PATH 
-PINK_PATH = ../../third/pink
+PINK_PATH = $(realpath ../../third/pink)
 endif
 
 SRC_DIR := ./src/

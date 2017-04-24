@@ -7,9 +7,9 @@
 #include <iostream>
 #include <algorithm>
 
-#include "include/zp_cluster.h"
+#include "libzp/include/zp_cluster.h"
 #include "linenoise/linenoise.h"
-#include "./help.h"
+#include "zp_manager_help.h"
 
 void SplitByBlank(const std::string& old_line,
     std::vector<std::string>& line_args) {
@@ -57,7 +57,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
   size_t match_len = 0;
   std::string tmp;
 
-  for (int i = 0; i < commandEntries.size(); i++) {
+  for (size_t i = 0; i < commandEntries.size(); i++) {
     match_len = strlen(buf);
     if (strncasecmp(buf, commandEntries[i].name.c_str(), match_len) == 0) {
       tmp = std::string();
@@ -77,7 +77,7 @@ char *hints(const char *buf, int *color, int *bold) {
     return NULL;
   }
   int endspace = buf_len && isspace(buf[buf_len-1]);
-  for (int i = 0; i < commandEntries.size(); i++) {
+  for (size_t i = 0; i < commandEntries.size(); i++) {
     size_t match_len = std::max(strlen(commandEntries[i].name.c_str()),
         strlen(buf_args[0].c_str()));
     if (strncasecmp(buf_args[0].c_str(),
@@ -262,7 +262,7 @@ void StartRepl(libzp::Cluster* cluster) {
           std::cout << "no node exist" << std::endl;
           continue;
         }
-        for (int i = 0; i <= nodes.size() - 1; i++) {
+        for (size_t i = 0; i <= nodes.size() - 1; i++) {
           std::cout << nodes[i].ip << ":" << nodes[i].port
             << " " << status[i] << std::endl;
         }
@@ -311,7 +311,7 @@ void StartRepl(libzp::Cluster* cluster) {
         libzp::Node node(ip, port);
         std::vector<std::pair<int, libzp::BinlogOffset>> partitions;
         libzp::Status s = cluster->InfoOffset(node, table_name, &partitions);
-        for (int i = 0; i < partitions.size(); i++) {
+        for (size_t i = 0; i < partitions.size(); i++) {
           std::cout << "partition:" << partitions[i].first << std::endl;
           std::cout << "  filenum:" << partitions[i].second.file_num
             << std::endl;
@@ -327,7 +327,7 @@ void StartRepl(libzp::Cluster* cluster) {
        std::vector<std::pair<libzp::Node, libzp::SpaceInfo>> nodes;
        libzp::Status s = cluster->InfoSpace(table_name, &nodes);
        std::cout << "space info for " << table_name << std::endl;
-       for (int i = 0; i < nodes.size(); i++) {
+       for (size_t i = 0; i < nodes.size(); i++) {
          std::cout << "node: " << nodes[i].first.ip << " " <<
            nodes[i].first.port << std::endl;
          std::cout << "  used:" << nodes[i].second.used
