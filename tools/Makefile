@@ -20,7 +20,7 @@ ifndef PINK_PATH
 PINK_PATH = $(realpath ../third/pink)
 endif
 
-OBJECT = zp_manager
+OBJECT = zp_parade zp_benchmark
 SRC_DIR = ./
 OUTPUT = ./output
 
@@ -54,9 +54,11 @@ all: $(OBJECT)
 	rm -rf $(OBJECT)
 	@echo "Success, go, go, go..."
 
+zp_parade: $(ZP) $(PINK) $(SLASH) zp_parade.cc
+	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
-zp_manager: $(ZP) $(PINK) $(SLASH) $(LINENOISE) zp_manager.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+zp_benchmark: $(ZP) $(PINK) $(SLASH) zp_benchmark.cc
+	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 $(ZP):
 	make -C $(ZP_PATH)/libzp/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
