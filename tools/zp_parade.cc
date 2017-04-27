@@ -28,7 +28,7 @@ void SingleKeyOp(libzp::Client* client, int count, int vlen, Op op) {
   start_time = slash::NowMicros();
   for(int i = 0; i < count; ++i) {
     std::string si = std::to_string(i);
-    std::string key = "key_" + slen + "_" + si;
+    std::string key = "Key_" + slen + "_" + si;
     switch (op) {
       case kSet:
         s = client->Set(key, value + si);
@@ -64,7 +64,7 @@ void MultiKeyOp(libzp::Client* client, int count, int vlen, Op op) {
   std::vector<std::string> keys;
   std::map<std::string, std::string> values;
   for(int i = 0; i < count; ++i) {
-    key = "key_" + slen + "_" + std::to_string(i);
+    key = "Key_" + slen + "_" + std::to_string(i);
     keys.push_back(key);
   }
 
@@ -118,8 +118,8 @@ int main(int argc, char* argv[]) {
   std::cout << "--------- SET " << 100 * count_base << " 100B Value ----------" << std::endl;
   SingleKeyOp(client, 100 * count_base, 100, Op::kSet);
 
-  std::cout << "--------- SET " << 10 * count_base << " 1KB Value ----------" << std::endl;
-  SingleKeyOp(client, 10 * count_base, 1000, Op::kSet);
+  std::cout << "--------- SET " << 100 * count_base << " 1KB Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 1000, Op::kSet);
 
   std::cout << "--------- GET " << 100 * count_base << " 10B Value ----------" << std::endl;
   SingleKeyOp(client, 100 * count_base, 10, Op::kGet);
@@ -127,8 +127,8 @@ int main(int argc, char* argv[]) {
   std::cout << "--------- GET " << 100 * count_base << " 100B Value ----------" << std::endl;
   SingleKeyOp(client, 100 * count_base, 100, Op::kGet);
 
-  std::cout << "--------- GET " << 10 * count_base << " 1KB Value ----------" << std::endl;
-  SingleKeyOp(client, 10 * count_base, 1000, Op::kGet);
+  std::cout << "--------- GET " << 100 * count_base << " 1KB Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 1000, Op::kGet);
   
   std::cout << "--------- MGET " << 100 * count_base << " 10B Value ----------" << std::endl;
   MultiKeyOp(client, 100 * count_base, 10, Op::kMget);
@@ -136,8 +136,8 @@ int main(int argc, char* argv[]) {
   std::cout << "--------- MGET " << 100 * count_base << " 100B Value ----------" << std::endl;
   MultiKeyOp(client, 100 * count_base, 100, Op::kMget);
   
-  std::cout << "--------- MGET " << 10 * count_base << " 1KB Value ----------" << std::endl;
-  MultiKeyOp(client, 10 * count_base, 1000, Op::kMget);
+  std::cout << "--------- MGET " << 100 * count_base << " 1KB Value ----------" << std::endl;
+  MultiKeyOp(client, 100 * count_base, 1000, Op::kMget);
 
   std::cout << "--------- DELETE " << 100 * count_base << " 10B Value ----------" << std::endl;
   SingleKeyOp(client, 100 * count_base, 10, Op::kDelete);
@@ -145,8 +145,8 @@ int main(int argc, char* argv[]) {
   std::cout << "--------- DELETE " << 100 * count_base << " 100B Value ----------" << std::endl;
   SingleKeyOp(client, 100 * count_base, 100, Op::kDelete);
 
-  std::cout << "--------- DELETE " << 10 * count_base << " 1KB Value ----------" << std::endl;
-  SingleKeyOp(client, 10 * count_base, 1000, Op::kDelete);
+  std::cout << "--------- DELETE " << 100 * count_base << " 1KB Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 1000, Op::kDelete);
   
   delete client;
 }
