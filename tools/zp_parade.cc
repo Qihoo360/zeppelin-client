@@ -10,22 +10,23 @@
 
 void usage() {
   std::cout << "usage:\n"
-            << "      zp_parade host port\n";
+            << "      zp_parade host port [count_base]\n";
 }
 
-enum SingleKeyOp {
+enum Op {
   kSet = 0,
   kGet,
   kDelete,
+  kMget,
 };
 
-void SingleOp(libzp::Client* client, int count, int vlen, SingleKeyOp op) {
+void SingleKeyOp(libzp::Client* client, int count, int vlen, Op op) {
   uint64_t start_time = 0, end_time = 0;
   std::string value(vlen, 'a'), slen = std::to_string(vlen);
   slash::Status s;
   std::cout << "Begin Op " << count << " items ..." << std::endl;
   start_time = slash::NowMicros();
-  for(int i = 0; i < count; i++) {
+  for(int i = 0; i < count; ++i) {
     std::string si = std::to_string(i);
     std::string key = "key_" + slen + "_" + si;
     switch (op) {
@@ -42,7 +43,7 @@ void SingleOp(libzp::Client* client, int count, int vlen, SingleKeyOp op) {
         break;
     }
     if (!s.ok()) {
-      std::cout << "Set item failed, len" << vlen
+      std::cout << "[ERROR]Op failed, len" << vlen
         << ", " << s.ToString() << std::endl;
       return;
     }
@@ -50,10 +51,48 @@ void SingleOp(libzp::Client* client, int count, int vlen, SingleKeyOp op) {
   end_time = slash::NowMicros();
   std::cout << "Success Op" << count << " items, time(us): "
     << (end_time - start_time) << std::endl;
+  
+  std::cout << std::endl;
+}
+
+void MultiKeyOp(libzp::Client* client, int count, int vlen, Op op) {
+  uint64_t start_time = 0, end_time = 0;
+  std::string slen = std::to_string(vlen);
+  slash::Status s;
+  
+  std::string key;
+  std::vector<std::string> keys;
+  std::map<std::string, std::string> values;
+  for(int i = 0; i < count; ++i) {
+    key = "key_" + slen + "_" + std::to_string(i);
+    keys.push_back(key);
+  }
+
+  std::cout << "Begin Op " << count << " items ..." << std::endl;
+  start_time = slash::NowMicros();
+  switch (op) {
+    case kMget:
+      s = client->Mget(keys, &values);
+      break;
+    default:
+      break;
+  }
+  if (!s.ok()) {
+    std::cout << "[ERROR]Op failed, len" << s.ToString() << std::endl;
+    return;
+  }
+  end_time = slash::NowMicros();
+  std::cout << "Success Op" << count << " items, time(us): "
+    << (end_time - start_time) << std::endl;
+
+  //for (auto& v : values) {
+  //  std::cout << v.first << "->" << v.second << std::endl;
+  //}
+  std::cout << std::endl;
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 3) {
+  if (argc != 3 && argc != 4) {
     usage();
     return -1;
   }
@@ -67,33 +106,47 @@ int main(int argc, char* argv[]) {
     std::cout << s.ToString() << std::endl;
     return -1;
   }
+  
+  int count_base = 1;
+  if (argc == 4) {
+    count_base = atoi(argv[3]);
+  }
 
-  std::cout << "--------- SET 100 10B Value ----------" << std::endl;
-  SingleOp(client, 100, 10, SingleKeyOp::kSet);
+  std::cout << "--------- SET " << 100 * count_base << " 10B Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 10, Op::kSet);
 
-  std::cout << "--------- SET 100 100B Value ----------" << std::endl;
-  SingleOp(client, 100, 100, SingleKeyOp::kSet);
+  std::cout << "--------- SET " << 100 * count_base << " 100B Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 100, Op::kSet);
 
-  std::cout << "--------- SET 10 1KB Value ----------" << std::endl;
-  SingleOp(client, 10, 1000, SingleKeyOp::kSet);
+  std::cout << "--------- SET " << 10 * count_base << " 1KB Value ----------" << std::endl;
+  SingleKeyOp(client, 10 * count_base, 1000, Op::kSet);
 
-  std::cout << "--------- GET 100 10B Value ----------" << std::endl;
-  SingleOp(client, 100, 10, SingleKeyOp::kGet);
+  std::cout << "--------- GET " << 100 * count_base << " 10B Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 10, Op::kGet);
 
-  std::cout << "--------- GET 100 100B Value ----------" << std::endl;
-  SingleOp(client, 100, 100, SingleKeyOp::kGet);
+  std::cout << "--------- GET " << 100 * count_base << " 100B Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 100, Op::kGet);
 
-  std::cout << "--------- GET 10 1KB Value ----------" << std::endl;
-  SingleOp(client, 10, 1000, SingleKeyOp::kGet);
+  std::cout << "--------- GET " << 10 * count_base << " 1KB Value ----------" << std::endl;
+  SingleKeyOp(client, 10 * count_base, 1000, Op::kGet);
+  
+  std::cout << "--------- MGET " << 100 * count_base << " 10B Value ----------" << std::endl;
+  MultiKeyOp(client, 100 * count_base, 10, Op::kMget);
 
-  std::cout << "--------- DELETE 100 10B Value ----------" << std::endl;
-  SingleOp(client, 100, 10, SingleKeyOp::kDelete);
+  std::cout << "--------- MGET " << 100 * count_base << " 100B Value ----------" << std::endl;
+  MultiKeyOp(client, 100 * count_base, 100, Op::kMget);
+  
+  std::cout << "--------- MGET " << 10 * count_base << " 1KB Value ----------" << std::endl;
+  MultiKeyOp(client, 10 * count_base, 1000, Op::kMget);
 
-  std::cout << "--------- DELETE 100 100B Value ----------" << std::endl;
-  SingleOp(client, 100, 100, SingleKeyOp::kDelete);
+  std::cout << "--------- DELETE " << 100 * count_base << " 10B Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 10, Op::kDelete);
 
-  std::cout << "--------- DELETE 10 1KB Value ----------" << std::endl;
-  SingleOp(client, 10, 1000, SingleKeyOp::kDelete);
+  std::cout << "--------- DELETE " << 100 * count_base << " 100B Value ----------" << std::endl;
+  SingleKeyOp(client, 100 * count_base, 100, Op::kDelete);
 
+  std::cout << "--------- DELETE " << 10 * count_base << " 1KB Value ----------" << std::endl;
+  SingleKeyOp(client, 10 * count_base, 1000, Op::kDelete);
+  
   delete client;
 }
