@@ -56,7 +56,12 @@ struct ServerState {
   int64_t epoch;
   std::vector<std::string> table_names;
   Node cur_meta;
-  bool meta_renewing; 
+  bool meta_renewing;
+  ServerState()
+    : epoch(-1),
+    meta_renewing(false) {
+    }
+
   ServerState(const client::CmdResponse::InfoServer& state)
     : epoch(state.epoch()),
     cur_meta(Node(state.cur_meta().ip(), state.cur_meta().port())),

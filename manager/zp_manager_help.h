@@ -71,10 +71,15 @@ CommandHelp commandHelp[] = {
     1,
     "get qps for a table"},
 
-  { "OFFSET",
+  { "REPLSTATE",
     "table ip port",
-    1,
-    "get a node's binlog offset"},
+    3,
+    "check replication state"},
+  
+  { "NODESTATE",
+    "ip port",
+    2,
+    "check node server state"},
 
   { "SPACE",
     "table",

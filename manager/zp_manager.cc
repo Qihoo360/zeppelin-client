@@ -151,20 +151,10 @@ void StartRepl(libzp::Cluster* cluster) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
-      std::string table_name = line_args[1];
-      std::string key = line_args[2];
-      const libzp::Table::Partition* partition =
-        cluster->GetPartition(table_name, key);
+      const libzp::Partition* partition =
+        cluster->GetPartition(line_args[1], line_args[2]);
       if (partition) {
-        std::cout << "partition_id: " << partition->id << std::endl;
-        std::cout << "master: " << partition->master.ip << ":"
-          << partition->master.port << std::endl;
-        auto iter = partition->slaves.begin();
-        while (iter != partition->slaves.end()) {
-          std::cout << "slave: "<< iter->ip << ":"
-            << iter->port << std::endl;
-          iter++;
-        }
+        partition->DebugDump();
       } else {
         std::cout << "doe not exist in local table" << std::endl;
       }
@@ -300,7 +290,7 @@ void StartRepl(libzp::Cluster* cluster) {
         std::cout << "qps:" << qps << std::endl;
         std::cout << "total query:" << total_query << std::endl;
 
-    } else if (!strncasecmp(line, "OFFSET", 6)) {
+    } else if (!strncasecmp(line, "REPLSTATE", 9)) {
         if (line_args.size() != 4) {
           std::cout << "arg num wrong" << std::endl;
           continue;
@@ -309,13 +299,20 @@ void StartRepl(libzp::Cluster* cluster) {
         std::string ip = line_args[2];
         int port = atoi(line_args[3].c_str());
         libzp::Node node(ip, port);
-        std::vector<std::pair<int, libzp::BinlogOffset>> partitions;
-        libzp::Status s = cluster->InfoOffset(node, table_name, &partitions);
-        for (size_t i = 0; i < partitions.size(); i++) {
-          std::cout << "partition:" << partitions[i].first << std::endl;
-          std::cout << "  filenum:" << partitions[i].second.file_num
-            << std::endl;
-          std::cout << "  offset:" << partitions[i].second.offset << std::endl;
+        std::map<int, libzp::PartitionView> partitions;
+        libzp::Status s = cluster->InfoRepl(node, table_name, &partitions);
+        for (auto& p : partitions) {
+          std::cout << "partition:" << p.first << std::endl;
+          std::cout << " -role:" << p.second.role << std::endl;
+          std::cout << " -repl_state:" << p.second.repl_state << std::endl;
+          std::cout << " -master:" << p.second.master.ip <<
+            ":" << p.second.master.port << std::endl;
+          std::cout << " -slaves:" << std::endl;
+          for (auto& s : p.second.slaves) {
+            std::cout << " --slave:" << s.ip << ":" << s.port << std::endl;
+          }
+          std::cout << " -filenum:" << p.second.file_num << std::endl;
+          std::cout << " -offset:" << p.second.offset << std::endl;
         }
 
     } else if (!strncasecmp(line, "space", 5)) {
@@ -335,6 +332,26 @@ void StartRepl(libzp::Cluster* cluster) {
          std::cout << "  remain:" << nodes[i].second.remain
            << " bytes" << std::endl;
        }
+    } else if (!strncasecmp(line, "NODESTATE", 9)) {
+       if (line_args.size() != 3) {
+         std::cout << "arg num wrong" << std::endl;
+         continue;
+       }
+       std::string ip = line_args[1];
+       int port = atoi(line_args[2].c_str());
+       libzp::Node node(ip, port);
+       libzp::ServerState state;
+       libzp::Status s = cluster->InfoServer(node, &state);
+       std::cout << "node: (" << node.ip << ":" << node.port << ")" << std::endl;
+       std::cout << " -epoch:" << state.epoch << std::endl;
+       std::cout << " -tables:" << std::endl;
+       for (auto& t : state.table_names) {
+         std::cout << " --table:" << t << std::endl;
+       }
+       std::cout << " -current_meta: " << state.cur_meta.ip
+         << ":" << state.cur_meta.port << std::endl;
+       std::cout << " -meta_renewing:" << state.meta_renewing << std::endl;
+  
     } else {
       printf("Unrecognized command: %s\n", line);
     }
