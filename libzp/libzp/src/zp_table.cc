@@ -1,28 +1,20 @@
 /*
  * "Copyright [2016] qihoo"
- * "Author <hrxwwd@163.com>"
  */
+#include "slash/include/slash_string.h"
 #include "libzp/include/zp_table.h"
 #include <iostream>
 
 namespace libzp {
 
-const int kDataConnTimeout =  20000000;
-Node::Node() {
-}
-
 Node::Node(const std::string& other_ip, int other_port) :
   ip(other_ip),
   port(other_port) {
-}
+  }
 
-Node::Node(const Node& other) :
-  ip(other.ip),
-  port(other.port) {
-}
-
-Node::~Node() {
-}
+Node::Node() :
+  port(0) {
+  }
 
 Node& Node::operator = (const Node& other) {
   ip = other.ip;
@@ -31,19 +23,31 @@ Node& Node::operator = (const Node& other) {
 }
 
 bool Node::operator < (const Node& other) const {
-  std::string my_val = ip + std::to_string(port);
-  std::string other_val = other.ip + std::to_string(other.port);
-  if (my_val < other_val) {
-    return true;
-  }
-  return false;
+  return (slash::IpPortString(ip, port) <
+    slash::IpPortString(other.ip, other.port));
 }
 
 bool Node::operator == (const Node& other) const {
-  if (ip == other.ip && port == other.port) {
-    return true;
+  return (ip == other.ip && port == other.port);
+}
+
+Partition::Partition(const ZPMeta::Partitions& partition_info)
+  : master_(partition_info.master().ip(), partition_info.master().port()),
+  id_(partition_info.id()) {
+    for (int i = 0; i < partition_info.slaves_size(); i++) {
+      slaves_.push_back(Node(partition_info.slaves(i).ip(),
+            partition_info.slaves(i).port()));
+    }
+    id_ = partition_info.id();
   }
-  return false;
+
+void Partition::DebugDump() const {
+  std::cout << " --partition: "<< id_;
+  std::cout << " --master: " << master_.ip << " : "
+    << master_.port << std::endl;
+  for (auto& s : slaves_) {
+    std::cout << " --slave: " << s.ip << " : " << s.port << std::endl;
+  }
 }
 
 Table::Table(const ZPMeta::Table& table_info) {
@@ -58,26 +62,14 @@ Table::Table(const ZPMeta::Table& table_info) {
 }
 
 Table::~Table() {
-  std::map<int, Partition*>::iterator iter = partitions_.begin();
-  while (iter != partitions_.end()) {
-    delete iter->second;
-    iter++;
+  for (auto& part : partitions_) {
+    delete part.second;
   }
 }
 
-Node Table::GetKeyMaster(const std::string& key) {
+const Partition* Table::GetPartition(const std::string& key) {
   int par_num = std::hash<std::string>()(key) % partitions_.size();
-  std::map<int, Partition*>::iterator iter = partitions_.find(par_num);
-  if (iter != partitions_.end()) {
-    return iter->second->master;
-  } else {
-    return Node();
-  }
-}
-
-const Table::Partition* Table::GetPartition(const std::string& key) {
-  int par_num = std::hash<std::string>()(key) % partitions_.size();
-  std::map<int, Partition*>::iterator iter = partitions_.find(par_num);
+  auto iter = partitions_.find(par_num);
   if (iter != partitions_.end()) {
     return iter->second;
   } else {
@@ -85,29 +77,18 @@ const Table::Partition* Table::GetPartition(const std::string& key) {
   }
 }
 
-void Table::DebugDump() {
-  std::cout << "  name: "<< table_name_ <<std::endl;
-  std::cout << "  partition: "<< partition_num_ <<std::endl;
-  auto par = partitions_.begin();
-  while (par != partitions_.end()) {
-    std::cout << "    partition: "<< par->second->id;
-    std::cout << "    master: " << par->second->master.ip
-      << " : " << par->second->master.port << std::endl;
-    par++;
+void Table::DebugDump() const {
+  std::cout << " -table name: "<< table_name_ <<std::endl;
+  std::cout << " -partition num: "<< partition_num_ <<std::endl;
+  for (auto& par : partitions_) {
+    par.second->DebugDump();
   }
 }
 
-void Table::GetNodes(std::vector<Node>* nodes) {
-  auto par = partitions_.begin();
-  while (par != partitions_.end()) {
-    nodes->push_back(par->second->master);
-    par++;
+void Table::GetAllMasters(std::set<Node>* nodes) {
+  for (auto& par : partitions_) {
+    nodes->insert(par.second->master());
   }
-  std::sort(nodes->begin(), nodes->end());
-  nodes->erase(
-      std::unique(nodes->begin(),
-        nodes->end()),
-      nodes->end());
 }
 
 }  // namespace libzp

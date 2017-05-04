@@ -9,7 +9,6 @@
 #include <string>
 #include <map>
 
-#include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/zp_table.h"
 
 namespace pink {
@@ -19,7 +18,6 @@ namespace pink {
 namespace libzp {
 
 struct ZpCli {
- public:
   explicit ZpCli(const Node& node);
   ~ZpCli();
   bool CheckTimeout();
@@ -31,7 +29,6 @@ struct ZpCli {
 
 class ConnectionPool {
  public :
-
   ConnectionPool();
 
   virtual ~ConnectionPool();

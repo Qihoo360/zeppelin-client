@@ -33,6 +33,45 @@ struct Options {
 
 struct CmdRpcArg;
 
+struct PartitionView {
+  std::string role;
+  std::string repl_state;
+  Node master;
+  std::vector<Node> slaves;
+  int32_t file_num;
+  int64_t offset;
+  PartitionView(const client::PartitionState& state)
+    : role(state.role()),
+    repl_state(state.repl_state()),
+    master(state.master().ip(), state.master().port()),
+    file_num(state.sync_offset().filenum()),
+    offset(state.sync_offset().offset()) {
+      for (auto& s : state.slaves()) {
+        slaves.push_back(Node(s.ip(), s.port()));
+      }
+  }
+};
+
+struct ServerState {
+  int64_t epoch;
+  std::vector<std::string> table_names;
+  Node cur_meta;
+  bool meta_renewing; 
+  ServerState(const client::CmdResponse::InfoServer& state)
+    : epoch(state.epoch()),
+    cur_meta(Node(state.cur_meta().ip(), state.cur_meta().port())),
+    meta_renewing(state.meta_renewing()) {
+      for (auto& s : state.table_names()) {
+        table_names.push_back(s);
+      }
+    }
+};
+
+struct SpaceInfo {
+  int64_t used;
+  int64_t remain;
+};
+
 class Cluster {
 public:
   explicit Cluster(const Options& options);
@@ -68,14 +107,15 @@ public:
       std::vector<std::string>* status);
 
   Status InfoQps(const std::string& table, int* qps, int* total_query);
-  Status InfoOffset(const Node& node, const std::string& table,
-      std::vector<std::pair<int, BinlogOffset> >* partitions);
+  Status InfoRepl(const Node& node, const std::string& table,
+      std::map<int, PartitionView>* partitions);
   Status InfoSpace(const std::string& table,
       std::vector<std::pair<Node, SpaceInfo> >* nodes);
+  Status InfoServer(const Node& node, ServerState* state);
 
   // local cmd
   Status DebugDumpTable(const std::string& table);
-  const Table::Partition* GetPartition(const std::string& table,
+  const Partition* GetPartition(const std::string& table,
       const std::string& key);
 
  private:
@@ -113,29 +153,6 @@ public:
   client::CmdRequest data_cmd_;
   client::CmdResponse data_res_;
 };
-
-class Client {
- public :
-
-  explicit Client(const std::string& ip, const int port,
-      const std::string& table);
-  virtual ~Client();
-  Status Connect();
-
-  // data cmd
-  Status Set(const std::string& key, const std::string& value,
-      int32_t ttl = -1);
-  Status Get(const std::string& key, std::string* value);
-  Status Mget(const std::vector<std::string>& keys,
-      std::map<std::string, std::string>* values);
-  Status Delete(const std::string& key);
-
-
- private :
-  Cluster* cluster_;
-  const std::string table_;
-};
-
 
 } // namespace libzp
 
