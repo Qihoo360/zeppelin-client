@@ -10,6 +10,7 @@
 #include "slash/include/slash_string.h"
 #include "pink/include/bg_thread.h"
 #include "pink/include/pink_cli.h"
+#include "libzp/src/zp_conn.h"
 
 namespace libzp {
 
@@ -601,24 +602,27 @@ Status Cluster::SubmitMetaCmd(int attempt) {
   return s;
 }
 
-Status Cluster::DebugDumpTable(const std::string& table) {
+Status Cluster::DebugDumpPartition(const std::string& table,
+    int partition_id) const {
   auto it = tables_.find(table);
   if (it == tables_.end()) {
     return Status::NotFound("don't have this table's info");
   }
-  it->second->DebugDump();
+  it->second->DebugDump(partition_id);
   return Status::OK();
 }
 
-
-const Partition* Cluster::GetPartition(const std::string& table,
-    const std::string& key) {
+int Cluster::LocateKey(const std::string& table,
+    const std::string& key) const {
   auto it = tables_.find(table);
   if (it == tables_.end()) {
-    return NULL;
+    return -1;
   }
-
-  return it->second->GetPartition(key);
+  const Partition* part = it->second->GetPartition(key);
+  if (!part) {
+    return -1;
+  }
+  return part->id();
 }
 
 static int RandomIndex(int floor, int ceil) {

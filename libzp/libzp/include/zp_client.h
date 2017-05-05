@@ -1,6 +1,5 @@
 /*
  * "Copyright [2016] qihoo"
- * "Author <hrxwwd@163.com>"
  */
 #ifndef CLIENT_INCLUDE_ZP_CLIENT_H_
 #define CLIENT_INCLUDE_ZP_CLIENT_H_

@@ -31,6 +31,9 @@ public:
   Node master() const {
     return master_;
   }
+  int id() const {
+    return id_;
+  }
 
 private:
   std::vector<Node> slaves_;
@@ -43,9 +46,9 @@ class Table {
   explicit Table(const ZPMeta::Table& table_info);
   virtual ~Table();
 
-  const Partition* GetPartition(const std::string& key);
-  void GetAllMasters(std::set<Node>* nodes);
-  void DebugDump() const;
+  const Partition* GetPartition(const std::string& key) const;
+  void GetAllMasters(std::set<Node>* nodes) const;
+  void DebugDump(int partition_id) const;
 
  private:
   std::string table_name_;

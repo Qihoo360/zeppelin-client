@@ -1,6 +1,5 @@
 /*
  * "Copyright [2016] qihoo"
- * "Author <hrxwwd@163.com>"
  */
 #include <string>
 #include <vector>
@@ -136,7 +135,7 @@ void StartRepl(libzp::Cluster* cluster) {
       s = cluster->Pull(table_name);
       std::cout << s.ToString() << std::endl;
       std::cout << "current table info:" << std::endl;
-      cluster->DebugDumpTable(table_name);
+      cluster->DebugDumpPartition(table_name);
 
     } else if (!strncasecmp(line, "DUMP ", 5)) {
       if (line_args.size() != 2) {
@@ -144,17 +143,16 @@ void StartRepl(libzp::Cluster* cluster) {
         continue;
       }
       std::string table_name = line_args[1];
-      cluster->DebugDumpTable(table_name);
+      cluster->DebugDumpPartition(table_name);
 
     } else if (!strncasecmp(line, "LOCATE ", 5)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
-      const libzp::Partition* partition =
-        cluster->GetPartition(line_args[1], line_args[2]);
-      if (partition) {
-        partition->DebugDump();
+      int partition_id = cluster->LocateKey(line_args[1], line_args[2]);
+      if (partition_id >= 0) {
+        cluster->DebugDumpPartition(line_args[1], partition_id);
       } else {
         std::cout << "doe not exist in local table" << std::endl;
       }
@@ -309,7 +307,7 @@ void StartRepl(libzp::Cluster* cluster) {
             ":" << p.second.master.port << std::endl;
           std::cout << " -slaves:" << std::endl;
           for (auto& s : p.second.slaves) {
-            std::cout << " --slave:" << s.ip << ":" << s.port << std::endl;
+            std::cout << "  -slave:" << s.ip << ":" << s.port << std::endl;
           }
           std::cout << " -filenum:" << p.second.file_num << std::endl;
           std::cout << " -offset:" << p.second.offset << std::endl;
@@ -346,11 +344,12 @@ void StartRepl(libzp::Cluster* cluster) {
        std::cout << " -epoch:" << state.epoch << std::endl;
        std::cout << " -tables:" << std::endl;
        for (auto& t : state.table_names) {
-         std::cout << " --table:" << t << std::endl;
+         std::cout << "  -table:" << t << std::endl;
        }
        std::cout << " -current_meta: " << state.cur_meta.ip
          << ":" << state.cur_meta.port << std::endl;
-       std::cout << " -meta_renewing:" << state.meta_renewing << std::endl;
+       std::cout << " -meta_renewing:"
+         << (state.meta_renewing ? "true" : "false") << std::endl;
   
     } else {
       printf("Unrecognized command: %s\n", line);

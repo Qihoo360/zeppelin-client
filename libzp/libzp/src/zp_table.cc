@@ -42,11 +42,11 @@ Partition::Partition(const ZPMeta::Partitions& partition_info)
   }
 
 void Partition::DebugDump() const {
-  std::cout << " --partition: "<< id_;
-  std::cout << " --master: " << master_.ip << " : "
+  std::cout << "  -partition: "<< id_ << std::endl;
+  std::cout << "   -master: " << master_.ip << " : "
     << master_.port << std::endl;
   for (auto& s : slaves_) {
-    std::cout << " --slave: " << s.ip << " : " << s.port << std::endl;
+    std::cout << "   -slave: " << s.ip << " : " << s.port << std::endl;
   }
 }
 
@@ -67,7 +67,7 @@ Table::~Table() {
   }
 }
 
-const Partition* Table::GetPartition(const std::string& key) {
+const Partition* Table::GetPartition(const std::string& key) const {
   int par_num = std::hash<std::string>()(key) % partitions_.size();
   auto iter = partitions_.find(par_num);
   if (iter != partitions_.end()) {
@@ -77,15 +77,26 @@ const Partition* Table::GetPartition(const std::string& key) {
   }
 }
 
-void Table::DebugDump() const {
+void Table::DebugDump(int partition_id) const {
   std::cout << " -table name: "<< table_name_ <<std::endl;
   std::cout << " -partition num: "<< partition_num_ <<std::endl;
+  if (partition_id != -1) {
+    auto iter = partitions_.find(partition_id);
+    if (iter != partitions_.end()) {
+      iter->second->DebugDump();
+    } else {
+      std::cout << " -partition: "<< partition_id << ", not exist" <<std::endl;
+    }
+    return;
+  }
+
+  // Dump all
   for (auto& par : partitions_) {
     par.second->DebugDump();
   }
 }
 
-void Table::GetAllMasters(std::set<Node>* nodes) {
+void Table::GetAllMasters(std::set<Node>* nodes) const {
   for (auto& par : partitions_) {
     nodes->insert(par.second->master());
   }

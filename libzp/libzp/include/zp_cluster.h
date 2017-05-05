@@ -1,6 +1,5 @@
 /*
  * "Copyright [2016] qihoo"
- * "Author <hrxwwd@163.com>"
  */
 #ifndef CLIENT_INCLUDE_ZP_CLUSTER_H_
 #define CLIENT_INCLUDE_ZP_CLUSTER_H_
@@ -10,12 +9,10 @@
 #include <vector>
 #include <unordered_map>
 
-#include "slash/include/slash_status.h"
-
-#include "libzp/include/zp_table.h"
-#include "libzp/include/zp_conn.h"
 #include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/client.pb.h"
+#include "slash/include/slash_status.h"
+#include "libzp/include/zp_table.h"
 
 namespace pink {
   class BGThread;
@@ -24,6 +21,9 @@ namespace pink {
 namespace libzp {
 
 using slash::Status;
+
+class ZpCli;
+class ConnectionPool;
 
 struct Options {
   std::vector<Node> meta_addr;
@@ -82,7 +82,6 @@ public:
   explicit Cluster(const Options& options);
   Cluster(const std::string& ip, int port);
   virtual ~Cluster();
-
   Status Connect();
 
   // data cmd
@@ -112,16 +111,15 @@ public:
       std::vector<std::string>* status);
 
   Status InfoQps(const std::string& table, int* qps, int* total_query);
-  Status InfoRepl(const Node& node, const std::string& table,
-      std::map<int, PartitionView>* partitions);
+  Status InfoRepl(const Node& node,
+      const std::string& table, std::map<int, PartitionView>* partitions);
   Status InfoSpace(const std::string& table,
       std::vector<std::pair<Node, SpaceInfo> >* nodes);
   Status InfoServer(const Node& node, ServerState* state);
 
   // local cmd
-  Status DebugDumpTable(const std::string& table);
-  const Partition* GetPartition(const std::string& table,
-      const std::string& key);
+  Status DebugDumpPartition(const std::string& table, int partition_id = -1) const;
+  int LocateKey(const std::string& table, const std::string& key) const;
 
  private:
   static void DoSubmitDataCmd(void* arg);
