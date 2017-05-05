@@ -20,7 +20,7 @@ ifndef PINK_PATH
 PINK_PATH = $(realpath ../third/pink)
 endif
 
-OBJECT = zp_parade zp_benchmark
+OBJECT = zp_parade zp_benchmark zp_expansion
 SRC_DIR = ./
 OUTPUT = ./output
 
@@ -58,6 +58,9 @@ zp_parade: $(ZP) $(PINK) $(SLASH) zp_parade.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 zp_benchmark: $(ZP) $(PINK) $(SLASH) zp_benchmark.cc
+	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+
+zp_expansion: $(ZP) $(PINK) $(SLASH) zp_expansion.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 $(ZP):

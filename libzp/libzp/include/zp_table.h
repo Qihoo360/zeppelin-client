@@ -22,6 +22,11 @@ struct Node {
   Node& operator = (const Node& other);
   bool operator < (const Node& other) const;
   bool operator == (const Node& other) const;
+
+  friend std::ostream& operator<< (std::ostream& stream, const Node& node) {
+    stream << node.ip << ":" << node.port;
+    return stream;
+  }
 };
 
 class Partition {
@@ -34,26 +39,36 @@ public:
   int id() const {
     return id_;
   }
+  std::vector<Node> slaves() const {
+    return slaves_;
+  } 
 
 private:
   std::vector<Node> slaves_;
   Node master_;
   int id_;
+  bool active_;
 };
 
 class Table {
  public:
+  Table();
   explicit Table(const ZPMeta::Table& table_info);
   virtual ~Table();
+  int partition_num() {
+    return partition_num_;
+  }
 
   const Partition* GetPartition(const std::string& key) const;
+  const Partition* GetPartitionById(int id) const;
   void GetAllMasters(std::set<Node>* nodes) const;
-  void DebugDump(int partition_id) const;
+  void GetAllNodes(std::set<Node>* nodes) const;
+  void DebugDump(int partition_id = -1) const;
 
  private:
   std::string table_name_;
   int partition_num_;
-  std::map<int, Partition*> partitions_;
+  std::map<int, Partition> partitions_;
 };
 
 }  // namespace libzp

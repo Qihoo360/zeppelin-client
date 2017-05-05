@@ -5,7 +5,7 @@
 
 #include "slash/include/env.h"
 #include "slash/include/slash_status.h"
-#include "libzp/include/zp_cluster.h"
+#include "libzp/include/zp_client.h"
 
 
 void usage() {

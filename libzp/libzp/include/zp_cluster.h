@@ -97,6 +97,7 @@ public:
   Status CreateTable(const std::string& table_name, int partition_num);
   Status DropTable(const std::string& table_name);
   Status Pull(const std::string& table);
+  Status FetchMetaInfo(const std::string& table, Table* table_meta);
   Status SetMaster(const std::string& table, const int partition,
       const Node& ip_port);
   Status AddSlave(const std::string& table, const int partition,

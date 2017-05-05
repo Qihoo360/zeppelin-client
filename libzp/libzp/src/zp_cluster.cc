@@ -293,6 +293,18 @@ Status Cluster::Pull(const std::string& table) {
   return Status::OK();
 }
 
+Status Cluster::FetchMetaInfo(const std::string& table, Table* table_meta) {
+  slash::Status s = Pull(table);
+  if (!s.ok()) {
+    return s;
+  }
+  if (tables_.find(table) == tables_.end()) {
+    return Status::NotFound("table not found");
+  }
+  *table_meta = *(tables_[table]);
+  return Status::OK();
+}
+
 Status Cluster::SetMaster(const std::string& table_name,
     const int partition_num, const Node& ip_port) {
   meta_cmd_.Clear();

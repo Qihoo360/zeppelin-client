@@ -39,10 +39,12 @@ Partition::Partition(const ZPMeta::Partitions& partition_info)
             partition_info.slaves(i).port()));
     }
     id_ = partition_info.id();
+    active_ = (partition_info.state() == ZPMeta::PState::ACTIVE);
   }
 
 void Partition::DebugDump() const {
   std::cout << "  -partition: "<< id_ << std::endl;
+  std::cout << "   -active: " << (active_ ? "true" : "false") << std::endl;
   std::cout << "   -master: " << master_.ip << " : "
     << master_.port << std::endl;
   for (auto& s : slaves_) {
@@ -50,28 +52,34 @@ void Partition::DebugDump() const {
   }
 }
 
+Table::Table()
+  : partition_num_(0) {
+  
+  }
+
 Table::Table(const ZPMeta::Table& table_info) {
   table_name_ = table_info.name();
   partition_num_ = table_info.partitions_size();
   ZPMeta::Partitions partition_info;
   for (int i = 0; i < table_info.partitions_size(); i++) {
     partition_info = table_info.partitions(i);
-    Partition* par = new Partition(partition_info);
-    partitions_.insert(std::make_pair(partition_info.id(), par));
+    partitions_.insert(std::make_pair(partition_info.id(),
+           Partition(partition_info)));
   }
 }
 
 Table::~Table() {
-  for (auto& part : partitions_) {
-    delete part.second;
-  }
 }
 
 const Partition* Table::GetPartition(const std::string& key) const {
   int par_num = std::hash<std::string>()(key) % partitions_.size();
+  return GetPartitionById(par_num);
+}
+
+const Partition* Table::GetPartitionById(int par_num) const {
   auto iter = partitions_.find(par_num);
   if (iter != partitions_.end()) {
-    return iter->second;
+    return &(iter->second);
   } else {
     return NULL;
   }
@@ -83,7 +91,7 @@ void Table::DebugDump(int partition_id) const {
   if (partition_id != -1) {
     auto iter = partitions_.find(partition_id);
     if (iter != partitions_.end()) {
-      iter->second->DebugDump();
+      iter->second.DebugDump();
     } else {
       std::cout << " -partition: "<< partition_id << ", not exist" <<std::endl;
     }
@@ -92,14 +100,24 @@ void Table::DebugDump(int partition_id) const {
 
   // Dump all
   for (auto& par : partitions_) {
-    par.second->DebugDump();
+    par.second.DebugDump();
   }
 }
 
 void Table::GetAllMasters(std::set<Node>* nodes) const {
   for (auto& par : partitions_) {
-    nodes->insert(par.second->master());
+    nodes->insert(par.second.master());
   }
 }
+
+void Table::GetAllNodes(std::set<Node>* nodes) const {
+  for (auto& par : partitions_) {
+    nodes->insert(par.second.master());
+    for (auto& s : par.second.slaves()) {
+      nodes->insert(s);
+    }
+  }
+}
+
 
 }  // namespace libzp
