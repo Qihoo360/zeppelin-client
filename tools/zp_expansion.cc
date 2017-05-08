@@ -33,8 +33,8 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<libzp::Node> target_nodes;
-  for (int i = 5; i < argc; ++i) {
-    target_nodes.push_back(libzp::Node(argv[4], atoi(argv[i])));
+  for (int i = 6; i < argc; ++i) {
+    target_nodes.push_back(libzp::Node(argv[5], atoi(argv[i])));
   }
   if (target_nodes.empty()) {
     error("No target node");
@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
       s = cluster->AddSlave(table, i, target_nodes[ti]);
       std::cout << (s.ok() ? "Success" : "Failed")
         << " to add slave(" << target_nodes[ti] << ") into table:" << table
-        << ", partition:" << i << " " << (s.ok() ? "" : s.ToString());
+        << ", partition:" << i << " " << (s.ok() ? "" : s.ToString()) << std::endl;
       ti = (ti + 1) % target_nodes.size();
     }
     std::cout << "Finish ADD nodes into cluster" << std::endl;
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
           slave_num--;
           std::cout << (s.ok() ? "Success" : "Failed")
             << " to remove slave(" << *iter << ") from table:"<< table
-            << ", partition:" << i << " " << (s.ok() ? "" : s.ToString());
+            << ", partition:" << i << " " << (s.ok() ? "" : s.ToString()) << std::endl;
         }
       }
     }
