@@ -350,9 +350,9 @@ void StartRepl(libzp::Cluster* cluster) {
          << ":" << state.cur_meta.port << std::endl;
        std::cout << " -meta_renewing:"
          << (state.meta_renewing ? "true" : "false") << std::endl;
-  
     } else if (!strncasecmp(line, "EXIT", 4)) {
        // Exit manager
+       free(line);
        break;
     } else {
       printf("Unrecognized command: %s\n", line);
