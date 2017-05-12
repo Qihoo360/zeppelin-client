@@ -313,7 +313,7 @@ void StartRepl(libzp::Cluster* cluster) {
           std::cout << " -offset:" << p.second.offset << std::endl;
         }
 
-    } else if (!strncasecmp(line, "space", 5)) {
+    } else if (!strncasecmp(line, "SPACE", 5)) {
        if (line_args.size() != 2) {
          std::cout << "arg num wrong" << std::endl;
          continue;
@@ -351,6 +351,9 @@ void StartRepl(libzp::Cluster* cluster) {
        std::cout << " -meta_renewing:"
          << (state.meta_renewing ? "true" : "false") << std::endl;
   
+    } else if (!strncasecmp(line, "EXIT", 4)) {
+       // Exit manager
+       break;
     } else {
       printf("Unrecognized command: %s\n", line);
     }
