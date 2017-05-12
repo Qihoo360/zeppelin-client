@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "libzp/include/zp_cluster.h"
+#include "libzp/include/zp_client.h"
 
 
 void usage() {

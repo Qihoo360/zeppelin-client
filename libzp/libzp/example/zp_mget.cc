@@ -6,7 +6,7 @@
 #include <iostream>
 #include <algorithm>
 
-#include "libzp/include/zp_cluster.h"
+#include "libzp/include/zp_client.h"
 
 
 void usage() {
@@ -48,13 +48,29 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  std::cout << "Mget begin ------------------------------------" << std::endl;
+  std::cout << "Mget all keys exist begin ------------------------------------" << std::endl;
   std::map<std::string, std::string> kvs;
   s = client->Mget(keys, &kvs);
+  std::cout << "Result :" << s.ToString() << std::endl;
   for (auto& kv : kvs) {
     std::cout << " - " << kv.first << " -> " << kv.second.substr(0, 100) << std::endl;
   }
-  std::cout << "Mget end ------------------------------------" << std::endl;
+  std::cout << "Mget all keys exist end ------------------------------------" << std::endl;
+  
+  std::cout << "Mget some keys not exist begin ------------------------------------" << std::endl;
+  kvs.clear();
+  keys.push_back("not_exist");
+  keys.push_back("not_exist1");
+  s = client->Mget(keys, &kvs);
+  std::cout << "Result :" << s.ToString() << std::endl;
+  for (auto& kv : kvs) {
+    if (kv.second.empty()) {
+      std::cout << " - " << kv.first << " -> [emtpy] " << std::endl;
+    } else {
+      std::cout << " - " << kv.first << " -> " << kv.second.substr(0, 100) << std::endl;
+    }
+  }
+  std::cout << "Mget some keys not exist end ------------------------------------" << std::endl;
 
   // Mget
   delete client;
