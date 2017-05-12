@@ -1,8 +1,8 @@
 /*
  * "Copyright [2016] qihoo"
  */
-#ifndef CLIENT_INCLUDE_ZP_TABLE_H_
-#define CLIENT_INCLUDE_ZP_TABLE_H_
+#ifndef CLIENT_INCLUDE_ZP_ENTITY_H_
+#define CLIENT_INCLUDE_ZP_ENTITY_H_
 
 #include <string>
 #include <map>
@@ -71,5 +71,49 @@ class Table {
   std::map<int, Partition> partitions_;
 };
 
+struct PartitionView {
+  std::string role;
+  std::string repl_state;
+  Node master;
+  std::vector<Node> slaves;
+  int32_t file_num;
+  int64_t offset;
+  PartitionView(const client::PartitionState& state)
+    : role(state.role()),
+    repl_state(state.repl_state()),
+    master(state.master().ip(), state.master().port()),
+    file_num(state.sync_offset().filenum()),
+    offset(state.sync_offset().offset()) {
+      for (auto& s : state.slaves()) {
+        slaves.push_back(Node(s.ip(), s.port()));
+      }
+  }
+};
+
+struct ServerState {
+  int64_t epoch;
+  std::vector<std::string> table_names;
+  Node cur_meta;
+  bool meta_renewing;
+  ServerState()
+    : epoch(-1),
+    meta_renewing(false) {
+    }
+
+  ServerState(const client::CmdResponse::InfoServer& state)
+    : epoch(state.epoch()),
+    cur_meta(Node(state.cur_meta().ip(), state.cur_meta().port())),
+    meta_renewing(state.meta_renewing()) {
+      for (auto& s : state.table_names()) {
+        table_names.push_back(s);
+      }
+    }
+};
+
+struct SpaceInfo {
+  int64_t used;
+  int64_t remain;
+};
+
 }  // namespace libzp
-#endif  // CLIENT_INCLUDE_ZP_TABLE_H_
+#endif  // CLIENT_INCLUDE_ZP_ENTITY_H_

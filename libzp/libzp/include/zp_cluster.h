@@ -12,7 +12,7 @@
 #include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/client.pb.h"
 #include "slash/include/slash_status.h"
-#include "libzp/include/zp_table.h"
+#include "libzp/include/zp_entity.h"
 
 namespace pink {
   class BGThread;
@@ -24,6 +24,7 @@ using slash::Status;
 
 class ZpCli;
 class ConnectionPool;
+struct CmdContext;
 
 struct Options {
   std::vector<Node> meta_addr;
@@ -31,51 +32,23 @@ struct Options {
   }
 };
 
-struct CmdRpcArg;
+struct Result {
+  Status ret;
+  std::string* value;
+  std::map<std::string key, std::string value>* kvs;
 
-struct PartitionView {
-  std::string role;
-  std::string repl_state;
-  Node master;
-  std::vector<Node> slaves;
-  int32_t file_num;
-  int64_t offset;
-  PartitionView(const client::PartitionState& state)
-    : role(state.role()),
-    repl_state(state.repl_state()),
-    master(state.master().ip(), state.master().port()),
-    file_num(state.sync_offset().filenum()),
-    offset(state.sync_offset().offset()) {
-      for (auto& s : state.slaves()) {
-        slaves.push_back(Node(s.ip(), s.port()));
-      }
-  }
+  Result(Status r)
+    : ret(r), value(NULL), kvs(NULL) {}
+
+  Result(Status r, const std::string* v)
+    : ret(r), value(v), kvs(NULL) {}
+  
+  Result(Status r, const std::map<std::string key, std::string value>* vs)
+    : ret(r), value(NULL), kvs(vs) {}
 };
 
-struct ServerState {
-  int64_t epoch;
-  std::vector<std::string> table_names;
-  Node cur_meta;
-  bool meta_renewing;
-  ServerState()
-    : epoch(-1),
-    meta_renewing(false) {
-    }
-
-  ServerState(const client::CmdResponse::InfoServer& state)
-    : epoch(state.epoch()),
-    cur_meta(Node(state.cur_meta().ip(), state.cur_meta().port())),
-    meta_renewing(state.meta_renewing()) {
-      for (auto& s : state.table_names()) {
-        table_names.push_back(s);
-      }
-    }
-};
-
-struct SpaceInfo {
-  int64_t used;
-  int64_t remain;
-};
+typedef void (*zp_completion_t)(const struct Result stat,
+    const void* data);
 
 class Cluster {
 public:
@@ -87,11 +60,22 @@ public:
   // data cmd
   Status Set(const std::string& table, const std::string& key,
       const std::string& value, int32_t ttl = -1);
+  Status Delete(const std::string& table, const std::string& key);
   Status Get(const std::string& table, const std::string& key,
       std::string* value);
-  Status Delete(const std::string& table, const std::string& key);
   Status Mget(const std::string& table, const std::vector<std::string>& keys,
       std::map<std::string, std::string>* values);
+
+  // async data cmd
+  Status Aset(const std::string& table, const std::string& key,
+      const std::string& value, int32_t ttl = -1,
+      zp_completion_t complietion, void* data);
+  Status Adelete(const std::string& table, const std::string& key,
+      zp_completion_t complietion, void* data);
+  Status Aget(const std::string& table, const std::string& key,
+      zp_completion_t complietion, void* data);
+  Status Amget(const std::string& table, const std::vector<std::string>& keys,
+      zp_completion_t complietion, void* data);
 
   // meta cmd
   Status CreateTable(const std::string& table_name, int partition_num);
@@ -124,14 +108,14 @@ public:
 
  private:
   static void DoSubmitDataCmd(void* arg);
-  void DistributeDataRpc(
-      const std::map<Node, CmdRpcArg*>& key_distribute);
+  void DispatchDataRpc(
+      const std::map<Node, CmdContext*>& key_distribute);
   
   ZpCli* GetMetaConnection();
   Status TryGetDataMaster(const std::string& table,
       const std::string& key, Node* master);
-  Status GetDataMaster(const std::string& table,
-      const std::string& key, Node* master, bool has_pull= false);
+  //Status GetDataMaster(const std::string& table,
+  //    const std::string& key, Node* master, bool has_pull= false);
 
   Status SubmitDataCmd(const std::string& table, const std::string& key,
       client::CmdRequest& req, client::CmdResponse *res, bool has_pull = false);
@@ -145,7 +129,10 @@ public:
   int64_t epoch_;
   std::vector<Node> meta_addr_;
   std::unordered_map<std::string, Table*> tables_;
-  std::map<Node, pink::BGThread*> cmd_workers_;
+
+  // BG worker
+  std::map<Node, pink::BGThread*> peer_workers_;
+  pink::BGThread* async_worker_;
 
   // connection pool
   ConnectionPool* meta_pool_;
@@ -154,8 +141,7 @@ public:
   // Pb command for communication
   ZPMeta::MetaCmd meta_cmd_;
   ZPMeta::MetaCmdResponse meta_res_;
-  client::CmdRequest data_cmd_;
-  client::CmdResponse data_res_;
+  CmdContext* context_;
 };
 
 } // namespace libzp

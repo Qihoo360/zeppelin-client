@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 
+#include "slash/include/slash_mutex.h"
 #include "libzp/include/zp_table.h"
 
 namespace pink {
@@ -23,6 +24,7 @@ struct ZpCli {
 
   Node node;
   pink::PinkCli* cli;
+  slash::Mutex cli_mu;
   uint64_t lastchecktime;
 };
 
