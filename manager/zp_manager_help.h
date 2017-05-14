@@ -94,7 +94,12 @@ CommandHelp commandHelp[] = {
   { "LOCATE",
     "table key",
     2,
-    "locate a key, find corresponding nodes"}
+    "locate a key, find corresponding nodes"},
+
+  { "EXIT",
+    "",
+    0,
+    "exit the zp_manager"}
 };
 
 #endif
