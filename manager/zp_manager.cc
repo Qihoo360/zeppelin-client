@@ -168,7 +168,12 @@ void StartRepl(libzp::Cluster* cluster) {
       std::string value = line_args[3];
       int ttl = -1;
       if (line_args.size() == 5) {
-        ttl = atoi(line_args[4].c_str());
+        char * end;
+        int ttl = std::strtol(line_args[4].c_str(), &end, 10);
+        if (*end != 0) {
+          std::cout << "ttl must be a integer" << std::endl;
+          continue;
+        }
       }
       s = cluster->Set(table_name, key, value, ttl);
       std::cout << s.ToString() << std::endl;
