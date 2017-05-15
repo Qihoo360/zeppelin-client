@@ -1,6 +1,5 @@
 #include <Python.h>
-#include "libzp/include/zp_cluster.h"
-
+#include "libzp/include/zp_client.h"
 
 static void zeppelin_free(void *ptr)
 {

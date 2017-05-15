@@ -1,6 +1,8 @@
 /*
  * "Copyright [2016] qihoo"
  */
+#include <unistd.h>
+
 #include <string>
 #include <vector>
 #include <iostream>
@@ -22,7 +24,7 @@ int main(int argc, char* argv[]) {
 
   // client handle io operation
   std::cout << "create client" << std::endl;
-  libzp::Client* client = new libzp::Client(argv[1], atoi(argv[2]), "test");
+  libzp::Client* client = new libzp::Client(argv[1], atoi(argv[2]), "parade");
   std::cout << "connect cluster" << std::endl;
   int cnt = atoi(argv[3]);
   // needs connect to cluster first
@@ -48,15 +50,25 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  std::cout << "Mget all keys exist begin ------------------------------------" << std::endl;
   std::map<std::string, std::string> kvs;
+  std::cout << "Mget all keys exist begin ------------------------------------" << std::endl;
   s = client->Mget(keys, &kvs);
   std::cout << "Result :" << s.ToString() << std::endl;
   for (auto& kv : kvs) {
     std::cout << " - " << kv.first << " -> " << kv.second.substr(0, 100) << std::endl;
   }
   std::cout << "Mget all keys exist end ------------------------------------" << std::endl;
+  sleep(60);
   
+  std::cout << "Mget all keys exist begin ------------------------------------" << std::endl;
+  s = client->Mget(keys, &kvs);
+  std::cout << "Result :" << s.ToString() << std::endl;
+  for (auto& kv : kvs) {
+    std::cout << " - " << kv.first << " -> " << kv.second.substr(0, 100) << std::endl;
+  }
+  std::cout << "Mget all keys exist end ------------------------------------" << std::endl;
+  sleep(60);
+
   std::cout << "Mget some keys not exist begin ------------------------------------" << std::endl;
   kvs.clear();
   keys.push_back("not_exist");

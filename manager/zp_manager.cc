@@ -168,7 +168,12 @@ void StartRepl(libzp::Cluster* cluster) {
       std::string value = line_args[3];
       int ttl = -1;
       if (line_args.size() == 5) {
-        ttl = atoi(line_args[4].c_str());
+        char * end;
+        int ttl = std::strtol(line_args[4].c_str(), &end, 10);
+        if (*end != 0) {
+          std::cout << "ttl must be a integer" << std::endl;
+          continue;
+        }
       }
       s = cluster->Set(table_name, key, value, ttl);
       std::cout << s.ToString() << std::endl;
@@ -283,7 +288,7 @@ void StartRepl(libzp::Cluster* cluster) {
           continue;
         }
         std::string table_name = line_args[1];
-        int qps, total_query;
+        int qps = 0, total_query = 0;
         s = cluster->InfoQps(table_name, &qps, &total_query);
         std::cout << "qps:" << qps << std::endl;
         std::cout << "total query:" << total_query << std::endl;
@@ -313,7 +318,7 @@ void StartRepl(libzp::Cluster* cluster) {
           std::cout << " -offset:" << p.second.offset << std::endl;
         }
 
-    } else if (!strncasecmp(line, "space", 5)) {
+    } else if (!strncasecmp(line, "SPACE", 5)) {
        if (line_args.size() != 2) {
          std::cout << "arg num wrong" << std::endl;
          continue;
@@ -350,7 +355,10 @@ void StartRepl(libzp::Cluster* cluster) {
          << ":" << state.cur_meta.port << std::endl;
        std::cout << " -meta_renewing:"
          << (state.meta_renewing ? "true" : "false") << std::endl;
-  
+    } else if (!strncasecmp(line, "EXIT", 4)) {
+       // Exit manager
+       free(line);
+       break;
     } else {
       printf("Unrecognized command: %s\n", line);
     }
