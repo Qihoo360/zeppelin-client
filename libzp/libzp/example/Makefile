@@ -25,17 +25,11 @@ PINK_PATH = $(realpath ../../../third/pink)
 endif
 
 ZP = $(ZP_PATH)/libzp/lib/libzp.a
-PINK = $(PINK_PATH)/pink/lib/libpink.a
-SLASH = $(SLASH_PATH)/slash/lib/libslash.a
 
-LIB_PATH = -L$(ZP_PATH)/libzp/lib/ \
-		   -L$(SLASH_PATH)/slash/lib/ \
-		   -L$(PINK_PATH)/pink/lib/
+LIB_PATH = -L$(ZP_PATH)/libzp/lib/
 
 LIBS = -lzp \
 			 -lprotobuf \
-			 -lpink \
-			 -lslash \
 			 -lpthread
 
 INCLUDE_PATH = -I$(ZP_PATH) \
@@ -52,20 +46,14 @@ all: $(OBJECT)
 	rm -rf $(OBJECT)
 	@echo "Success, go, go, go..."
 
-zp_mget: $(ZP) $(PINK) $(SLASH) zp_mget.cc
+zp_mget: $(ZP) zp_mget.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
-zp_create_table: $(ZP) $(PINK) $(SLASH) zp_create_table.cc
+zp_create_table: $(ZP) zp_create_table.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 $(ZP):
-	make -C $(ZP_PATH)/libzp/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
-
-$(SLASH):
-	make -C $(SLASH_PATH)/slash/ __PERF=$(__PERF)
-
-$(PINK):
-	make -C $(PINK_PATH)/pink/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH)
+	make -C __COMBINE=1 $(ZP_PATH)/libzp/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
 clean: 
 	rm -rf $(OUTPUT)
