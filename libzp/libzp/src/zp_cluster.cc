@@ -266,7 +266,7 @@ Status Cluster::DropTable(const std::string& table_name) {
 
 // TODO(all) pull meta_info from data
 Status Cluster::Connect() {
-  ZpCli* meta_cli = GetMetaConnection();
+  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection();
   if (meta_cli == NULL) {
     return Status::IOError("can't connect meta server");
   }
@@ -576,15 +576,20 @@ Status Cluster::SubmitDataCmd(const std::string& table, const std::string& key,
 Status Cluster::TryDataRpc(const Node& master,
     client::CmdRequest& req, client::CmdResponse *res,
     int attempt) {
-  ZpCli* data_cli = data_pool_->GetConnection(master);
+  Status s;
+  std::shared_ptr<ZpCli> data_cli = data_pool_->GetConnection(master);
   if (!data_cli) {
     return Status::Corruption("Failed to get data cli");
   }
 
-  Status s = data_cli->cli->Send(&req);
-  if (s.ok()) {
-    s = data_cli->cli->Recv(res);
+  {
+    slash::MutexLock l(&data_cli->cli_mu);
+    s = data_cli->cli->Send(&req);
+    if (s.ok()) {
+      s = data_cli->cli->Recv(res);
+    }
   }
+
   if (!s.ok()) {
     data_pool_->RemoveConnection(data_cli);
     if (attempt <= kDataAttempt) {
@@ -595,15 +600,20 @@ Status Cluster::TryDataRpc(const Node& master,
 }
 
 Status Cluster::SubmitMetaCmd(int attempt) {
-  ZpCli* meta_cli = GetMetaConnection();
+  Status s;
+  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection();
   if (!meta_cli) {
     return Status::IOError("Failed to get meta cli");
   }
 
-  Status s = meta_cli->cli->Send(&meta_cmd_);
-  if (s.ok()) {
-    s = meta_cli->cli->Recv(&meta_res_);
+  {
+    slash::MutexLock l(&meta_cli->cli_mu);
+    s = meta_cli->cli->Send(&meta_cmd_);
+    if (s.ok()) {
+      s = meta_cli->cli->Recv(&meta_res_);
+    }
   }
+
   if (!s.ok()) {
     meta_pool_->RemoveConnection(meta_cli);
     if (attempt <= kMetaAttempt) {
@@ -645,12 +655,12 @@ static int RandomIndex(int floor, int ceil) {
   return di(mt);
 }
 
-ZpCli* Cluster::GetMetaConnection() {
-  ZpCli* meta_cli = meta_pool_->GetExistConnection();
-  if (meta_cli != NULL) {
+std::shared_ptr<ZpCli> Cluster::GetMetaConnection() {
+  std::shared_ptr<ZpCli> meta_cli = meta_pool_->GetExistConnection();
+  if (meta_cli) {
     return meta_cli;
   }
-  
+
   // No Exist one, try to connect any
   int cur = RandomIndex(0, meta_addr_.size() - 1);
   int count = 0;

@@ -43,52 +43,47 @@ ConnectionPool::ConnectionPool() {
 }
 
 ConnectionPool::~ConnectionPool() {
-  std::map<Node, ZpCli*>::iterator iter = conn_pool_.begin();
-  while (iter != conn_pool_.end()) {
-    delete iter->second;
-    iter++;
-  }
+  slash::MutexLock l(&pool_mu_);
   conn_pool_.clear();
 }
 
-ZpCli* ConnectionPool::GetConnection(const Node& node) {
-  std::map<Node, ZpCli*>::iterator it = conn_pool_.find(node);
+std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node) {
+  slash::MutexLock l(&pool_mu_);
+  std::map<Node, std::shared_ptr<ZpCli>>::iterator it = conn_pool_.find(node);
   if (it != conn_pool_.end()) {
     if (it->second->CheckTimeout()) {
       return it->second;
     }
-    delete it->second;
     conn_pool_.erase(it);
   }
 
   // Not found or timeout, create new one
-  ZpCli* cli = new ZpCli(node);
+  std::shared_ptr<ZpCli> cli(new ZpCli(node));
   Status s = cli->cli->Connect(node.ip, node.port);
   if (s.ok()) {
     conn_pool_.insert(std::make_pair(node, cli));
     return cli;
   }
-  delete cli;
   return NULL;
 }
 
-void ConnectionPool::RemoveConnection(ZpCli* conn) {
+void ConnectionPool::RemoveConnection(std::shared_ptr<ZpCli> conn) {
+  slash::MutexLock l(&pool_mu_);
   Node node = conn->node;
-  std::map<Node, ZpCli*>::iterator it = conn_pool_.find(node);
+  std::map<Node, std::shared_ptr<ZpCli>>::iterator it = conn_pool_.find(node);
   if (it != conn_pool_.end()) {
-    delete(it->second);
     conn_pool_.erase(it);
   }
 }
 
-ZpCli* ConnectionPool::GetExistConnection() {
+std::shared_ptr<ZpCli> ConnectionPool::GetExistConnection() {
   Status s;
-  std::map<Node, ZpCli*>::iterator first;
+  std::map<Node, std::shared_ptr<ZpCli>>::iterator first;
+  slash::MutexLock l(&pool_mu_);
   while (!conn_pool_.empty()) {
     first = conn_pool_.begin();
     if (!first->second->CheckTimeout()) {
       // Expire connection
-      delete conn_pool_.begin()->second;
       conn_pool_.erase(conn_pool_.begin());
       continue;
     }

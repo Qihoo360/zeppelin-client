@@ -7,11 +7,13 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <memory>
 #include <unordered_map>
 
 #include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/client.pb.h"
 #include "slash/include/slash_status.h"
+#include "slash/include/slash_mutex.h"
 #include "libzp/include/zp_table.h"
 
 namespace pink {
@@ -127,7 +129,7 @@ public:
   void DistributeDataRpc(
       const std::map<Node, CmdRpcArg*>& key_distribute);
   
-  ZpCli* GetMetaConnection();
+  std::shared_ptr<ZpCli> GetMetaConnection();
   Status TryGetDataMaster(const std::string& table,
       const std::string& key, Node* master);
   Status GetDataMaster(const std::string& table,
