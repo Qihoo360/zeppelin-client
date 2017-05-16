@@ -109,9 +109,6 @@ public:
   std::vector<Node> meta_addr_;
   std::unordered_map<std::string, Table*> tables_;
 
-  // BG worker
-  std::map<Node, pink::BGThread*> peer_workers_;
-  pink::BGThread* async_worker_;
 
   // connection pool
   ConnectionPool* meta_pool_;
@@ -121,6 +118,10 @@ public:
   ZPMeta::MetaCmd meta_cmd_;
   ZPMeta::MetaCmdResponse meta_res_;
   CmdContext* context_;
+  
+  // BG worker
+  std::map<Node, pink::BGThread*> peer_workers_;
+  pink::BGThread* async_worker_;
 };
 
 } // namespace libzp

@@ -39,21 +39,22 @@ struct Options {
 
 struct Result {
   Status ret;
+  const std::string key;
   const std::string* value;
   const std::map<std::string, std::string>* kvs;
 
-  Result(Status r)
-    : ret(r), value(NULL), kvs(NULL) {}
+  Result(Status r, const std::string& k)
+    : ret(r), key(k), value(NULL), kvs(NULL) {}
 
-  Result(Status r, const std::string* v)
-    : ret(r), value(v), kvs(NULL) {}
+  Result(Status r, const std::string& k, const std::string* v)
+    : ret(r), key(k), value(v), kvs(NULL) {}
   
   Result(Status r, const std::map<std::string, std::string>* vs)
     : ret(r), value(NULL), kvs(vs) {}
 };
 
 typedef void (*zp_completion_t)(const struct Result& stat,
-    const void* data);
+    void* data);
 
 }
 

@@ -43,13 +43,15 @@ struct CmdContext {
 
   void Init(Cluster* c, const std::string& tab, const std::string& k = std::string(),
       zp_completion_t comp = NULL, void* d = NULL) {
-    request->Clear();
-    response->Clear();
     cluster = c;
     table = tab;
     key = k;
-    user_data = d;
+    request->Clear();
+    response->Clear();
+    result = Status::Incomplete("Not complete");
     completion = comp;
+    user_data = d;
+    done_ = false;
   }
   
   ~CmdContext() {
@@ -142,6 +144,8 @@ Cluster::Cluster(const Options& options)
     assert(!meta_addr_.empty());
     meta_pool_ = new ConnectionPool();
     data_pool_ = new ConnectionPool();
+    context_ = new CmdContext();
+    async_worker_ = new pink::BGThread();
   }
 
 Cluster::Cluster(const std::string& ip, int port)
@@ -149,6 +153,8 @@ Cluster::Cluster(const std::string& ip, int port)
     meta_addr_.push_back(Node(ip, port));
     meta_pool_ = new ConnectionPool();
     data_pool_ = new ConnectionPool();
+    context_ = new CmdContext();
+    async_worker_ = new pink::BGThread();
   }
 
 Cluster::~Cluster() {
@@ -162,6 +168,7 @@ Cluster::~Cluster() {
     delete iter->second;
     iter++;
   }
+  delete context_;
   delete data_pool_;
   delete meta_pool_;
 }
@@ -257,7 +264,7 @@ Status Cluster::Aset(const std::string& table, const std::string& key,
 Status Cluster::Aget(const std::string& table, const std::string& key,
     zp_completion_t complietion, void* data) {
   CmdContext* context = new CmdContext();
-  BuildGetContext(this, table, key, context_, complietion, data);
+  BuildGetContext(this, table, key, context, complietion, data);
   AddAsyncTask(context);
   return Status::OK();
 }
@@ -265,7 +272,7 @@ Status Cluster::Aget(const std::string& table, const std::string& key,
 Status Cluster::Adelete(const std::string& table, const std::string& key,
     zp_completion_t complietion, void* data) {
   CmdContext* context = new CmdContext();
-  BuildDeleteContext(this, table, key, context_, complietion, data);
+  BuildDeleteContext(this, table, key, context, complietion, data);
   AddAsyncTask(context);
   return Status::OK();
 }
@@ -273,7 +280,7 @@ Status Cluster::Adelete(const std::string& table, const std::string& key,
 Status Cluster::Amget(const std::string& table, const std::vector<std::string>& keys,
     zp_completion_t complietion, void* data) {
   CmdContext* context = new CmdContext();
-  BuildMgetContext(this, table, keys, context_, complietion, data);
+  BuildMgetContext(this, table, keys, context, complietion, data);
   AddAsyncTask(context);
   return Status::OK();
 }
@@ -283,7 +290,7 @@ bool Cluster::DispatchMget(CmdContext* context) {
   Node master;
   std::map<Node, CmdContext*> key_distribute;
   for (auto& k : context->request->mget().keys()) {
-    context->result = GetDataMaster(context->table, context->key, &master);
+    context->result = GetDataMaster(context->table, k, &master);
     if (!context->result.ok()) {
       ClearDistributeMap(&key_distribute);
       return false;
@@ -307,6 +314,7 @@ bool Cluster::DispatchMget(CmdContext* context) {
   }
 
   // Wait peer_workers process and merge result
+  context->response->set_type(client::Type::MGET);
   for (auto& kd : key_distribute) {
     kd.second->WaitRpcDone();
     
@@ -372,17 +380,18 @@ void Cluster::DeliverDataCmd(CmdContext* context, bool has_pull) {
 void Cluster::DoAsyncTask(void* arg) {
   CmdContext *carg = static_cast<CmdContext*>(arg);
   carg->cluster->DeliverDataCmd(carg);
+
   // Callback zp_completion_t
   std::string value;
   std::map<std::string, std::string> kvs;
   switch (carg->response->type()) {
     case client::Type::SET:
     case client::Type::DEL:
-      carg->completion(Result(carg->result), carg->user_data);
+      carg->completion(Result(carg->result, carg->key), carg->user_data);
       break;
     case client::Type::GET:
       value = carg->response->get().value();
-      carg->completion(Result(carg->result, &value),
+      carg->completion(Result(carg->result, carg->key, &value),
           carg->user_data);
       break;
     case client::Type::MGET:

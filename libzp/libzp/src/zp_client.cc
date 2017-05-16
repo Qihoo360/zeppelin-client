@@ -44,25 +44,25 @@ Status Client::Delete(const std::string& key) {
   return cluster_->Delete(table_, key);
 }
 
-Status Client::Aset(const std::string& table, const std::string& key,
+Status Client::Aset(const std::string& key,
     const std::string& value, zp_completion_t complietion, void* data,
     int32_t ttl) {
-  return cluster_->Aset(table, key, value, complietion, data, ttl);
+  return cluster_->Aset(table_, key, value, complietion, data, ttl);
 }
 
-Status Client::Adelete(const std::string& table, const std::string& key,
+Status Client::Adelete(const std::string& key,
     zp_completion_t complietion, void* data) {
-  return cluster_->Adelete(table, key, complietion, data);
+  return cluster_->Adelete(table_, key, complietion, data);
 }
 
-Status Client::Aget(const std::string& table, const std::string& key,
+Status Client::Aget(const std::string& key,
     zp_completion_t complietion, void* data) {
-  return cluster_->Aget(table, key, complietion, data);
+  return cluster_->Aget(table_, key, complietion, data);
 }
 
-Status Client::Amget(const std::string& table, const std::vector<std::string>& keys,
+Status Client::Amget(const std::vector<std::string>& keys,
     zp_completion_t complietion, void* data) {
-  return cluster_->Amget(table, keys, complietion, data);
+  return cluster_->Amget(table_, keys, complietion, data);
 }
 
 }  // namespace libzp

@@ -8,7 +8,7 @@ else
 	CXXFLAGS = -O2 -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-unused-variable
 endif
 
-OBJECT = zp_mget zp_create_table
+OBJECT = zp_mget zp_create_table zp_async
 SRC_DIR = ./
 OUTPUT = ./output
 
@@ -52,8 +52,11 @@ zp_mget: $(ZP) zp_mget.cc
 zp_create_table: $(ZP) zp_create_table.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
+zp_async: $(ZP) zp_async.cc
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+
 $(ZP):
-	make -C __COMBINE=1 $(ZP_PATH)/libzp/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
+	make -C $(ZP_PATH)/libzp/ __COMBINE=1 __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
 clean: 
 	rm -rf $(OUTPUT)

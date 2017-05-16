@@ -34,14 +34,14 @@ class Client {
   Status Delete(const std::string& key);
   
   // async data cmd
-  Status Aset(const std::string& table, const std::string& key,
+  Status Aset(const std::string& key,
       const std::string& value, zp_completion_t complietion, void* data,
       int32_t ttl = -1);
-  Status Adelete(const std::string& table, const std::string& key,
+  Status Adelete(const std::string& key,
       zp_completion_t complietion, void* data);
-  Status Aget(const std::string& table, const std::string& key,
+  Status Aget(const std::string& key,
       zp_completion_t complietion, void* data);
-  Status Amget(const std::string& table, const std::vector<std::string>& keys,
+  Status Amget(const std::vector<std::string>& keys,
       zp_completion_t complietion, void* data);
 
  private :
