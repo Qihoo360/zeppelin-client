@@ -3,33 +3,8 @@
  */
 #include "slash/include/slash_string.h"
 #include "libzp/include/zp_entity.h"
-#include <iostream>
 
 namespace libzp {
-
-Node::Node(const std::string& other_ip, int other_port) :
-  ip(other_ip),
-  port(other_port) {
-  }
-
-Node::Node() :
-  port(0) {
-  }
-
-Node& Node::operator = (const Node& other) {
-  ip = other.ip;
-  port = other.port;
-  return *this;
-}
-
-bool Node::operator < (const Node& other) const {
-  return (slash::IpPortString(ip, port) <
-    slash::IpPortString(other.ip, other.port));
-}
-
-bool Node::operator == (const Node& other) const {
-  return (ip == other.ip && port == other.port);
-}
 
 Partition::Partition(const ZPMeta::Partitions& partition_info)
   : master_(partition_info.master().ip(), partition_info.master().port()),

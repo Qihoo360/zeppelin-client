@@ -2,6 +2,12 @@
 #include "libzp/include/zp_cluster.h"
 
 namespace libzp {
+
+Client::Client(const Options& options, const std::string& table)
+  :cluster_(new Cluster(options)),
+  table_(table){
+  }
+
 Client::Client(const std::string& ip, const int port, const std::string& table)
   : cluster_(new Cluster(ip, port)),
   table_(table) {
@@ -37,5 +43,27 @@ Status Client::Mget(const std::vector<std::string>& keys,
 Status Client::Delete(const std::string& key) {
   return cluster_->Delete(table_, key);
 }
+
+Status Client::Aset(const std::string& table, const std::string& key,
+    const std::string& value, zp_completion_t complietion, void* data,
+    int32_t ttl) {
+  return cluster_->Aset(table, key, value, complietion, data, ttl);
+}
+
+Status Client::Adelete(const std::string& table, const std::string& key,
+    zp_completion_t complietion, void* data) {
+  return cluster_->Adelete(table, key, complietion, data);
+}
+
+Status Client::Aget(const std::string& table, const std::string& key,
+    zp_completion_t complietion, void* data) {
+  return cluster_->Aget(table, key, complietion, data);
+}
+
+Status Client::Amget(const std::string& table, const std::vector<std::string>& keys,
+    zp_completion_t complietion, void* data) {
+  return cluster_->Amget(table, keys, complietion, data);
+}
+
 }  // namespace libzp
 

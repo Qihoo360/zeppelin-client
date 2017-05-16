@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "slash/include/slash_status.h"
+#include "libzp/include/zp_option.h"
 
 namespace libzp {
 
@@ -18,8 +19,8 @@ class Cluster;
 
 class Client {
  public :
-
-  explicit Client(const std::string& ip, const int port,
+  explicit Client(const Options& options, const std::string& table);
+  Client(const std::string& ip, const int port,
       const std::string& table);
   virtual ~Client();
   Status Connect();
@@ -31,7 +32,17 @@ class Client {
   Status Mget(const std::vector<std::string>& keys,
       std::map<std::string, std::string>* values);
   Status Delete(const std::string& key);
-
+  
+  // async data cmd
+  Status Aset(const std::string& table, const std::string& key,
+      const std::string& value, zp_completion_t complietion, void* data,
+      int32_t ttl = -1);
+  Status Adelete(const std::string& table, const std::string& key,
+      zp_completion_t complietion, void* data);
+  Status Aget(const std::string& table, const std::string& key,
+      zp_completion_t complietion, void* data);
+  Status Amget(const std::string& table, const std::vector<std::string>& keys,
+      zp_completion_t complietion, void* data);
 
  private :
   Cluster* cluster_;

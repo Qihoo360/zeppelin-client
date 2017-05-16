@@ -10,11 +10,12 @@
 #include <memory>
 #include <unordered_map>
 
+#include "slash/include/slash_status.h"
+#include "slash/include/slash_mutex.h"
+
 #include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/client.pb.h"
-#include "slash/include/slash_status.h"
 #include "libzp/include/zp_entity.h"
-#include "slash/include/slash_mutex.h"
 
 namespace pink {
   class BGThread;
@@ -22,35 +23,9 @@ namespace pink {
 
 namespace libzp {
 
-using slash::Status;
-
 class ZpCli;
 class ConnectionPool;
 struct CmdContext;
-
-struct Options {
-  std::vector<Node> meta_addr;
-  Options() {
-  }
-};
-
-struct Result {
-  Status ret;
-  const std::string* value;
-  const std::map<std::string, std::string>* kvs;
-
-  Result(Status r)
-    : ret(r), value(NULL), kvs(NULL) {}
-
-  Result(Status r, const std::string* v)
-    : ret(r), value(v), kvs(NULL) {}
-  
-  Result(Status r, const std::map<std::string, std::string>* vs)
-    : ret(r), value(NULL), kvs(vs) {}
-};
-
-typedef void (*zp_completion_t)(const struct Result& stat,
-    const void* data);
 
 class Cluster {
 public:

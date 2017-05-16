@@ -11,24 +11,9 @@
 
 #include "libzp/include/zp_meta.pb.h"
 #include "libzp/include/client.pb.h"
+#include "libzp/include/zp_option.h"
 
 namespace libzp {
-
-struct Node {
-  Node(const std::string& other_ip, int other_port);
-  Node();
-
-  std::string ip;
-  int port;
-  Node& operator = (const Node& other);
-  bool operator < (const Node& other) const;
-  bool operator == (const Node& other) const;
-
-  friend std::ostream& operator<< (std::ostream& stream, const Node& node) {
-    stream << node.ip << ":" << node.port;
-    return stream;
-  }
-};
 
 class Partition {
 public:

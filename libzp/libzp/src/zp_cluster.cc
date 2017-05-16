@@ -373,7 +373,29 @@ void Cluster::DoAsyncTask(void* arg) {
   CmdContext *carg = static_cast<CmdContext*>(arg);
   carg->cluster->DeliverDataCmd(carg);
   // Callback zp_completion_t
-  carg->completion(Result(carg->result), carg->user_data);
+  std::string value;
+  std::map<std::string, std::string> kvs;
+  switch (carg->response->type()) {
+    case client::Type::SET:
+    case client::Type::DEL:
+      carg->completion(Result(carg->result), carg->user_data);
+      break;
+    case client::Type::GET:
+      value = carg->response->get().value();
+      carg->completion(Result(carg->result, &value),
+          carg->user_data);
+      break;
+    case client::Type::MGET:
+      kvs.clear();
+      for (auto& kv : carg->response->mget()) {
+        kvs.insert(std::pair<std::string, std::string>(kv.key(), kv.value()));
+      }
+      carg->completion(Result(carg->result, &kvs),
+          carg->user_data);
+      break;
+    default:
+      break;
+  }
 }
 
 void Cluster::AddAsyncTask(CmdContext* context) {
@@ -391,13 +413,13 @@ void Cluster::DoNodeTask(void* arg) {
 }
 
 void Cluster::AddNodeTask(const Node& node, CmdContext* context) {
-    if (peer_workers_.find(node) == peer_workers_.end()) {
-      pink::BGThread* bg = new pink::BGThread();
-      bg->StartThread();
-      peer_workers_.insert(std::pair<Node, pink::BGThread*>(node, bg));
-    }
-    NodeTaskArg* arg = new NodeTaskArg(context, node);
-    peer_workers_[node]->Schedule(DoNodeTask, arg);
+  if (peer_workers_.find(node) == peer_workers_.end()) {
+    pink::BGThread* bg = new pink::BGThread();
+    bg->StartThread();
+    peer_workers_.insert(std::pair<Node, pink::BGThread*>(node, bg));
+  }
+  NodeTaskArg* arg = new NodeTaskArg(context, node);
+  peer_workers_[node]->Schedule(DoNodeTask, arg);
 }
 
 Status Cluster::CreateTable(const std::string& table_name,
