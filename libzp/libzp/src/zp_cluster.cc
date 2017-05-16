@@ -17,67 +17,12 @@ namespace libzp {
 const int kMetaAttempt = 10;
 const int kDataAttempt = 10;
 
-struct CmdContext;
-static void BuildSetContext(Cluster* cluster, const std::string& table
-    const std::string& key, const std::string& value, int ttl = -1, CmdContext* set_context,
-    zp_completion_t completion = NULL, void* data = NULL) {
-  set_context->Init(cluster, table, key, completion, data);
-  set_context->set_type(client::Type::SET);
-  client::CmdRequest_Set* set_info = set_context->mutable_set();
-  set_info->set_table_name(table);
-  set_info->set_key(key);
-  set_info->set_value(value);
-  if (ttl >= 0) {
-    set_info->mutable_expire()->set_ttl(ttl);
-  }
-}
-
-static void BuildGetContext(Cluster*cluster, const std::string& table,
-    const std::string& key, CmdContext* get_context,
-    zp_completion_t completion = NULL, void* data = NULL) {
-  get_context->Init(cluster, table, key, completion, data);
-  get_context->set_type(client::Type::GET);
-  client::CmdRequest_Get* get_cmd = get_context->mutable_get();
-  get_cmd->set_table_name(table);
-  get_cmd->set_key(key);
-}
-
-static void BuildDeleteContext(Cluster* cluster, const std::string& table,
-    const std::string& key, CmdContext* delete_context,
-    zp_completion_t completion = NULL, void* data = NULL) {
-  delete_context->Init(cluster, table, key, completion, data);
-  delete_context->set_type(client::Type::DELETE);
-  client::CmdRequest_Delete* delete_cmd = delete_context->mutable_delete();
-  delete_cmd->set_table_name(table);
-  delete_cmd->set_key(key);
-}
-
-static void BuildMgetContext(Cluster* cluster, const std::string& table,
-    const std::vector<std::string>& keys, CmdContext* mget_context,
-    zp_completion_t completion = NULL, void* data = NULL) {
-  mget_context->Init(cluster, table, key, completion, data);
-  mget_context->set_type(client::Type::MGET);
-  client::CmdRequest_Mget* mget_cmd = mget_context->mutable_mget();
-  mget_cmd->set_table_name(table);
-  for (auto& key : keys) {
-    mget_cmd->add_keys(key);
-  }
-}
-
-static void BuildInfoContext(Cluster* cluster, const std::string& table,
-    client::Type type, CmdContext* info_context) {
-  info_context->Init(cluster, table);
-  info_context->set_type(type);
-  if (!table.empty()) {
-    info_context->mutable_info()->set_table_name(table);
-  }
-}
-
-static void ClearDistributeMap(std::map<Node, CmdContext*>* key_distribute) {
-  for (auto& kd : *key_distribute) {
-    delete kd.second;
-  }
-}
+struct NodeTaskArg {
+  CmdContext* context;
+  Node target;
+  NodeTaskArg(CmdContext* c, const Node& n)
+    :context(c), target(n) {}
+};
 
 struct CmdContext {
   Cluster* cluster;
@@ -91,12 +36,12 @@ struct CmdContext {
 
   CmdContext()
     : cluster(NULL), result(Status::Incomplete("Not complete")),
-    cond_(&mu_), done_(false), user_data(NULL) {
+    user_data(NULL), cond_(&mu_), done_(false) {
       request = new client::CmdRequest();
       response = new client::CmdResponse();
     }
 
-  void Init(Cluster* c, const std::string& tab, const std::string& k = string(),
+  void Init(Cluster* c, const std::string& tab, const std::string& k = std::string(),
       zp_completion_t comp = NULL, void* d = NULL) {
     request->Clear();
     response->Clear();
@@ -104,7 +49,7 @@ struct CmdContext {
     table = tab;
     key = k;
     user_data = d;
-    complete = comp;
+    completion = comp;
   }
   
   ~CmdContext() {
@@ -129,6 +74,67 @@ private:
   slash::CondVar cond_;
   bool done_;
 };
+
+static void BuildSetContext(Cluster* cluster, const std::string& table,
+    const std::string& key, const std::string& value, int ttl,
+    CmdContext* set_context, zp_completion_t completion = NULL, void* data = NULL) {
+  set_context->Init(cluster, table, key, completion, data);
+  set_context->request->set_type(client::Type::SET);
+  client::CmdRequest_Set* set_info = set_context->request->mutable_set();
+  set_info->set_table_name(table);
+  set_info->set_key(key);
+  set_info->set_value(value);
+  if (ttl >= 0) {
+    set_info->mutable_expire()->set_ttl(ttl);
+  }
+}
+
+static void BuildGetContext(Cluster*cluster, const std::string& table,
+    const std::string& key, CmdContext* get_context,
+    zp_completion_t completion = NULL, void* data = NULL) {
+  get_context->Init(cluster, table, key, completion, data);
+  get_context->request->set_type(client::Type::GET);
+  client::CmdRequest_Get* get_cmd = get_context->request->mutable_get();
+  get_cmd->set_table_name(table);
+  get_cmd->set_key(key);
+}
+
+static void BuildDeleteContext(Cluster* cluster, const std::string& table,
+    const std::string& key, CmdContext* delete_context,
+    zp_completion_t completion = NULL, void* data = NULL) {
+  delete_context->Init(cluster, table, key, completion, data);
+  delete_context->request->set_type(client::Type::DEL);
+  client::CmdRequest_Del* delete_cmd = delete_context->request->mutable_del();
+  delete_cmd->set_table_name(table);
+  delete_cmd->set_key(key);
+}
+
+static void BuildMgetContext(Cluster* cluster, const std::string& table,
+    const std::vector<std::string>& keys, CmdContext* mget_context,
+    zp_completion_t completion = NULL, void* data = NULL) {
+  mget_context->Init(cluster, table, keys[0], completion, data);
+  mget_context->request->set_type(client::Type::MGET);
+  client::CmdRequest_Mget* mget_cmd = mget_context->request->mutable_mget();
+  mget_cmd->set_table_name(table);
+  for (auto& key : keys) {
+    mget_cmd->add_keys(key);
+  }
+}
+
+static void BuildInfoContext(Cluster* cluster, const std::string& table,
+    client::Type type, CmdContext* info_context) {
+  info_context->Init(cluster, table);
+  info_context->request->set_type(type);
+  if (!table.empty()) {
+    info_context->request->mutable_info()->set_table_name(table);
+  }
+}
+
+static void ClearDistributeMap(std::map<Node, CmdContext*>* key_distribute) {
+  for (auto& kd : *key_distribute) {
+    delete kd.second;
+  }
+}
 
 Cluster::Cluster(const Options& options)
   : epoch_(0) {
@@ -161,7 +167,7 @@ Cluster::~Cluster() {
 }
 
 Status Cluster::Connect() {
-  ZpCli* meta_cli = GetMetaConnection();
+  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection();
   if (meta_cli == NULL) {
     return Status::IOError("can't connect meta server");
   }
@@ -170,11 +176,11 @@ Status Cluster::Connect() {
 
 Status Cluster::Set(const std::string& table, const std::string& key,
     const std::string& value, int32_t ttl) {
-  BuildSetContext(this, table, key, value, context_);
+  BuildSetContext(this, table, key, value, ttl, context_);
   DeliverDataCmd(context_);
 
-  if (!context_->res.ok()) {
-    return Status::IOError(context_->res.ToString());
+  if (!context_->result.ok()) {
+    return Status::IOError(context_->result.ToString());
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     return Status::OK();
@@ -187,8 +193,8 @@ Status Cluster::Delete(const std::string& table, const std::string& key) {
   BuildDeleteContext(this, table, key, context_);
   DeliverDataCmd(context_);
 
-  if (!context_->res.ok()) {
-    return Status::IOError(context_->res.ToString());
+  if (!context_->result.ok()) {
+    return Status::IOError(context_->result.ToString());
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     return Status::OK();
@@ -202,8 +208,8 @@ Status Cluster::Get(const std::string& table, const std::string& key,
   BuildGetContext(this, table, key, context_);
   DeliverDataCmd(context_);
   
-  if (!context_->res.ok()) {
-    return Status::IOError(context_->res.ToString());
+  if (!context_->result.ok()) {
+    return Status::IOError(context_->result.ToString());
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     client::CmdResponse_Get info = context_->response->get();
@@ -226,21 +232,22 @@ Status Cluster::Mget(const std::string& table,
   BuildMgetContext(this, table, keys, context_);
   DeliverDataCmd(context_);
 
-  if (!context_->res.ok()) {
-    return Status::IOError(context_->res.ToString());
+  if (!context_->result.ok()) {
+    return Status::IOError(context_->result.ToString());
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     for (auto& kv : context_->response->mget()) {
-      values.insert(std::part<std::string, std::string>(kv.key(), kv.value()));
+      values->insert(std::pair<std::string, std::string>(kv.key(), kv.value()));
     }
+    return Status::OK();
   } else {
     return Status::Corruption(context_->response->msg());
   }
 }
 
 Status Cluster::Aset(const std::string& table, const std::string& key,
-    const std::string& value, int32_t ttl = -1,
-    zp_completion_t complietion, void* data) {
+    const std::string& value, zp_completion_t complietion, void* data,
+    int32_t ttl) {
   CmdContext* context = new CmdContext();
   BuildSetContext(this, table, key, value, ttl, context, complietion, data);
   AddAsyncTask(context);
@@ -273,10 +280,11 @@ Status Cluster::Amget(const std::string& table, const std::vector<std::string>& 
 
 bool Cluster::DispatchMget(CmdContext* context) {
   // Prepare Request
+  Node master;
   std::map<Node, CmdContext*> key_distribute;
-  for (auto& k : context->request->keys) {
-    context->res = GetDataMaster(table, k, &master);
-    if (!context->res.ok()) {
+  for (auto& k : context->request->mget().keys()) {
+    context->result = GetDataMaster(context->table, context->key, &master);
+    if (!context->result.ok()) {
       ClearDistributeMap(&key_distribute);
       return false;
     }
@@ -286,7 +294,7 @@ bool Cluster::DispatchMget(CmdContext* context) {
       sub_context->Init(this, context->table, k);
       sub_context->request->set_type(client::Type::MGET);
       client::CmdRequest_Mget* new_mget_cmd = sub_context->request->mutable_mget();
-      new_mget_cmd->set_table_name(table);
+      new_mget_cmd->set_table_name(context->table);
       key_distribute.insert(std::pair<Node, CmdContext*>(
             master, sub_context));
     }
@@ -295,24 +303,25 @@ bool Cluster::DispatchMget(CmdContext* context) {
 
   // Dispatch
   for (auto& kd : key_distribute) {
-    AddPeerTask(kd.first, kd.second);
+    AddNodeTask(kd.first, kd.second);
   }
 
   // Wait peer_workers process and merge result
   for (auto& kd : key_distribute) {
     kd.second->WaitRpcDone();
     
-    context->res = kd.second->res;
+    context->result = kd.second->result;
     context->response->set_code(kd.second->response->code());
     context->response->set_msg(kd.second->response->msg());
-    if (!kd.second->res.ok()
+    if (!kd.second->result.ok()
         || kd.second->response->code() != client::StatusCode::kOk ) {
       ClearDistributeMap(&key_distribute);
       return false;
     }
     for (auto& kv : kd.second->response->mget()) {
       client::CmdResponse_Mget* res_mget= context->response->add_mget();
-      res_mget->set_key(kv.key(), kv.value());
+      res_mget->set_key(kv.key());
+      res_mget->set_value(kv.value());
     }
     delete kd.second;
   }
@@ -321,23 +330,23 @@ bool Cluster::DispatchMget(CmdContext* context) {
 }
 
 bool Cluster::Dispatch(CmdContext* context) {
-  if (context->request->type == client::Type::MGET) {
+  if (context->request->type() == client::Type::MGET) {
     return DispatchMget(context); 
   }
 
   // Prepare Request
   Node master;
-  context->res = GetDataMaster(context->table, context->key, &master);
-  if (!(context->res.ok()) {
+  context->result = GetDataMaster(context->table, context->key, &master);
+  if (!context->result.ok()) {
     return false;
   }
   
   // Dispatch
-  AddPeerTask(master, context);
+  AddNodeTask(master, context);
 
   // Wait peer_workers process
   context->WaitRpcDone();
-  if (!context->res.ok()
+  if (!context->result.ok()
         || context->response->code() != client::StatusCode::kOk) { // Success
     return false;
   }
@@ -353,8 +362,8 @@ void Cluster::DeliverDataCmd(CmdContext* context, bool has_pull) {
   }
 
   // Failed, then try to update meta
-  context->res = Pull(table);
-  if (!context->res.ok() {
+  context->result = Pull(context->table);
+  if (!context->result.ok()) {
     return;
   }
   return DeliverDataCmd(context, true);
@@ -362,10 +371,9 @@ void Cluster::DeliverDataCmd(CmdContext* context, bool has_pull) {
 
 void Cluster::DoAsyncTask(void* arg) {
   CmdContext *carg = static_cast<CmdContext*>(arg);
-  carg->result = carg->cluster->DeliverDataCmd(carg->table,
-      carg->key, carg);
+  carg->cluster->DeliverDataCmd(carg);
   // Callback zp_completion_t
-  carg->completion(Result(carg->result), carg->data);
+  carg->completion(Result(carg->result), carg->user_data);
 }
 
 void Cluster::AddAsyncTask(CmdContext* context) {
@@ -373,20 +381,23 @@ void Cluster::AddAsyncTask(CmdContext* context) {
   async_worker_->Schedule(DoAsyncTask, context);
 }
 
-void Cluster::DoPeerTask(void* arg) {
-  CmdContext *carg = static_cast<CmdContext*>(arg);
-  carg->result = carg->cluster->SubmitDataCmd(carg->table,
+void Cluster::DoNodeTask(void* arg) {
+  NodeTaskArg* task_arg = static_cast<NodeTaskArg*>(arg);
+  CmdContext *carg = task_arg->context;
+  carg->result = carg->cluster->SubmitDataCmd(task_arg->target,
       *(carg->request), carg->response);
   carg->RpcDone();
+  delete task_arg;
 }
 
-void Cluster::AddPeerTask(const Node& node, CmdContext* context) {
+void Cluster::AddNodeTask(const Node& node, CmdContext* context) {
     if (peer_workers_.find(node) == peer_workers_.end()) {
       pink::BGThread* bg = new pink::BGThread();
       bg->StartThread();
       peer_workers_.insert(std::pair<Node, pink::BGThread*>(node, bg));
     }
-    peer_workers_[node]->Schedule(DoPeerTask, context);
+    NodeTaskArg* arg = new NodeTaskArg(context, node);
+    peer_workers_[node]->Schedule(DoNodeTask, arg);
 }
 
 Status Cluster::CreateTable(const std::string& table_name,
@@ -606,20 +617,18 @@ Status Cluster::ListTable(std::vector<std::string>* tables) {
   return Status::OK();
 }
 
-Status Cluster::GetTableMasters(const std::string& table_name,
+Status Cluster::GetTableMasters(const std::string& table,
     std::set<Node>* related_nodes) {
   auto table_iter = tables_.find(table);
   if (table_iter == tables_.end()) {
     return Status::NotFound("this table does not exist");
   }
-  table_iter->second->GetAllMasters(&related_nodes);
+  table_iter->second->GetAllMasters(related_nodes);
   return Status::OK();
 }
 
 Status Cluster::InfoQps(const std::string& table, int* qps, int* total_query) {
-  
   Pull(table);
-
   std::set<Node> related_nodes;
   Status s = GetTableMasters(table, &related_nodes);
   if (!s.ok()) {
@@ -627,12 +636,12 @@ Status Cluster::InfoQps(const std::string& table, int* qps, int* total_query) {
   }
 
   auto node_iter = related_nodes.begin();
-  while (node_iter++ != related_nodes.end()) {
+  while (node_iter != related_nodes.end()) {
     BuildInfoContext(this, table, client::Type::INFOSTATS, context_);
-  
-    AddPeerTask(node, context_);
+    AddNodeTask(*node_iter, context_);
     context_->WaitRpcDone();
-    if (!context_->res.ok()) {
+    node_iter++;
+    if (!context_->result.ok()) {
       continue;
     }
     *qps += context_->response->info_stats(0).qps();
@@ -644,10 +653,10 @@ Status Cluster::InfoQps(const std::string& table, int* qps, int* total_query) {
 Status Cluster::InfoRepl(const Node& node, const std::string& table,
     std::map<int, PartitionView>* view) {
   BuildInfoContext(this, table, client::Type::INFOREPL, context_);
-  AddPeerTask(node, context_);
+  AddNodeTask(node, context_);
   context_->WaitRpcDone();
-  if (!context_->res.ok()) {
-    return context_->res;
+  if (!context_->result.ok()) {
+    return context_->result;
   }
   for (int i = 0; i < context_->response->info_repl(0).partition_state_size(); ++i) {
     client::PartitionState pstate = context_->response->info_repl(0).partition_state(i);
@@ -659,10 +668,10 @@ Status Cluster::InfoRepl(const Node& node, const std::string& table,
 
 Status Cluster::InfoServer(const Node& node, ServerState* state) {
   BuildInfoContext(this, "", client::Type::INFOSERVER, context_);
-  AddPeerTask(node, context_);
+  AddNodeTask(node, context_);
   context_->WaitRpcDone();
-  if (!context_->res.ok()) {
-    return context_->res;
+  if (!context_->result.ok()) {
+    return context_->result;
   }
   *state = ServerState(context_->response->info_server());
   return Status::OK();
@@ -671,7 +680,6 @@ Status Cluster::InfoServer(const Node& node, ServerState* state) {
 Status Cluster::InfoSpace(const std::string& table,
     std::vector<std::pair<Node, SpaceInfo>>* nodes) {
   Pull(table);
-  
   std::set<Node> related_nodes;
   Status s = GetTableMasters(table, &related_nodes);
   if (!s.ok()) {
@@ -680,23 +688,22 @@ Status Cluster::InfoSpace(const std::string& table,
 
   for (auto node : related_nodes) {
     BuildInfoContext(this, table, client::Type::INFOCAPACITY, context_);
-    AddPeerTask(node, context_);
+    AddNodeTask(node, context_);
     context_->WaitRpcDone();
-    if (!context_->res.ok()) {
+    if (!context_->result.ok()) {
       continue;
     }
-
     SpaceInfo sinfo;
     sinfo.used = context_->response->info_capacity(0).used();
     sinfo.remain = context_->response->info_capacity(0).remain();
-    nodes->push_back(std::pari<Node, SpaceInfo>(node, sinfo));
+    nodes->push_back(std::pair<Node, SpaceInfo>(node, sinfo));
   }
 
   return Status::OK();
 }
 
 Status Cluster::SubmitDataCmd(const Node& master,
-    client::CmdRequest& req, client::CmdResponse *res,
+    client::CmdRequest& req, client::CmdResponse *result,
     int attempt) {
   Status s;
   std::shared_ptr<ZpCli> data_cli = data_pool_->GetConnection(master);
@@ -708,14 +715,14 @@ Status Cluster::SubmitDataCmd(const Node& master,
     slash::MutexLock l(&data_cli->cli_mu);
     s = data_cli->cli->Send(&req);
     if (s.ok()) {
-      s = data_cli->cli->Recv(res);
+      s = data_cli->cli->Recv(result);
     }
   }
 
   if (!s.ok()) {
     data_pool_->RemoveConnection(data_cli);
     if (attempt <= kDataAttempt) {
-      return SubmitDataCmd(master, req, res, attempt + 1);
+      return SubmitDataCmd(master, req, result, attempt + 1);
     }
   }
   return s;
@@ -835,7 +842,9 @@ void Cluster::ResetClusterMap(const ZPMeta::MetaCmdResponse_Pull& pull) {
     tables_.insert(std::make_pair(pull.info(i).name(), new_table));
   
     // Remove node still used from miss_peer
-    for (auto& node : new_table->GetAllNodes()) {
+    std::set<Node> new_table_nodes;
+    new_table->GetAllNodes(&new_table_nodes);
+    for (auto& node : new_table_nodes) {
       if (miss_peer.find(node) != miss_peer.end()) {
         miss_peer.erase(node);
       }

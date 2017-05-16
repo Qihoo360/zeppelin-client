@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "slash/include/slash_mutex.h"
-#include "libzp/include/zp_table.h"
+#include "libzp/include/zp_entity.h"
 
 namespace pink {
   class PinkCli;

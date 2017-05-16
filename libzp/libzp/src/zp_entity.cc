@@ -2,7 +2,7 @@
  * "Copyright [2016] qihoo"
  */
 #include "slash/include/slash_string.h"
-#include "libzp/include/zp_table.h"
+#include "libzp/include/zp_entity.h"
 #include <iostream>
 
 namespace libzp {

@@ -36,8 +36,8 @@ struct Options {
 
 struct Result {
   Status ret;
-  std::string* value;
-  std::map<std::string key, std::string value>* kvs;
+  const std::string* value;
+  const std::map<std::string, std::string>* kvs;
 
   Result(Status r)
     : ret(r), value(NULL), kvs(NULL) {}
@@ -45,11 +45,11 @@ struct Result {
   Result(Status r, const std::string* v)
     : ret(r), value(v), kvs(NULL) {}
   
-  Result(Status r, const std::map<std::string key, std::string value>* vs)
+  Result(Status r, const std::map<std::string, std::string>* vs)
     : ret(r), value(NULL), kvs(vs) {}
 };
 
-typedef void (*zp_completion_t)(const struct Result stat,
+typedef void (*zp_completion_t)(const struct Result& stat,
     const void* data);
 
 class Cluster {
@@ -70,8 +70,8 @@ public:
 
   // async data cmd
   Status Aset(const std::string& table, const std::string& key,
-      const std::string& value, int32_t ttl = -1,
-      zp_completion_t complietion, void* data);
+      const std::string& value, zp_completion_t complietion, void* data,
+      int32_t ttl = -1);
   Status Adelete(const std::string& table, const std::string& key,
       zp_completion_t complietion, void* data);
   Status Aget(const std::string& table, const std::string& key,
@@ -109,22 +109,24 @@ public:
   int LocateKey(const std::string& table, const std::string& key) const;
 
  private:
-  static void DoSubmitDataCmd(void* arg);
-  void DispatchDataRpc(
-      const std::map<Node, CmdContext*>& key_distribute);
   
-  std::shared_ptr<ZpCli> GetMetaConnection();
-  Status TryGetDataMaster(const std::string& table,
-      const std::string& key, Node* master);
-  //Status GetDataMaster(const std::string& table,
-  //    const std::string& key, Node* master, bool has_pull= false);
-
-  Status SubmitDataCmd(const std::string& table, const std::string& key,
-      client::CmdRequest& req, client::CmdResponse *res, bool has_pull = false);
-  Status TryDataRpc(const Node& master,
+  bool DispatchMget(CmdContext* context);
+  bool Dispatch(CmdContext* context);
+  void DeliverDataCmd(CmdContext* context, bool has_pull = false);
+  static void DoAsyncTask(void* arg);
+  void AddAsyncTask(CmdContext* context);
+  static void DoNodeTask(void* arg);
+  void AddNodeTask(const Node& node, CmdContext* context);
+  Status SubmitDataCmd(const Node& master,
       client::CmdRequest& req, client::CmdResponse *res,
       int attempt = 0);
   Status SubmitMetaCmd(int attempt = 0);
+  std::shared_ptr<ZpCli> GetMetaConnection();
+
+  Status GetTableMasters(const std::string& table_name,
+    std::set<Node>* related_nodes);
+  Status GetDataMaster(const std::string& table,
+      const std::string& key, Node* master);
   void ResetClusterMap(const ZPMeta::MetaCmdResponse_Pull& pull);
 
   // meta info

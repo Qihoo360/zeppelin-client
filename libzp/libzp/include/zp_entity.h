@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "libzp/include/zp_meta.pb.h"
+#include "libzp/include/client.pb.h"
 
 namespace libzp {
 
