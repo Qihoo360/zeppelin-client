@@ -53,7 +53,7 @@ zp_create_table: $(ZP) zp_create_table.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 $(ZP):
-	make -C __COMBINE=1 $(ZP_PATH)/libzp/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
+	make -C  $(ZP_PATH)/libzp/ __COMBINE=1 __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
 clean: 
 	rm -rf $(OUTPUT)
