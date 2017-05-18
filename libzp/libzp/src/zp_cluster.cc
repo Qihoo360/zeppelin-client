@@ -742,12 +742,9 @@ Status Cluster::SubmitDataCmd(const Node& master,
     return Status::Corruption("Failed to get data cli");
   }
 
-  {
-    slash::MutexLock l(&data_cli->cli_mu);
-    s = data_cli->cli->Send(&req);
-    if (s.ok()) {
-      s = data_cli->cli->Recv(result);
-    }
+  s = data_cli->cli->Send(&req);
+  if (s.ok()) {
+    s = data_cli->cli->Recv(result);
   }
 
   if (!s.ok()) {
