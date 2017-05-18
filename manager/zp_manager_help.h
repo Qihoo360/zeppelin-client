@@ -21,6 +21,11 @@ CommandHelp commandHelp[] = {
     2,
     "get key's value"},
 
+  { "Delete",
+    "table key",
+    2,
+    "delete key"},
+
   { "CREATE",
     "table partition",
     2,
