@@ -80,7 +80,7 @@ void Set() {
     std::string value(30, 'a');
     s = client_ptr->Set(key, value);
     if (!s.ok()) {
-      std::cout << s.ToString() << std::endl;
+      std::cout << "Set key:" << key << " failed, " << s.ToString() << std::endl;
     } else {
       std::cout << "Set key:" << key << " value: " << value << std::endl;
     }
@@ -93,7 +93,7 @@ void Get() {
     std::string value;
     s = client_ptr->Get(key, &value);
     if (!s.ok()) {
-      std::cout << s.ToString() << std::endl;
+      std::cout << "Get key:" << key << " failed, " << s.ToString() << std::endl;
     } else {
       std::cout << "Get key:" << key << " value: " << value << std::endl;
     }
@@ -119,7 +119,7 @@ void Delete() {
     std::string key = "key" + std::to_string(i);
     s = client_ptr->Delete(key);
     if (!s.ok()) {
-      std::cout << s.ToString() << std::endl;
+      std::cout << "Delete key:" << key << " failed, " << s.ToString() << std::endl;
     } else {
       std::cout << "Delete key:" << key << std::endl;
     }
@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
  
 
   for(int i = 0; i < 100; i++) {
-    int random = rand() % 11;
+    int random = rand() % 12;
     switch(random) {
       // Asynchronous command
       case 0:
@@ -251,9 +251,9 @@ int main(int argc, char* argv[]) {
       case 11:
         InfoQps();
         break;
+      default:
+        break;
     }
   }
   std::cout << "Test complete." << std::endl;
-  delete cluster_ptr;
-  delete client_ptr;
  }
