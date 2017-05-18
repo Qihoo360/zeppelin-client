@@ -233,10 +233,11 @@ int main(int argc, char* argv[]) {
         Get();
         break;
       case 6:
-        Mget();
+        Delete();
         break;
       case 7:
-        Delete();
+        Mget();
+        break;
       // Meta command
       case 8:
         CreateTable();
