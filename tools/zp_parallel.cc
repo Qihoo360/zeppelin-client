@@ -15,7 +15,7 @@ libzp::Cluster* cluster_ptr = NULL;
 libzp::Status s;
 
 void set_callback(const struct libzp::Result& stat, void* data) {
-  std::cout << "set " << stat.key << "callback called. Result: "<< stat.ret.ToString()
+  std::cout << "set " << stat.key << " callback called. Result: "<< stat.ret.ToString()
     << ", usr data: "<< *(static_cast<std::string*>(data)) << std::endl;
 }
 
@@ -253,7 +253,7 @@ int main(int argc, char* argv[]) {
         break;
     }
   }
-
+  std::cout << "Test complete." << std::endl;
   delete cluster_ptr;
   delete client_ptr;
  }
