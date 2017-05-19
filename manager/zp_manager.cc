@@ -168,12 +168,14 @@ void StartRepl(libzp::Cluster* cluster) {
       std::string value = line_args[3];
       int ttl = -1;
       if (line_args.size() == 5) {
-        char * end;
-        int ttl = std::strtol(line_args[4].c_str(), &end, 10);
-        if (*end != 0) {
-          std::cout << "ttl must be a integer" << std::endl;
-          continue;
-        }
+	char* end = new char;
+	int ttl = std::strtol(line_args[4].c_str(), &end, 10);
+	if (*end != 0) {
+	  std::cout << "ttl must be a integer" << std::endl;
+	  delete end;
+	  continue;
+	}
+	delete end;
       }
       s = cluster->Set(table_name, key, value, ttl);
       std::cout << s.ToString() << std::endl;
@@ -210,7 +212,6 @@ void StartRepl(libzp::Cluster* cluster) {
       libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
       s = cluster->RemoveSlave(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
-
     } else if (!strncasecmp(line, "GET ", 4)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -222,6 +223,19 @@ void StartRepl(libzp::Cluster* cluster) {
       s = cluster->Get(table_name, key, &value);
       if (s.ok()) {
         std::cout << value << std::endl;
+      } else {
+        std::cout << s.ToString() << std::endl;
+      }
+    } else if (!strncasecmp(line, "DELETE ", 6)) {
+      if (line_args.size() != 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::string key = line_args[2];
+      s = cluster->Delete(table_name, key);
+      if (s.ok()) {
+        std::cout << "delete " << table_name << " " << key << " success" << std::endl;
       } else {
         std::cout << s.ToString() << std::endl;
       }
