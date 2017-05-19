@@ -63,9 +63,6 @@ zp_benchmark: $(ZP) $(PINK) $(SLASH) zp_benchmark.cc
 zp_expansion: $(ZP) $(PINK) $(SLASH) zp_expansion.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
-zp_expansion: $(ZP) $(PINK) $(SLASH) zp_expansion.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
-
 $(ZP):
 	make -C $(ZP_PATH)/libzp/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
