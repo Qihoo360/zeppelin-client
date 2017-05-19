@@ -3,6 +3,7 @@
  */
 
 #include <iostream>
+#include <time.h>
 #include <cstdlib>
 
 #include "libzp/include/zp_cluster.h"
@@ -13,6 +14,11 @@ static std::string user_data = "ASYNC";
 libzp::Client* client_ptr = NULL;
 libzp::Cluster* cluster_ptr = NULL;
 libzp::Status s;
+
+void usage() {
+  std::cout << "usage:\n"
+            << "      zp_parallel host port\n";
+}
 
 void set_callback(const struct libzp::Result& stat, void* data) {
   std::cout << "set " << stat.key << " callback called. Result: "<< stat.ret.ToString()
@@ -181,7 +187,10 @@ void InfoQps() {
 }
 
 int main(int argc, char* argv[]) {
-
+  if (argc != 3) {
+    usage();
+    return -1;
+  }
   // connect to cluster
   libzp::Cluster cluster_obj(argv[1], atoi(argv[2]));
   cluster_ptr = &cluster_obj;
@@ -208,7 +217,7 @@ int main(int argc, char* argv[]) {
       return -1;
   }
  
-
+  //srand(time(NULL));
   for(int i = 0; i < 100; i++) {
     int random = rand() % 12;
     switch(random) {
