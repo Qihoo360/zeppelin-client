@@ -4,7 +4,6 @@
 #include "libzp/include/zp_cluster.h"
 
 #include <google/protobuf/text_format.h>
-#include <iostream>
 #include <string>
 
 #include "slash/include/slash_string.h"
@@ -51,6 +50,12 @@ struct CmdContext {
     result = Status::Incomplete("Not complete");
     completion = comp;
     user_data = d;
+    done_ = false;
+  }
+
+  void Reset () {
+    response->Clear();
+    result = Status::Incomplete("Not complete");
     done_ = false;
   }
   
@@ -362,7 +367,6 @@ bool Cluster::Dispatch(CmdContext* context) {
 }
 
 void Cluster::DeliverDataCmd(CmdContext* context, bool has_pull) {
-  context->response->Clear();
   bool succ = Dispatch(context);
   
   if (succ || has_pull){
@@ -374,6 +378,7 @@ void Cluster::DeliverDataCmd(CmdContext* context, bool has_pull) {
   if (!context->result.ok()) {
     return;
   }
+  context->Reset();
   return DeliverDataCmd(context, true);
 }
 
@@ -860,7 +865,6 @@ void Cluster::ResetClusterMap(const ZPMeta::MetaCmdResponse_Pull& pull) {
   }
 
   for (int i = 0; i < pull.info_size(); i++) {
-    std::cout << "reset table:" << pull.info(i).name() << std::endl;
     auto it = tables_.find(pull.info(i).name());
     if (it != tables_.end()) {
       delete it->second;
