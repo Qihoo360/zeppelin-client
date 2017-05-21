@@ -168,14 +168,12 @@ void StartRepl(libzp::Cluster* cluster) {
       std::string value = line_args[3];
       int ttl = -1;
       if (line_args.size() == 5) {
-	char* end = new char;
-	int ttl = std::strtol(line_args[4].c_str(), &end, 10);
-	if (*end != 0) {
-	  std::cout << "ttl must be a integer" << std::endl;
-	  delete end;
-	  continue;
-	}
-	delete end;
+        char* end = NULL;
+        int ttl = std::strtol(line_args[4].c_str(), &end, 10);
+        if (end != 0) {
+          std::cout << "ttl must be a integer" << std::endl;
+          continue;
+        }
       }
       s = cluster->Set(table_name, key, value, ttl);
       std::cout << s.ToString() << std::endl;
@@ -240,30 +238,30 @@ void StartRepl(libzp::Cluster* cluster) {
         std::cout << s.ToString() << std::endl;
       }
     } else if (!strncasecmp(line, "LISTMETA", 8)) {
-        if (line_args.size() != 1) {
-          std::cout << "arg num wrong" << std::endl;
-          continue;
-        }
-        std::vector<libzp::Node> slaves;
-        libzp::Node master;
-        s = cluster->ListMeta(&master, &slaves);
-        std::cout << "master" << ":" << master.ip
-          << " " << master.port << std::endl;
-        std::cout << "slave" << ":" << std::endl;
-        std::vector<libzp::Node>::iterator iter = slaves.begin();
-        while (iter != slaves.end()) {
-          std::cout << iter->ip << ":" << iter->port << std::endl;
-          iter++;
-        }
-        std::cout << s.ToString() << std::endl;
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::vector<libzp::Node> slaves;
+      libzp::Node master;
+      s = cluster->ListMeta(&master, &slaves);
+      std::cout << "master" << ":" << master.ip
+        << " " << master.port << std::endl;
+      std::cout << "slave" << ":" << std::endl;
+      std::vector<libzp::Node>::iterator iter = slaves.begin();
+      while (iter != slaves.end()) {
+        std::cout << iter->ip << ":" << iter->port << std::endl;
+        iter++;
+      }
+      std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "LISTNODE", 8)) {
-        if (line_args.size() != 1) {
-          std::cout << "arg num wrong" << std::endl;
-          continue;
-        }
-        std::vector<libzp::Node> nodes;
-        std::vector<std::string> status;
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::vector<libzp::Node> nodes;
+      std::vector<std::string> status;
         s = cluster->ListNode(&nodes, &status);
         if (nodes.size() == 0) {
           std::cout << "no node exist" << std::endl;
