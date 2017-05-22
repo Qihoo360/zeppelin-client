@@ -327,7 +327,7 @@ bool Cluster::DispatchMget(CmdContext* context) {
     context->response->set_code(kd.second->response->code());
     context->response->set_msg(kd.second->response->msg());
     if (!kd.second->result.ok()
-        || kd.second->response->code() != client::StatusCode::kOk ) {
+        || kd.second->response->code() != client::StatusCode::kOk) { // no NOTFOUND in mget response
       ClearDistributeMap(&key_distribute);
       return false;
     }
@@ -360,7 +360,8 @@ bool Cluster::Dispatch(CmdContext* context) {
   // Wait peer_workers process
   context->WaitRpcDone();
   if (!context->result.ok()
-        || context->response->code() != client::StatusCode::kOk) { // Success
+        || (context->response->code() != client::StatusCode::kOk
+          && context_->response->code() != client::StatusCode::kNotFound) { // Error
     return false;
   }
   return true;
