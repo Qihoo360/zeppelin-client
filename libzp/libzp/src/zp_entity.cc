@@ -1,10 +1,31 @@
 /*
  * "Copyright [2016] qihoo"
  */
+#include "libzp/src/zp_meta.pb.h"
+#include "libzp/src/client.pb.h"
 #include "slash/include/slash_string.h"
 #include "libzp/include/zp_entity.h"
 
 namespace libzp {
+PartitionView::PartitionView(const client::PartitionState& state)
+  : role(state.role()),
+  repl_state(state.repl_state()),
+  master(state.master().ip(), state.master().port()),
+  file_num(state.sync_offset().filenum()),
+  offset(state.sync_offset().offset()) {
+    for (auto& s : state.slaves()) {
+      slaves.push_back(Node(s.ip(), s.port()));
+    }
+  }
+
+ServerState::ServerState(const client::CmdResponse::InfoServer& state)
+  : epoch(state.epoch()),
+  cur_meta(Node(state.cur_meta().ip(), state.cur_meta().port())),
+  meta_renewing(state.meta_renewing()) {
+    for (auto& s : state.table_names()) {
+      table_names.push_back(s);
+    }
+  }
 
 Partition::Partition(const ZPMeta::Partitions& partition_info)
   : master_(partition_info.master().ip(), partition_info.master().port()),

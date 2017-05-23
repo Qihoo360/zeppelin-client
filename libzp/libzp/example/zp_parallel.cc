@@ -5,6 +5,7 @@
 #include <iostream>
 #include <time.h>
 #include <cstdlib>
+#include <unistd.h>
 
 #include "libzp/include/zp_cluster.h"
 #include "libzp/include/zp_client.h"
@@ -17,7 +18,7 @@ libzp::Status s;
 
 void usage() {
   std::cout << "usage:\n"
-            << "      zp_parallel host port\n";
+            << "      zp_parallel host port table cnt\n";
 }
 
 void set_callback(const struct libzp::Result& stat, void* data) {
@@ -187,38 +188,19 @@ void InfoQps() {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 3) {
+  if (argc != 5) {
     usage();
     return -1;
   }
-  // connect to cluster
   libzp::Cluster cluster_obj(argv[1], atoi(argv[2]));
   cluster_ptr = &cluster_obj;
-  s = cluster_ptr->Connect();
-  if (!s.ok()) {
-      std::cout << "Connect cluster failed\n";
-      return -1;
-  }
-  
-  s = cluster_ptr->CreateTable("parallel", 3);
-  if (!s.ok()) {
-    std::cout << "Create table parallel failed: " << s.ToString() << std::endl;
-    //return -1;
-  } else {
-    std::cout << "Create table parallel success" << std::endl;
-  }
   
   // connect to client
-  libzp::Client client_obj(argv[1], atoi(argv[2]), "parallel");
+  libzp::Client client_obj(argv[1], atoi(argv[2]), argv[3]);
   client_ptr = &client_obj;
-  s = client_ptr->Connect();
-  if (!s.ok()) {
-      std::cout << s.ToString() << std::endl;
-      return -1;
-  }
  
-  //srand(time(NULL));
-  for(int i = 0; i < 100; i++) {
+  srand(time(NULL));
+  for(int i = 0; i < atoi(argv[4]); i++) {
     int random = rand() % 12;
     switch(random) {
       // Asynchronous command
@@ -266,4 +248,5 @@ int main(int argc, char* argv[]) {
     }
   }
   std::cout << "Test complete." << std::endl;
- }
+  sleep(3);
+}

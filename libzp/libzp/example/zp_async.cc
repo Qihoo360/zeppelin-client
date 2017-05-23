@@ -12,7 +12,7 @@
 
 void usage() {
   std::cout << "usage:\n"
-            << "      zp_async host port\n";
+            << "      zp_async host port count\n";
 }
 
 static std::string user_data = "ASYNC";
@@ -53,30 +53,12 @@ int main(int argc, char* argv[]) {
   std::cout << "connect cluster" << std::endl;
   int cnt = atoi(argv[3]);
 
-  std::cout << "###############Aset#################" << std::endl;
   for(int i = 0; i < cnt; i++) {
     std::string key = "key" + std::to_string(i);
     std::string value(30, 'a');
     client->Aset(key, value, set_callback, &user_data);
   }
   std::cout << std::endl;
-
-
-  //sleep(1);
-  //std::map<std::string, std::string> kvs;
-  //for(int i = 0; i < cnt; i = i + 10) {
-  //  kvs.clear();
-  //  keys.clear();
-  //  for (int j = 0; j < 10; ++j) {
-  //    std::string key = "key" + std::to_string(i + j);
-  //    keys.push_back(key);
-  //  }
-  //  client->Mget(keys, &kvs);
-  //  for (auto& kv : kvs) {
-  //    std::cout << kv.first << " <-> " << kv.second << std::endl;
-  //  }
-  //}
-
 
   for(int i = 0; i < cnt; i++) {
     std::string key = "key" + std::to_string(i);

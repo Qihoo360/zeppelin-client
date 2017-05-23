@@ -2,7 +2,7 @@
 // source: zp_meta.proto
 
 #define INTERNAL_SUPPRESS_PROTOBUF_FIELD_DEPRECATION
-#include "libzp/include/zp_meta.pb.h"
+#include "libzp/src/zp_meta.pb.h"
 
 #include <algorithm>
 

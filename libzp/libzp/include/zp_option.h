@@ -22,6 +22,7 @@ struct Node {
     return (slash::IpPortString(ip, port) <
         slash::IpPortString(other.ip, other.port));
   }
+
   bool operator == (const Node& other) const {
     return (ip == other.ip && port == other.port);
   }

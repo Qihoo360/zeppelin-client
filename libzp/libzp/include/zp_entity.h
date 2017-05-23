@@ -9,9 +9,18 @@
 #include <set>
 #include <vector>
 
-#include "libzp/include/zp_meta.pb.h"
-#include "libzp/include/client.pb.h"
 #include "libzp/include/zp_option.h"
+
+namespace client {
+  class CmdResponse;
+  class PartitionState;
+  class CmdResponse_InfoServer;
+}
+
+namespace ZPMeta {
+  class Table;
+  class Partitions;
+}
 
 namespace libzp {
 
@@ -64,16 +73,7 @@ struct PartitionView {
   std::vector<Node> slaves;
   int32_t file_num;
   int64_t offset;
-  PartitionView(const client::PartitionState& state)
-    : role(state.role()),
-    repl_state(state.repl_state()),
-    master(state.master().ip(), state.master().port()),
-    file_num(state.sync_offset().filenum()),
-    offset(state.sync_offset().offset()) {
-      for (auto& s : state.slaves()) {
-        slaves.push_back(Node(s.ip(), s.port()));
-      }
-  }
+  PartitionView(const client::PartitionState& state);
 };
 
 struct ServerState {
@@ -85,15 +85,7 @@ struct ServerState {
     : epoch(-1),
     meta_renewing(false) {
     }
-
-  ServerState(const client::CmdResponse::InfoServer& state)
-    : epoch(state.epoch()),
-    cur_meta(Node(state.cur_meta().ip(), state.cur_meta().port())),
-    meta_renewing(state.meta_renewing()) {
-      for (auto& s : state.table_names()) {
-        table_names.push_back(s);
-      }
-    }
+  ServerState(const client::CmdResponse_InfoServer & state);
 };
 
 struct SpaceInfo {

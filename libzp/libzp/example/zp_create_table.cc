@@ -33,11 +33,6 @@ int main(int argc, char* argv[]) {
   }
 
   for(int i = 0; i < cnt; i++) {
-    s = cluster->Connect();
-    if (!s.ok()) {
-      std::cout << "Connect cluster failed\n";
-      break;
-    }
     // needs connect to cluster first
     std::string table = "table" + std::to_string(i);
     std::cout << "Start " << i << std::endl;

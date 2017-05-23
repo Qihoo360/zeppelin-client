@@ -13,12 +13,21 @@
 #include "slash/include/slash_status.h"
 #include "slash/include/slash_mutex.h"
 
-#include "libzp/include/zp_meta.pb.h"
-#include "libzp/include/client.pb.h"
 #include "libzp/include/zp_entity.h"
 
 namespace pink {
   class BGThread;
+}
+
+namespace client {
+  class CmdRequest;
+  class CmdResponse;
+}
+
+namespace ZPMeta {
+  class MetaCmd;
+  class MetaCmdResponse;
+  class MetaCmdResponse_Pull;
 }
 
 namespace libzp {
@@ -80,14 +89,15 @@ public:
   Status InfoServer(const Node& node, ServerState* state);
 
   // local cmd
-  Status DebugDumpPartition(const std::string& table, int partition_id = -1) const;
-  int LocateKey(const std::string& table, const std::string& key) const;
+  Status DebugDumpPartition(const std::string& table, int partition_id = -1);
+  int LocateKey(const std::string& table, const std::string& key);
 
  private:
   
-  bool DispatchMget(CmdContext* context);
-  bool Dispatch(CmdContext* context);
-  void DeliverDataCmd(CmdContext* context, bool has_pull = false);
+  void Init();
+  bool DeliverMget(CmdContext* context);
+  bool Deliver(CmdContext* context);
+  void DeliverAndPull(CmdContext* context, bool has_pull = false);
   static void DoAsyncTask(void* arg);
   void AddAsyncTask(CmdContext* context);
   static void DoNodeTask(void* arg);
@@ -95,31 +105,36 @@ public:
   Status SubmitDataCmd(const Node& master,
       client::CmdRequest& req, client::CmdResponse *res,
       int attempt = 0);
-  Status SubmitMetaCmd(int attempt = 0);
+  Status SubmitMetaCmd(ZPMeta::MetaCmd& req, ZPMeta::MetaCmdResponse *res,
+      int attempt = 0);
   std::shared_ptr<ZpCli> GetMetaConnection();
 
+  // meta info
+  std::vector<Node> meta_addr_;
+ 
+  // Protect meta info include epoch, tables
+  // Which may be changed when meta updated
+  pthread_rwlock_t meta_rw_;
+  int64_t epoch_;
+  std::unordered_map<std::string, Table*> tables_;
+  void ResetTableMeta(const std::string& table_name,
+      const ZPMeta::MetaCmdResponse_Pull& pull);
   Status GetTableMasters(const std::string& table_name,
     std::set<Node>* related_nodes);
   Status GetDataMaster(const std::string& table,
       const std::string& key, Node* master);
-  void ResetClusterMap(const ZPMeta::MetaCmdResponse_Pull& pull);
-
-  // meta info
-  int64_t epoch_;
-  std::vector<Node> meta_addr_;
-  std::unordered_map<std::string, Table*> tables_;
-
 
   // connection pool
   ConnectionPool* meta_pool_;
   ConnectionPool* data_pool_;
 
   // Pb command for communication
-  ZPMeta::MetaCmd meta_cmd_;
-  ZPMeta::MetaCmdResponse meta_res_;
+  ZPMeta::MetaCmd *meta_cmd_;
+  ZPMeta::MetaCmdResponse *meta_res_;
   CmdContext* context_;
   
   // BG worker
+  slash::Mutex peer_mu_;
   std::map<Node, pink::BGThread*> peer_workers_;
   pink::BGThread* async_worker_;
 };
