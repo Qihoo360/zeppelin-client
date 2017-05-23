@@ -361,7 +361,7 @@ bool Cluster::Dispatch(CmdContext* context) {
   context->WaitRpcDone();
   if (!context->result.ok()
         || (context->response->code() != client::StatusCode::kOk
-          && context_->response->code() != client::StatusCode::kNotFound) { // Error
+          && context_->response->code() != client::StatusCode::kNotFound)) { // Error
     return false;
   }
   return true;
