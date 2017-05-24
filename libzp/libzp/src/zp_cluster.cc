@@ -690,7 +690,8 @@ Status Cluster::GetTableMasters(const std::string& table,
   return Status::OK();
 }
 
-Status Cluster::InfoQps(const std::string& table, int* qps, int* total_query) {
+Status Cluster::InfoQps(const std::string& table,
+    int32_t* qps, int64_t* total_query) {
   Pull(table);
   std::set<Node> related_nodes;
   Status s = GetTableMasters(table, &related_nodes);

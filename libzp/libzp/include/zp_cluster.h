@@ -81,7 +81,7 @@ public:
   Status ListNode(std::vector<Node>* nodes,
       std::vector<std::string>* status);
 
-  Status InfoQps(const std::string& table, int* qps, int* total_query);
+  Status InfoQps(const std::string& table, int32_t* qps, int64_t* total_query);
   Status InfoRepl(const Node& node,
       const std::string& table, std::map<int, PartitionView>* partitions);
   Status InfoSpace(const std::string& table,

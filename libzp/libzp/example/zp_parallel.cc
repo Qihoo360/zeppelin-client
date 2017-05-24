@@ -176,7 +176,7 @@ void Pull() {
 void InfoQps() {
   for(int i = 0; i < 10; i++) {
     std::string table = "table" + std::to_string(i);
-    int qps = 0, total_query = 0;
+    int32_t qps = 0; int64_t total_query = 0;
     s = cluster_ptr->InfoQps(table, &qps, &total_query);
     if (!s.ok()) {
       std::cout << "InfoQps " << table << " failed, " << s.ToString() << std::endl;

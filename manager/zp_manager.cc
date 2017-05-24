@@ -300,7 +300,7 @@ void StartRepl(libzp::Cluster* cluster) {
           continue;
         }
         std::string table_name = line_args[1];
-        int qps = 0, total_query = 0;
+        int32_t qps = 0; int64_t total_query = 0;
         s = cluster->InfoQps(table_name, &qps, &total_query);
         std::cout << "qps:" << qps << std::endl;
         std::cout << "total query:" << total_query << std::endl;
