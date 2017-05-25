@@ -71,6 +71,11 @@ CommandHelp commandHelp[] = {
     0,
     "list all meta nodes"},
 
+  { "METASTATUS",
+    "",
+    0,
+    "list meta internal details"},
+
   { "QPS",
     "table",
     1,

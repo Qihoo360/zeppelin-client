@@ -630,6 +630,23 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   return Status::OK();
 }
 
+Status Cluster::MetaStatus(std::string* meta_status) {
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::METASTATUS);
+
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+
+  if (!ret.ok()) {
+    return Status::IOError(ret.ToString());
+  }
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  }
+  // Server will return OK all the time.
+  *meta_status = meta_res_->msg();
+  return Status::OK();
+}
+
 Status Cluster::ListNode(std::vector<Node>* nodes,
     std::vector<std::string>* status) {
   meta_cmd_->Clear();
