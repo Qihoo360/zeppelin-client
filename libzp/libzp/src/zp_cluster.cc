@@ -339,11 +339,13 @@ bool Cluster::DeliverMget(CmdContext* context) {
     AddNodeTask(kd.first, kd.second);
   }
 
+  for (auto& kd : key_distribute) {
+    kd.second->WaitRpcDone();
+  }
+
   // Wait peer_workers process and merge result
   context->response->set_type(client::Type::MGET);
   for (auto& kd : key_distribute) {
-    kd.second->WaitRpcDone();
-    
     context->result = kd.second->result;
     context->response->set_code(kd.second->response->code());
     context->response->set_msg(kd.second->response->msg());
@@ -357,9 +359,8 @@ bool Cluster::DeliverMget(CmdContext* context) {
       res_mget->set_key(kv.key());
       res_mget->set_value(kv.value());
     }
-    delete kd.second;
   }
-
+  ClearDistributeMap(&key_distribute);
   return true;
 }
 
@@ -460,6 +461,9 @@ void Cluster::AddNodeTask(const Node& node, CmdContext* context) {
 
 Status Cluster::CreateTable(const std::string& table_name,
     const int partition_num) {
+  if (partition_num == 0) {
+    return Status::InvalidArgument("partition count should not be zero");
+  }
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::INIT);
   ZPMeta::MetaCmd_Init* init = meta_cmd_->mutable_init();
@@ -884,7 +888,11 @@ Status Cluster::GetDataMaster(const std::string& table,
   std::unordered_map<std::string, Table*>::iterator it =
     tables_.find(table);
   if (it != tables_.end()) {
-    *master = it->second->GetPartition(key)->master();
+    const Partition* part = it->second->GetPartition(key);
+    if (!part) {
+      return Status::Incomplete("no partitions yet");
+    }
+    *master = part->master();
     return Status::OK();
   } else {
     return Status::NotFound("table does not exist");

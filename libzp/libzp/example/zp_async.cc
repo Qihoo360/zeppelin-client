@@ -2,13 +2,10 @@
  * "Copyright [2016] qihoo"
  */
 #include <unistd.h>
-
 #include <string>
 #include <vector>
 #include <iostream>
-
 #include "libzp/include/zp_client.h"
-
 
 void usage() {
   std::cout << "usage:\n"

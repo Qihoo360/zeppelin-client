@@ -68,6 +68,9 @@ Table::~Table() {
 }
 
 const Partition* Table::GetPartition(const std::string& key) const {
+  if (partitions_.empty()) {
+    return NULL;
+  }
   int par_num = std::hash<std::string>()(key) % partitions_.size();
   return GetPartitionById(par_num);
 }
