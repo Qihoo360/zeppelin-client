@@ -78,6 +78,7 @@ public:
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);
   Status ListMeta(Node* master, std::vector<Node>* nodes);
+  Status MetaStatus(std::string* meta_status);
   Status ListNode(std::vector<Node>* nodes,
       std::vector<std::string>* status);
 

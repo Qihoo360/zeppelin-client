@@ -254,7 +254,17 @@ void StartRepl(libzp::Cluster* cluster) {
         iter++;
       }
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "METASTATUS", 10)) {
 
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string meta_status;
+      s = cluster->MetaStatus(&meta_status);
+      std::cout << std::string(140, '=') << std::endl;
+      std::cout << meta_status << std::endl;
+      std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "LISTNODE", 8)) {
       if (line_args.size() != 1) {
         std::cout << "arg num wrong" << std::endl;
