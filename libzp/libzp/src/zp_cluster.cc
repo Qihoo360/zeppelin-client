@@ -174,6 +174,7 @@ void Cluster::Init() {
 
 Cluster::~Cluster() {
     
+  delete async_worker_;
   {
     slash::MutexLock l(&peer_mu_);
     for (auto& bg : peer_workers_) {
@@ -190,7 +191,6 @@ Cluster::~Cluster() {
     }
   }
   
-  delete async_worker_;
   pthread_rwlock_destroy(&meta_rw_);
   delete context_;
   delete meta_res_;
