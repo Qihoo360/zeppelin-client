@@ -1,7 +1,7 @@
 <?php
 
 $zp = new Zeppelin("127.0.0.1", 9221, "test1");
-$times = 10000000;
+$times = 100;
 while($times--) {
   $num = rand(10, 1000);
   $ret = $zp->Set("key1", $num);
@@ -27,5 +27,5 @@ while($times--) {
     var_dump($val);
     break;
   }
-
 }
+echo "done". PHP_EOL;

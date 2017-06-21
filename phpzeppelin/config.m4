@@ -63,10 +63,10 @@ if test "$PHP_ZEPPELIN" != "no"; then
 
   PHP_REQUIRE_CXX()
   PHP_ADD_LIBRARY(stdc++, 1, EXTRA_LDFLAGS)
-  PHP_ADD_LIBRARY(protobuf, 1, lprotobuf)
-  PHP_ADD_LIBRARY_WITH_PATH(zp, ../libzp/libzp/lib, libzp)
-  PHP_ADD_LIBRARY_WITH_PATH(zp, ../third/pink/pink/lib, libpink)
-  PHP_ADD_LIBRARY_WITH_PATH(zp, ../third/slash/slash/lib, libslash)
+  PHP_ADD_LIBRARY(protobuf, 1, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY_WITH_PATH(slash, ../third/slash/slash/lib, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY_WITH_PATH(pink, ../third/pink/pink/lib, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY_WITH_PATH(zp, ../libzp/libzp/lib, EXTRA_LDFLAGS)
   
   CPPFILE="zeppelin.cc"
 
