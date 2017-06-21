@@ -29,7 +29,7 @@ extern "C"
 }
 
 #include "php_zeppelin.h"
-#include "libzp/include/zp_cluster.h"
+#include "libzp/include/zp_client.h"
 #include "slash/include/slash_status.h"
 #include "zend.h"
 
