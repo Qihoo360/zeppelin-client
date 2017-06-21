@@ -43,6 +43,10 @@ public:
   virtual ~Cluster();
   Status Connect();
 
+  uint64_t op_timeout() {
+    return options_.op_timeout;
+  }
+
   // data cmd
   Status Set(const std::string& table, const std::string& key,
       const std::string& value, int32_t ttl = -1);
@@ -96,6 +100,7 @@ public:
  private:
   
   void Init();
+  Status PullInternal(const std::string& table, uint64_t deadline);
   bool DeliverMget(CmdContext* context);
   bool Deliver(CmdContext* context);
   void DeliverAndPull(CmdContext* context, bool has_pull = false);
@@ -105,13 +110,13 @@ public:
   void AddNodeTask(const Node& node, CmdContext* context);
   Status SubmitDataCmd(const Node& master,
       client::CmdRequest& req, client::CmdResponse *res,
-      int attempt = 0);
+      uint64_t deadline, int attempt = 0);
   Status SubmitMetaCmd(ZPMeta::MetaCmd& req, ZPMeta::MetaCmdResponse *res,
-      int attempt = 0);
+      uint64_t deadline, int attempt = 0);
   std::shared_ptr<ZpCli> GetMetaConnection();
 
-  // meta info
-  std::vector<Node> meta_addr_;
+  // options
+  Options options_;
  
   // Protect meta info include epoch, tables
   // Which may be changed when meta updated

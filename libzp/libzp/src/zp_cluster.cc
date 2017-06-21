@@ -7,6 +7,7 @@
 #include <google/protobuf/text_format.h>
 
 #include "slash/include/slash_string.h"
+#include "slash/include/env.h"
 #include "pink/include/bg_thread.h"
 #include "pink/include/pink_cli.h"
 #include "libzp/src/zp_conn.h"
@@ -25,6 +26,13 @@ struct NodeTaskArg {
     :context(c), target(n) {}
 };
 
+static uint64_t CalcDeadline(int timeout) {
+  if (timeout == 0) {
+    return 0; // no limit
+  }
+  return slash::NowMicros() / 1000 + timeout;
+}
+
 struct CmdContext {
   Cluster* cluster;
   std::string table;
@@ -34,6 +42,7 @@ struct CmdContext {
   Status result;
   zp_completion_t completion;
   void* user_data;
+  uint64_t deadline; //0 means no limit
 
   CmdContext()
     : cluster(NULL), result(Status::Incomplete("Not complete")),
@@ -53,9 +62,10 @@ struct CmdContext {
     completion = comp;
     user_data = d;
     done_ = false;
+    deadline = CalcDeadline(c->op_timeout());
   }
 
-  void Reset () {
+  inline void Reset () {
     response->Clear();
     result = Status::Incomplete("Not complete");
     done_ = false;
@@ -147,19 +157,21 @@ static void ClearDistributeMap(std::map<Node, CmdContext*>* key_distribute) {
 
 Cluster::Cluster(const Options& options)
   : epoch_(-1) {
-    meta_addr_ = options.meta_addr;
+    options_ = options;
     Init();
   }
 
 Cluster::Cluster(const std::string& ip, int port)
   : epoch_(-1) {
-    meta_addr_.push_back(Node(ip, port));
+    Options opt;
+    opt.meta_addr.push_back(Node(ip, port));
+    options_ = opt;
     Init();
   }
 
 void Cluster::Init() {
-    meta_pool_ = new ConnectionPool();
-    data_pool_ = new ConnectionPool();
+    meta_pool_ = new ConnectionPool(options_.connect_timeout);
+    data_pool_ = new ConnectionPool(options_.connect_timeout);
     meta_cmd_ = new ZPMeta::MetaCmd();
     meta_res_ = new ZPMeta::MetaCmdResponse();
     context_ = new CmdContext();
@@ -325,6 +337,7 @@ bool Cluster::DeliverMget(CmdContext* context) {
     if (key_distribute.find(master) == key_distribute.end()) {
       CmdContext* sub_context = new CmdContext();
       sub_context->Init(this, context->table, k);
+      sub_context->deadline = context->deadline;
       sub_context->request->set_type(client::Type::MGET);
       client::CmdRequest_Mget* new_mget_cmd = sub_context->request->mutable_mget();
       new_mget_cmd->set_table_name(context->table);
@@ -377,7 +390,7 @@ bool Cluster::Deliver(CmdContext* context) {
   }
   
   context->result = SubmitDataCmd(master,
-      *(context->request), context->response);
+      *(context->request), context->response, context->deadline);
 
   if (!context->result.ok()
         || (context->response->code() != client::StatusCode::kOk
@@ -394,11 +407,22 @@ void Cluster::DeliverAndPull(CmdContext* context, bool has_pull) {
     return; 
   }
 
+  if (context->deadline
+      && slash::NowMicros() / 1000 > context->deadline) {
+    return; // timeout
+  }
+
   // Failed, then try to update meta
-  context->result = Pull(context->table);
+  context->result = PullInternal(context->table, context->deadline);
   if (!context->result.ok()) {
     return;
   }
+
+  if (context->deadline
+      && slash::NowMicros() / 1000 > context->deadline) {
+    return; // timeout
+  }
+
   context->Reset();
   return DeliverAndPull(context, true);
 }
@@ -410,7 +434,7 @@ void Cluster::DoAsyncTask(void* arg) {
   // Callback zp_completion_t
   std::string value;
   std::map<std::string, std::string> kvs;
-  switch (carg->response->type()) {
+  switch (carg->request->type()) {
     case client::Type::SET:
     case client::Type::DEL:
       carg->completion(Result(carg->result, carg->key), carg->user_data);
@@ -443,7 +467,7 @@ void Cluster::DoNodeTask(void* arg) {
   NodeTaskArg* task_arg = static_cast<NodeTaskArg*>(arg);
   CmdContext *carg = task_arg->context;
   carg->result = carg->cluster->SubmitDataCmd(task_arg->target,
-      *(carg->request), carg->response);
+      *(carg->request), carg->response, carg->deadline);
   carg->RpcDone();
   delete task_arg;
 }
@@ -470,7 +494,8 @@ Status Cluster::CreateTable(const std::string& table_name,
   init->set_name(table_name);
   init->set_num(partition_num);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
@@ -489,7 +514,8 @@ Status Cluster::DropTable(const std::string& table_name) {
   ZPMeta::MetaCmd_DropTable* drop_table = meta_cmd_->mutable_drop_table();
   drop_table->set_name(table_name);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
@@ -500,8 +526,11 @@ Status Cluster::DropTable(const std::string& table_name) {
     return Status::OK();
   }
 }
-
 Status Cluster::Pull(const std::string& table) {
+  return PullInternal(table, CalcDeadline(options_.op_timeout));
+}
+
+Status Cluster::PullInternal(const std::string& table, uint64_t deadline) {
   // Pull is different with other meta command
   // Since it may be called both by user thread and async thread
   ZPMeta::MetaCmd meta_cmd;
@@ -510,7 +539,7 @@ Status Cluster::Pull(const std::string& table) {
   ZPMeta::MetaCmd_Pull* pull = meta_cmd.mutable_pull();
   pull->set_name(table);
 
-  slash::Status ret = SubmitMetaCmd(meta_cmd, &meta_res);
+  slash::Status ret = SubmitMetaCmd(meta_cmd, &meta_res, deadline);
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
   }
@@ -525,7 +554,7 @@ Status Cluster::Pull(const std::string& table) {
 }
 
 Status Cluster::FetchMetaInfo(const std::string& table, Table* table_meta) {
-  slash::Status s = Pull(table);
+  slash::Status s = PullInternal(table, CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
     return s;
   }
@@ -549,7 +578,8 @@ Status Cluster::SetMaster(const std::string& table_name,
   node->set_ip(ip_port.ip);
   node->set_port(ip_port.port);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
   }
@@ -573,7 +603,8 @@ Status Cluster::AddSlave(const std::string& table_name,
   node->set_ip(ip_port.ip);
   node->set_port(ip_port.port);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
   }
@@ -598,7 +629,8 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   node->set_ip(ip_port.ip);
   node->set_port(ip_port.port);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
   }
@@ -613,7 +645,8 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::LISTMETA);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
@@ -638,7 +671,8 @@ Status Cluster::MetaStatus(std::string* meta_status) {
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::METASTATUS);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
@@ -656,7 +690,8 @@ Status Cluster::ListNode(std::vector<Node>* nodes,
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::LISTNODE);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
@@ -684,7 +719,8 @@ Status Cluster::ListTable(std::vector<std::string>* tables) {
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::LISTTABLE);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_);
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
     return Status::IOError(ret.ToString());
@@ -713,7 +749,7 @@ Status Cluster::GetTableMasters(const std::string& table,
 
 Status Cluster::InfoQps(const std::string& table,
     int32_t* qps, int64_t* total_query) {
-  Pull(table);
+  PullInternal(table, CalcDeadline(options_.op_timeout));
   std::set<Node> related_nodes;
   Status s = GetTableMasters(table, &related_nodes);
   if (!s.ok()) {
@@ -725,7 +761,7 @@ Status Cluster::InfoQps(const std::string& table,
   while (node_iter != related_nodes.end()) {
     BuildInfoContext(this, table, client::Type::INFOSTATS, context_);
     context_->result = SubmitDataCmd(*node_iter,
-        *(context_->request), context_->response);
+        *(context_->request), context_->response, context_->deadline);
     node_iter++;
     if (!context_->result.ok()) {
       continue;
@@ -740,7 +776,7 @@ Status Cluster::InfoRepl(const Node& node, const std::string& table,
     std::map<int, PartitionView>* view) {
   BuildInfoContext(this, table, client::Type::INFOREPL, context_);
   context_->result = SubmitDataCmd(node,
-      *(context_->request), context_->response);
+      *(context_->request), context_->response, context_->deadline);
   if (!context_->result.ok()) {
     return context_->result;
   }
@@ -755,7 +791,7 @@ Status Cluster::InfoRepl(const Node& node, const std::string& table,
 Status Cluster::InfoServer(const Node& node, ServerState* state) {
   BuildInfoContext(this, "", client::Type::INFOSERVER, context_);
   context_->result = SubmitDataCmd(node,
-      *(context_->request), context_->response);
+      *(context_->request), context_->response, context_->deadline);
   if (!context_->result.ok()) {
     return context_->result;
   }
@@ -765,7 +801,7 @@ Status Cluster::InfoServer(const Node& node, ServerState* state) {
 
 Status Cluster::InfoSpace(const std::string& table,
     std::vector<std::pair<Node, SpaceInfo>>* nodes) {
-  Pull(table);
+  PullInternal(table, CalcDeadline(options_.op_timeout));
   std::set<Node> related_nodes;
   Status s = GetTableMasters(table, &related_nodes);
   if (!s.ok()) {
@@ -776,7 +812,7 @@ Status Cluster::InfoSpace(const std::string& table,
   for (auto node : related_nodes) {
     BuildInfoContext(this, table, client::Type::INFOCAPACITY, context_);
     context_->result = SubmitDataCmd(node,
-        *(context_->request), context_->response);
+        *(context_->request), context_->response, context_->deadline);
     if (!context_->result.ok()) {
       continue;
     }
@@ -789,11 +825,13 @@ Status Cluster::InfoSpace(const std::string& table,
   return Status::OK();
 }
 
+/*
+ * deadline is 0 means no deadline
+ */
 Status Cluster::SubmitDataCmd(const Node& master,
     client::CmdRequest& req, client::CmdResponse *res,
-    int attempt) {
+    uint64_t deadline, int attempt) {
   res->Clear();
-
   Status s;
   std::shared_ptr<ZpCli> data_cli = data_pool_->GetConnection(master);
   if (!data_cli) {
@@ -802,6 +840,14 @@ Status Cluster::SubmitDataCmd(const Node& master,
 
   {
     slash::MutexLock l(&data_cli->cli_mu);
+    if (deadline) {
+      int timeout = deadline - slash::NowMicros() / 1000;
+      if (timeout <= 0) {
+        return Status::Timeout("execute timeout");
+      }
+      data_cli->cli->set_send_timeout((timeout + 1) / 2); // timeout half for send and half for recv
+      data_cli->cli->set_recv_timeout((timeout + 1) / 2);
+    }
     s = data_cli->cli->Send(&req);
     if (s.ok()) {
       s = data_cli->cli->Recv(res);
@@ -810,17 +856,22 @@ Status Cluster::SubmitDataCmd(const Node& master,
 
   if (!s.ok()) {
     data_pool_->RemoveConnection(data_cli);
+    if (deadline && slash::NowMicros() / 1000 >= deadline) {
+      return s;
+    }
     if (attempt <= kDataAttempt) {
-      return SubmitDataCmd(master, req, res, attempt + 1);
+      return SubmitDataCmd(master, req, res, deadline, attempt + 1);
     }
   }
   return s;
 }
 
+/*
+ * deadline is 0 means no deadline
+ */
 Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
-    ZPMeta::MetaCmdResponse *res, int attempt) {
+    ZPMeta::MetaCmdResponse *res, uint64_t deadline, int attempt) {
   res->Clear();
-
   Status s;
   std::shared_ptr<ZpCli> meta_cli = GetMetaConnection();
   if (!meta_cli) {
@@ -829,6 +880,14 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
 
   {
     slash::MutexLock l(&meta_cli->cli_mu);
+    if (deadline) {
+      int timeout = deadline - slash::NowMicros() / 1000;
+      if (timeout <= 0) {
+        return Status::Timeout("execute timeout");
+      }
+      meta_cli->cli->set_send_timeout((timeout + 1) / 2);
+      meta_cli->cli->set_recv_timeout((timeout + 1) / 2);
+    }
     s = meta_cli->cli->Send(&req);
     if (s.ok()) {
       s = meta_cli->cli->Recv(res);
@@ -837,8 +896,11 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
 
   if (!s.ok()) {
     meta_pool_->RemoveConnection(meta_cli);
+    if (deadline && slash::NowMicros() / 1000 >= deadline) {
+      return s;
+    }
     if (attempt <= kMetaAttempt) {
-      return SubmitMetaCmd(req, res, attempt + 1);
+      return SubmitMetaCmd(req, res, deadline, attempt + 1);
     }
   }
   return s;
@@ -884,15 +946,15 @@ std::shared_ptr<ZpCli> Cluster::GetMetaConnection() {
   }
 
   // No Exist one, try to connect any
-  int cur = RandomIndex(0, meta_addr_.size() - 1);
+  int cur = RandomIndex(0, options_.meta_addr.size() - 1);
   int count = 0;
-  while (count++ < meta_addr_.size()) {
-    meta_cli = meta_pool_->GetConnection(meta_addr_[cur]);
+  while (count++ < options_.meta_addr.size()) {
+    meta_cli = meta_pool_->GetConnection(options_.meta_addr[cur]);
     if (meta_cli) {
       break;
     }
     cur++;
-    if (cur == meta_addr_.size()) {
+    if (cur == options_.meta_addr.size()) {
       cur = 0;
     }
   }

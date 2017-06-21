@@ -33,9 +33,22 @@ struct Node {
 };
 
 struct Options {
+  // connect timeout in millisecond
+  // Default 3000
+  int connect_timeout;
+
+  // How many milliseconds to wait for a response
+  // before returning an error from a zeppelin operation. 0 means no limit
+  // Default 0
+  int op_timeout;
+
+  // meta address collection
   std::vector<Node> meta_addr;
-  Options() {
-  }
+
+  Options()
+    : connect_timeout(3000),
+      op_timeout(0) {
+      }
 };
 
 struct Result {

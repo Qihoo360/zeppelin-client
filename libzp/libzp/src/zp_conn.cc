@@ -21,7 +21,6 @@ ZpCli::ZpCli(const Node& node)
 : node(node),
   lastchecktime(NowMicros()) {
     cli = pink::NewPbCli();
-    cli->set_connect_timeout(6000);
     assert(cli);
   }
 
@@ -39,8 +38,9 @@ bool ZpCli::CheckTimeout() {
   return true;
 }
 
-ConnectionPool::ConnectionPool() {
-}
+ConnectionPool::ConnectionPool(int connect_timeout)
+  : connect_timeout_(connect_timeout) {
+  }
 
 ConnectionPool::~ConnectionPool() {
   slash::MutexLock l(&pool_mu_);
@@ -59,6 +59,7 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node) {
 
   // Not found or timeout, create new one
   std::shared_ptr<ZpCli> cli(new ZpCli(node));
+  cli->cli->set_connect_timeout(connect_timeout_);
   Status s = cli->cli->Connect(node.ip, node.port);
   if (s.ok()) {
     conn_pool_.insert(std::make_pair(node, cli));

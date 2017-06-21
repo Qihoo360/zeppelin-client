@@ -8,7 +8,7 @@ else
 	CXXFLAGS = -O2 -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-unused-variable
 endif
 
-OBJECT = zp_get zp_mget zp_create_table zp_async zp_parallel
+OBJECT = zp_timeout zp_get zp_mget zp_create_table zp_async zp_parallel
 SRC_DIR = ./
 OUTPUT = ./output
 
@@ -45,6 +45,9 @@ all: $(OBJECT)
 	cp $(OBJECT) $(OUTPUT)/bin/
 	rm -rf $(OBJECT)
 	@echo "Success, go, go, go..."
+
+zp_timeout: $(ZP) zp_timeout.cc
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 zp_get: $(ZP) zp_get.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
