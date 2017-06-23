@@ -18,10 +18,17 @@ namespace pink {
 
 namespace libzp {
 
+enum TimeoutOptType {
+  CONNECT = 0,
+  SEND,
+  RECV,
+};
+
 struct ZpCli {
   explicit ZpCli(const Node& node);
   ~ZpCli();
-  bool CheckTimeout();
+  bool TryKeepalive();
+  Status SetTimeout(uint64_t deadline, TimeoutOptType type);
 
   Node node;
   pink::PinkCli* cli;
@@ -36,7 +43,7 @@ class ConnectionPool {
   virtual ~ConnectionPool();
 
   std::shared_ptr<ZpCli> GetConnection(const Node& node,
-      uint64_t deadline);
+      uint64_t deadline, Status* sptr);
   void RemoveConnection(std::shared_ptr<ZpCli> conn);
   std::shared_ptr<ZpCli> GetExistConnection();
 

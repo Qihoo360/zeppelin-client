@@ -26,7 +26,7 @@ struct NodeTaskArg {
     :context(c), target(n) {}
 };
 
-static uint64_t CalcDeadline(int timeout) {
+static inline uint64_t CalcDeadline(int timeout) {
   if (timeout == 0) {
     return 0; // no limit
   }
@@ -212,9 +212,11 @@ Cluster::~Cluster() {
 }
 
 Status Cluster::Connect() {
-  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection(CalcDeadline(options_.op_timeout));
+  Status s;
+  std::shared_ptr<ZpCli> meta_cli =
+    GetMetaConnection(CalcDeadline(options_.op_timeout), &s);
   if (meta_cli == NULL) {
-    return Status::IOError("can't connect meta server");
+    return s;
   }
   return Status::OK();
 }
@@ -401,28 +403,20 @@ bool Cluster::Deliver(CmdContext* context) {
 }
 
 void Cluster::DeliverAndPull(CmdContext* context) {
-  bool succ = Deliver(context);
-  if (succ){
-    return; 
-  }
 
-  if (context->deadline
-      && slash::NowMicros() / 1000 > context->deadline) {
-    return; // timeout
-  }
+  while (!Deliver(context)) {
+    if (context->result.IsTimeout()) {
+      return;
+    }
 
-  // Failed, then try to update meta
-  context->result = PullInternal(context->table, context->deadline);
-  if (context->result.ok()) {
-    context->Reset();
+    // Failed, then try to update meta
+    context->result = PullInternal(context->table, context->deadline);
+    if (context->result.ok()) {
+      context->Reset();
+    } else if (context->result.IsTimeout()) {
+      return;
+    }
   }
-
-  if (context->deadline
-      && slash::NowMicros() / 1000 > context->deadline) {
-    return;
-  }
-
-  return DeliverAndPull(context);
 }
 
 void Cluster::DoAsyncTask(void* arg) {
@@ -558,7 +552,7 @@ Status Cluster::FetchMetaInfo(const std::string& table, Table* table_meta) {
   }
   slash::RWLock l(&meta_rw_, false);
   if (tables_.find(table) == tables_.end()) {
-    return Status::NotFound("table not found");
+    return Status::InvalidArgument("table not found");
   }
   *table_meta = *(tables_[table]);
   return Status::OK();
@@ -739,7 +733,7 @@ Status Cluster::GetTableMasters(const std::string& table,
   slash::RWLock l(&meta_rw_, false);
   auto table_iter = tables_.find(table);
   if (table_iter == tables_.end()) {
-    return Status::NotFound("this table does not exist");
+    return Status::InvalidArgument("this table does not exist");
   }
   table_iter->second->GetAllMasters(related_nodes);
   return Status::OK();
@@ -829,25 +823,23 @@ Status Cluster::InfoSpace(const std::string& table,
 Status Cluster::SubmitDataCmd(const Node& master,
     client::CmdRequest& req, client::CmdResponse *res,
     uint64_t deadline, int attempt) {
-  res->Clear();
   Status s;
+  res->Clear();
   std::shared_ptr<ZpCli> data_cli = data_pool_->GetConnection(master,
-      deadline);
+      deadline, &s);
   if (!data_cli) {
-    return Status::Corruption("Failed to get data cli");
+    return s;
   }
 
   {
     slash::MutexLock l(&data_cli->cli_mu);
-    if (deadline) {
-      int timeout = deadline - slash::NowMicros() / 1000;
-      if (timeout <= 0) {
-        return Status::Timeout("remote data execute timeout");
-      }
-      data_cli->cli->set_send_timeout((timeout + 1) / 2); // timeout half for send and half for recv
-      data_cli->cli->set_recv_timeout((timeout + 1) / 2);
+    s = data_cli->SetTimeout(deadline, TimeoutOptType::SEND);
+    if (s.ok()) {
+      s = data_cli->cli->Send(&req);
     }
-    s = data_cli->cli->Send(&req);
+    if (s.ok()) {
+      s = data_cli->SetTimeout(deadline, TimeoutOptType::RECV);
+    }
     if (s.ok()) {
       s = data_cli->cli->Recv(res);
     }
@@ -855,7 +847,7 @@ Status Cluster::SubmitDataCmd(const Node& master,
 
   if (!s.ok()) {
     data_pool_->RemoveConnection(data_cli);
-    if (deadline && slash::NowMicros() / 1000 >= deadline) {
+    if (s.IsTimeout()) {
       return s;
     }
     if (attempt <= kDataAttempt) {
@@ -870,24 +862,22 @@ Status Cluster::SubmitDataCmd(const Node& master,
  */
 Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
     ZPMeta::MetaCmdResponse *res, uint64_t deadline, int attempt) {
-  res->Clear();
   Status s;
-  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection(deadline);
+  res->Clear();
+  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection(deadline, &s);
   if (!meta_cli) {
-    return Status::IOError("Failed to get meta cli");
+    return s;
   }
 
   {
     slash::MutexLock l(&meta_cli->cli_mu);
-    if (deadline) {
-      int timeout = deadline - slash::NowMicros() / 1000;
-      if (timeout <= 0) {
-        return Status::Timeout("remote meta execute timeout");
-      }
-      meta_cli->cli->set_send_timeout((timeout + 1) / 2);
-      meta_cli->cli->set_recv_timeout((timeout + 1) / 2);
+    s = meta_cli->SetTimeout(deadline, TimeoutOptType::SEND);
+    if (s.ok()) {
+      s = meta_cli->cli->Send(&req);
     }
-    s = meta_cli->cli->Send(&req);
+    if (s.ok()) {
+      s = meta_cli->SetTimeout(deadline, TimeoutOptType::RECV);
+    }
     if (s.ok()) {
       s = meta_cli->cli->Recv(res);
     }
@@ -895,7 +885,7 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
 
   if (!s.ok()) {
     meta_pool_->RemoveConnection(meta_cli);
-    if (deadline && slash::NowMicros() / 1000 >= deadline) {
+    if (s.IsTimeout()) {
       return s;
     }
     if (attempt <= kMetaAttempt) {
@@ -910,7 +900,7 @@ Status Cluster::DebugDumpPartition(const std::string& table,
   slash::RWLock l(&meta_rw_, false);
   auto it = tables_.find(table);
   if (it == tables_.end()) {
-    return Status::NotFound("don't have this table's info");
+    return Status::InvalidArgument("don't have this table's info");
   }
   it->second->DebugDump(partition_id);
   return Status::OK();
@@ -938,7 +928,7 @@ static int RandomIndex(int floor, int ceil) {
   return di(mt);
 }
 
-std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline) {
+std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline, Status* sptr) {
   std::shared_ptr<ZpCli> meta_cli = meta_pool_->GetExistConnection();
   if (meta_cli) {
     return meta_cli;
@@ -948,7 +938,7 @@ std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline) {
   int cur = RandomIndex(0, options_.meta_addr.size() - 1);
   int count = 0;
   while (count++ < options_.meta_addr.size()) {
-    meta_cli = meta_pool_->GetConnection(options_.meta_addr[cur], deadline);
+    meta_cli = meta_pool_->GetConnection(options_.meta_addr[cur], deadline, sptr);
     if (meta_cli) {
       break;
     }
@@ -973,7 +963,7 @@ Status Cluster::GetDataMaster(const std::string& table,
     *master = part->master();
     return Status::OK();
   } else {
-    return Status::NotFound("table does not exist");
+    return Status::InvalidArgument("table does not exist");
   }
 }
 

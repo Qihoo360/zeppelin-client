@@ -9,7 +9,7 @@
 
 namespace libzp {
 
-const int kDataConnTimeout =  20000000;
+const int kConnKeepalive =  20000000;
 
 static uint64_t NowMicros() {
   struct timeval tv;
@@ -30,13 +30,39 @@ ZpCli::~ZpCli() {
   delete cli;
 }
 
-bool ZpCli::CheckTimeout() {
+bool ZpCli::TryKeepalive() {
   uint64_t now = NowMicros();
-  if ((now - lastchecktime) > kDataConnTimeout) {
+  if ((now - lastchecktime) > kConnKeepalive) {
     return false;
   }
   lastchecktime = now;
   return true;
+}
+
+Status ZpCli::SetTimeout(uint64_t deadline, TimeoutOptType type) {
+  if (!deadline) {
+    return Status::OK(); // no limit
+  }
+
+  int timeout = deadline - slash::NowMicros() / 1000;
+  if (timeout <= 0) {
+    return Status::Timeout("timeout in SetTimeout");
+  }
+
+  switch (type) {
+    case TimeoutOptType::CONNECT:
+      cli->set_connect_timeout(timeout);
+      break;
+    case TimeoutOptType::SEND:
+      cli->set_send_timeout(timeout);
+      break;
+    case TimeoutOptType::RECV:
+      cli->set_recv_timeout(timeout);
+      break;
+    default:
+      return Status::InvalidArgument("unknow TimeoutOptType");
+  }
+  return Status::OK();
 }
 
 ConnectionPool::ConnectionPool() {
@@ -48,11 +74,12 @@ ConnectionPool::~ConnectionPool() {
 }
 
 std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node,
-    uint64_t deadline) {
+    uint64_t deadline, Status* sptr) {
+  *sptr = Status::OK();
   slash::MutexLock l(&pool_mu_);
   std::map<Node, std::shared_ptr<ZpCli>>::iterator it = conn_pool_.find(node);
   if (it != conn_pool_.end()) {
-    if (it->second->CheckTimeout()) {
+    if (it->second->TryKeepalive()) {
       return it->second;
     }
     conn_pool_.erase(it);
@@ -60,11 +87,11 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node,
 
   // Not found or timeout, create new one
   std::shared_ptr<ZpCli> cli(new ZpCli(node));
-  if (deadline) {
-    cli->cli->set_connect_timeout(deadline - slash::NowMicros() / 1000);
+  *sptr = cli->SetTimeout(deadline, TimeoutOptType::CONNECT);
+  if (sptr->ok()) {
+    *sptr = cli->cli->Connect(node.ip, node.port);
   }
-  Status s = cli->cli->Connect(node.ip, node.port);
-  if (s.ok()) {
+  if (sptr->ok()) {
     conn_pool_.insert(std::make_pair(node, cli));
     return cli;
   }
@@ -86,7 +113,7 @@ std::shared_ptr<ZpCli> ConnectionPool::GetExistConnection() {
   slash::MutexLock l(&pool_mu_);
   while (!conn_pool_.empty()) {
     first = conn_pool_.begin();
-    if (!first->second->CheckTimeout()) {
+    if (!first->second->TryKeepalive()) {
       // Expire connection
       conn_pool_.erase(conn_pool_.begin());
       continue;

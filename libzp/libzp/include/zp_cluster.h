@@ -113,7 +113,7 @@ public:
       uint64_t deadline, int attempt = 0);
   Status SubmitMetaCmd(ZPMeta::MetaCmd& req, ZPMeta::MetaCmdResponse *res,
       uint64_t deadline, int attempt = 0);
-  std::shared_ptr<ZpCli> GetMetaConnection(uint64_t deadline);
+  std::shared_ptr<ZpCli> GetMetaConnection(uint64_t deadline, Status* s);
 
   // options
   Options options_;
