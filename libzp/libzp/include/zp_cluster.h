@@ -103,7 +103,7 @@ public:
   Status PullInternal(const std::string& table, uint64_t deadline);
   bool DeliverMget(CmdContext* context);
   bool Deliver(CmdContext* context);
-  void DeliverAndPull(CmdContext* context, bool has_pull = false);
+  void DeliverAndPull(CmdContext* context);
   static void DoAsyncTask(void* arg);
   void AddAsyncTask(CmdContext* context);
   static void DoNodeTask(void* arg);
@@ -113,7 +113,7 @@ public:
       uint64_t deadline, int attempt = 0);
   Status SubmitMetaCmd(ZPMeta::MetaCmd& req, ZPMeta::MetaCmdResponse *res,
       uint64_t deadline, int attempt = 0);
-  std::shared_ptr<ZpCli> GetMetaConnection();
+  std::shared_ptr<ZpCli> GetMetaConnection(uint64_t deadline);
 
   // options
   Options options_;

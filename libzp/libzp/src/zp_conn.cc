@@ -4,6 +4,7 @@
 #include "libzp/src/zp_conn.h"
 
 #include <sys/time.h>
+#include "slash/include/env.h"
 #include "pink/include/pink_cli.h"
 
 namespace libzp {
@@ -38,8 +39,7 @@ bool ZpCli::CheckTimeout() {
   return true;
 }
 
-ConnectionPool::ConnectionPool(int connect_timeout)
-  : connect_timeout_(connect_timeout) {
+ConnectionPool::ConnectionPool() {
   }
 
 ConnectionPool::~ConnectionPool() {
@@ -47,7 +47,8 @@ ConnectionPool::~ConnectionPool() {
   conn_pool_.clear();
 }
 
-std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node) {
+std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node,
+    uint64_t deadline) {
   slash::MutexLock l(&pool_mu_);
   std::map<Node, std::shared_ptr<ZpCli>>::iterator it = conn_pool_.find(node);
   if (it != conn_pool_.end()) {
@@ -59,7 +60,9 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node) {
 
   // Not found or timeout, create new one
   std::shared_ptr<ZpCli> cli(new ZpCli(node));
-  cli->cli->set_connect_timeout(connect_timeout_);
+  if (deadline) {
+    cli->cli->set_connect_timeout(deadline - slash::NowMicros() / 1000);
+  }
   Status s = cli->cli->Connect(node.ip, node.port);
   if (s.ok()) {
     conn_pool_.insert(std::make_pair(node, cli));

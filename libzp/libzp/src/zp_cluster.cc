@@ -170,8 +170,8 @@ Cluster::Cluster(const std::string& ip, int port)
   }
 
 void Cluster::Init() {
-    meta_pool_ = new ConnectionPool(options_.connect_timeout);
-    data_pool_ = new ConnectionPool(options_.connect_timeout);
+    meta_pool_ = new ConnectionPool();
+    data_pool_ = new ConnectionPool();
     meta_cmd_ = new ZPMeta::MetaCmd();
     meta_res_ = new ZPMeta::MetaCmdResponse();
     context_ = new CmdContext();
@@ -212,7 +212,7 @@ Cluster::~Cluster() {
 }
 
 Status Cluster::Connect() {
-  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection();
+  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection(CalcDeadline(options_.op_timeout));
   if (meta_cli == NULL) {
     return Status::IOError("can't connect meta server");
   }
@@ -225,7 +225,7 @@ Status Cluster::Set(const std::string& table, const std::string& key,
   DeliverAndPull(context_);
 
   if (!context_->result.ok()) {
-    return Status::IOError(context_->result.ToString());
+    return context_->result;
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     return Status::OK();
@@ -239,7 +239,7 @@ Status Cluster::Delete(const std::string& table, const std::string& key) {
   DeliverAndPull(context_);
 
   if (!context_->result.ok()) {
-    return Status::IOError(context_->result.ToString());
+    return context_->result;
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     return Status::OK();
@@ -254,7 +254,7 @@ Status Cluster::Get(const std::string& table, const std::string& key,
   DeliverAndPull(context_);
   
   if (!context_->result.ok()) {
-    return Status::IOError(context_->result.ToString());
+    return context_->result;
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     client::CmdResponse_Get info = context_->response->get();
@@ -278,7 +278,7 @@ Status Cluster::Mget(const std::string& table,
   DeliverAndPull(context_);
 
   if (!context_->result.ok()) {
-    return Status::IOError(context_->result.ToString());
+    return context_->result;
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     for (auto& kv : context_->response->mget()) {
@@ -392,18 +392,17 @@ bool Cluster::Deliver(CmdContext* context) {
   context->result = SubmitDataCmd(master,
       *(context->request), context->response, context->deadline);
 
-  if (!context->result.ok()
-        || (context->response->code() != client::StatusCode::kOk
-          && context_->response->code() != client::StatusCode::kNotFound)) { // Error
-    return false;
+  if (context->result.ok()
+        && (context->response->code() != client::StatusCode::kOk
+          || context_->response->code() != client::StatusCode::kNotFound)) { // Error
+    return true; //succ
   }
-  return true;
+  return false;
 }
 
-void Cluster::DeliverAndPull(CmdContext* context, bool has_pull) {
+void Cluster::DeliverAndPull(CmdContext* context) {
   bool succ = Deliver(context);
-  
-  if (succ || has_pull){
+  if (succ){
     return; 
   }
 
@@ -414,17 +413,16 @@ void Cluster::DeliverAndPull(CmdContext* context, bool has_pull) {
 
   // Failed, then try to update meta
   context->result = PullInternal(context->table, context->deadline);
-  if (!context->result.ok()) {
-    return;
+  if (context->result.ok()) {
+    context->Reset();
   }
 
   if (context->deadline
       && slash::NowMicros() / 1000 > context->deadline) {
-    return; // timeout
+    return;
   }
 
-  context->Reset();
-  return DeliverAndPull(context, true);
+  return DeliverAndPull(context);
 }
 
 void Cluster::DoAsyncTask(void* arg) {
@@ -498,7 +496,7 @@ Status Cluster::CreateTable(const std::string& table_name,
       CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
 
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
@@ -518,7 +516,7 @@ Status Cluster::DropTable(const std::string& table_name) {
       CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
@@ -541,7 +539,7 @@ Status Cluster::PullInternal(const std::string& table, uint64_t deadline) {
 
   slash::Status ret = SubmitMetaCmd(meta_cmd, &meta_res, deadline);
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
 
   if (meta_res.code() != ZPMeta::StatusCode::OK) {
@@ -581,7 +579,7 @@ Status Cluster::SetMaster(const std::string& table_name,
   slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
       CalcDeadline(options_.op_timeout));
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
 
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
@@ -606,7 +604,7 @@ Status Cluster::AddSlave(const std::string& table_name,
   slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
       CalcDeadline(options_.op_timeout));
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
 
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
@@ -632,7 +630,7 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
       CalcDeadline(options_.op_timeout));
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
@@ -649,7 +647,7 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
       CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
@@ -675,7 +673,7 @@ Status Cluster::MetaStatus(std::string* meta_status) {
       CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
@@ -694,7 +692,7 @@ Status Cluster::ListNode(std::vector<Node>* nodes,
       CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
@@ -723,7 +721,7 @@ Status Cluster::ListTable(std::vector<std::string>* tables) {
       CalcDeadline(options_.op_timeout));
 
   if (!ret.ok()) {
-    return Status::IOError(ret.ToString());
+    return ret;
   }
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
@@ -833,7 +831,8 @@ Status Cluster::SubmitDataCmd(const Node& master,
     uint64_t deadline, int attempt) {
   res->Clear();
   Status s;
-  std::shared_ptr<ZpCli> data_cli = data_pool_->GetConnection(master);
+  std::shared_ptr<ZpCli> data_cli = data_pool_->GetConnection(master,
+      deadline);
   if (!data_cli) {
     return Status::Corruption("Failed to get data cli");
   }
@@ -843,7 +842,7 @@ Status Cluster::SubmitDataCmd(const Node& master,
     if (deadline) {
       int timeout = deadline - slash::NowMicros() / 1000;
       if (timeout <= 0) {
-        return Status::Timeout("execute timeout");
+        return Status::Timeout("remote data execute timeout");
       }
       data_cli->cli->set_send_timeout((timeout + 1) / 2); // timeout half for send and half for recv
       data_cli->cli->set_recv_timeout((timeout + 1) / 2);
@@ -873,7 +872,7 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
     ZPMeta::MetaCmdResponse *res, uint64_t deadline, int attempt) {
   res->Clear();
   Status s;
-  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection();
+  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection(deadline);
   if (!meta_cli) {
     return Status::IOError("Failed to get meta cli");
   }
@@ -883,7 +882,7 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
     if (deadline) {
       int timeout = deadline - slash::NowMicros() / 1000;
       if (timeout <= 0) {
-        return Status::Timeout("execute timeout");
+        return Status::Timeout("remote meta execute timeout");
       }
       meta_cli->cli->set_send_timeout((timeout + 1) / 2);
       meta_cli->cli->set_recv_timeout((timeout + 1) / 2);
@@ -939,7 +938,7 @@ static int RandomIndex(int floor, int ceil) {
   return di(mt);
 }
 
-std::shared_ptr<ZpCli> Cluster::GetMetaConnection() {
+std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline) {
   std::shared_ptr<ZpCli> meta_cli = meta_pool_->GetExistConnection();
   if (meta_cli) {
     return meta_cli;
@@ -949,7 +948,7 @@ std::shared_ptr<ZpCli> Cluster::GetMetaConnection() {
   int cur = RandomIndex(0, options_.meta_addr.size() - 1);
   int count = 0;
   while (count++ < options_.meta_addr.size()) {
-    meta_cli = meta_pool_->GetConnection(options_.meta_addr[cur]);
+    meta_cli = meta_pool_->GetConnection(options_.meta_addr[cur], deadline);
     if (meta_cli) {
       break;
     }

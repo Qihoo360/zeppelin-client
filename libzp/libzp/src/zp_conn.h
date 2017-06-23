@@ -31,16 +31,16 @@ struct ZpCli {
 
 class ConnectionPool {
  public :
-  ConnectionPool(int connect_timeout = 3000);
+  ConnectionPool();
 
   virtual ~ConnectionPool();
 
-  std::shared_ptr<ZpCli> GetConnection(const Node& node);
+  std::shared_ptr<ZpCli> GetConnection(const Node& node,
+      uint64_t deadline);
   void RemoveConnection(std::shared_ptr<ZpCli> conn);
   std::shared_ptr<ZpCli> GetExistConnection();
 
  private:
-  int connect_timeout_;
   slash::Mutex pool_mu_;
   std::map<Node, std::shared_ptr<ZpCli>> conn_pool_;
 };
