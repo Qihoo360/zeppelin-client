@@ -36,14 +36,14 @@ struct Node {
 struct Options {
   // How many milliseconds to wait for a response
   // before returning an error from a zeppelin operation. 0 means no limit
-  // Default 0
+  // Default 1000
   int op_timeout;
 
   // meta address collection
   std::vector<Node> meta_addr;
 
   Options()
-    : op_timeout(0) {
+    : op_timeout(1000) {
       }
 };
 

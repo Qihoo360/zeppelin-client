@@ -9,11 +9,11 @@
 
 void usage() {
   std::cout << "usage:\n"
-            << "      zp_timeout host port table\n";
+            << "      zp_timeout host port table timeout\n";
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 4) {
+  if (argc != 5) {
     usage();
     return -1;
   }
@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
   // client handle io operation
   std::cout << "create client" << std::endl;
   libzp::Options opt;
-  opt.op_timeout = 100;
+  opt.op_timeout = atoi(argv[4]);
   opt.meta_addr.push_back(libzp::Node(argv[1], atoi(argv[2])));
 
   libzp::Client* client = new libzp::Client(opt, argv[3]);

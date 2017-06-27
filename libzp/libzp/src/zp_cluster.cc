@@ -4,7 +4,6 @@
 #include "libzp/include/zp_cluster.h"
 
 #include <string>
-#include <google/protobuf/text_format.h>
 
 #include "slash/include/slash_string.h"
 #include "slash/include/env.h"
@@ -66,6 +65,9 @@ struct CmdContext {
   }
   
   inline bool OpTimeout() {
+    if (deadline == 0) {
+      return false; // no limit
+    }
     return (slash::NowMicros() / 1000) >= deadline;
   }
 
@@ -366,7 +368,7 @@ bool Cluster::DeliverMget(CmdContext* context) {
   for (auto& kd : key_distribute) {
     context->key = kd.second->key;
     context->result = kd.second->result;
-    context->response = kd.second->response;
+    context->response->CopyFrom(*(kd.second->response));
     if (!context->result.ok()
         || context->response->code() != client::StatusCode::kOk) { // no NOTFOUND in mget response
       ClearDistributeMap(&key_distribute);
@@ -398,8 +400,8 @@ bool Cluster::Deliver(CmdContext* context) {
       *(context->request), context->response, context->deadline);
 
   if (context->result.ok()
-        && (context->response->code() != client::StatusCode::kOk
-          || context_->response->code() != client::StatusCode::kNotFound)) { // Error
+        && (context->response->code() == client::StatusCode::kOk
+          || context_->response->code() == client::StatusCode::kNotFound)) {
     return true; //succ
   }
   return false;
@@ -408,28 +410,32 @@ bool Cluster::Deliver(CmdContext* context) {
 void Cluster::DeliverAndPull(CmdContext* context) {
 
   while (!Deliver(context)) {
-    if (context->OpTimeout()) {
+    if (context->result.IsTimeout()) {
       return;
     }
     
-    Status point_s = Status::OK();
+    bool need_pull = false;
     if (context->response->code() == client::StatusCode::kMove
         && context->response->has_redirect()) {
       // Update meta info with redirect message
-      point_s = UpdateDataMaster(context->table, context->key,
+      need_pull = !(UpdateDataMaster(context->table, context->key,
           Node(context->response->redirect().ip(),
-            context->response->redirect().port()));
+            context->response->redirect().port())).ok());
+    } else if (context->response->code() == client::StatusCode::kWait) {
+      // could not solved by just wait
+    } else {
+      need_pull = true;
     }
-
-    if (context->response->code() != client::StatusCode::kWait      // could not solved by just wait
-        || !point_s.ok()) {                                               // point update failed
+    
+    if (need_pull) {
       // Refresh meta info on error except kWait
       context->result = PullInternal(context->table, context->deadline);
+
+      if (context->result.IsTimeout()) {
+        return;
+      }
     }
 
-    if (context->OpTimeout()) {
-      return;
-    }
     context->Reset();
   }
 }
