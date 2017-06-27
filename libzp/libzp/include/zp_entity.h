@@ -36,7 +36,9 @@ public:
   }
   std::vector<Node> slaves() const {
     return slaves_;
-  } 
+  }
+
+  void SetMaster(const Node& new_master);
 
 private:
   std::vector<Node> slaves_;
@@ -56,6 +58,7 @@ class Table {
 
   const Partition* GetPartition(const std::string& key) const;
   const Partition* GetPartitionById(int id) const;
+  Status UpdatePartitionMaster(const std::string& key, const Node& target);
   void GetAllMasters(std::set<Node>* nodes) const;
   void GetAllNodes(std::set<Node>* nodes) const;
   void DebugDump(int partition_id = -1) const;

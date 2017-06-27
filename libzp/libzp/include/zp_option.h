@@ -26,6 +26,7 @@ struct Node {
   bool operator == (const Node& other) const {
     return (ip == other.ip && port == other.port);
   }
+
   friend std::ostream& operator<< (std::ostream& stream, const Node& node) {
     stream << node.ip << ":" << node.port;
     return stream;

@@ -123,12 +123,17 @@ public:
   pthread_rwlock_t meta_rw_;
   int64_t epoch_;
   std::unordered_map<std::string, Table*> tables_;
-  void ResetTableMeta(const std::string& table_name,
+  void ResetMetaInfo(const std::string& table_name,
       const ZPMeta::MetaCmdResponse_Pull& pull);
+  void PointUpdateMetaInfo(const std::string& table_name,
+      const std::string& sample_key, const Node& target);
+
   Status GetTableMasters(const std::string& table_name,
     std::set<Node>* related_nodes);
   Status GetDataMaster(const std::string& table,
       const std::string& key, Node* master);
+  Status UpdateDataMaster(const std::string& table,
+      const std::string& key, const Node& target);
 
   // connection pool
   ConnectionPool* meta_pool_;

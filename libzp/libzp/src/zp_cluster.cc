@@ -64,6 +64,10 @@ struct CmdContext {
     done_ = false;
     deadline = CalcDeadline(c->op_timeout());
   }
+  
+  inline bool OpTimeout() {
+    return (slash::NowMicros() / 1000) >= deadline;
+  }
 
   inline void Reset () {
     response->Clear();
@@ -177,7 +181,6 @@ void Cluster::Init() {
     context_ = new CmdContext();
     async_worker_ = new pink::BGThread();
 
-    pthread_rwlock_init(&meta_rw_, NULL);
     pthread_rwlockattr_t attr;
     pthread_rwlockattr_init(&attr);
     pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
@@ -361,11 +364,11 @@ bool Cluster::DeliverMget(CmdContext* context) {
   // Wait peer_workers process and merge result
   context->response->set_type(client::Type::MGET);
   for (auto& kd : key_distribute) {
+    context->key = kd.second->key;
     context->result = kd.second->result;
-    context->response->set_code(kd.second->response->code());
-    context->response->set_msg(kd.second->response->msg());
-    if (!kd.second->result.ok()
-        || kd.second->response->code() != client::StatusCode::kOk) { // no NOTFOUND in mget response
+    context->response = kd.second->response;
+    if (!context->result.ok()
+        || context->response->code() != client::StatusCode::kOk) { // no NOTFOUND in mget response
       ClearDistributeMap(&key_distribute);
       return false;
     }
@@ -405,17 +408,29 @@ bool Cluster::Deliver(CmdContext* context) {
 void Cluster::DeliverAndPull(CmdContext* context) {
 
   while (!Deliver(context)) {
-    if (context->result.IsTimeout()) {
+    if (context->OpTimeout()) {
       return;
+    }
+    
+    Status point_s = Status::OK();
+    if (context->response->code() == client::StatusCode::kMove
+        && context->response->has_redirect()) {
+      // Update meta info with redirect message
+      point_s = UpdateDataMaster(context->table, context->key,
+          Node(context->response->redirect().ip(),
+            context->response->redirect().port()));
     }
 
-    // Failed, then try to update meta
-    context->result = PullInternal(context->table, context->deadline);
-    if (context->result.ok()) {
-      context->Reset();
-    } else if (context->result.IsTimeout()) {
+    if (context->response->code() != client::StatusCode::kWait      // could not solved by just wait
+        || !point_s.ok()) {                                               // point update failed
+      // Refresh meta info on error except kWait
+      context->result = PullInternal(context->table, context->deadline);
+    }
+
+    if (context->OpTimeout()) {
       return;
     }
+    context->Reset();
   }
 }
 
@@ -541,7 +556,7 @@ Status Cluster::PullInternal(const std::string& table, uint64_t deadline) {
   }
 
   // Update clustermap now
-  ResetTableMeta(table, meta_res.pull());
+  ResetMetaInfo(table, meta_res.pull());
   return Status::OK();
 }
 
@@ -725,17 +740,6 @@ Status Cluster::ListTable(std::vector<std::string>* tables) {
   for (int i = 0; i < info.name_size(); i++) {
     tables->push_back(info.name(i));
   }
-  return Status::OK();
-}
-
-Status Cluster::GetTableMasters(const std::string& table,
-    std::set<Node>* related_nodes) {
-  slash::RWLock l(&meta_rw_, false);
-  auto table_iter = tables_.find(table);
-  if (table_iter == tables_.end()) {
-    return Status::InvalidArgument("this table does not exist");
-  }
-  table_iter->second->GetAllMasters(related_nodes);
   return Status::OK();
 }
 
@@ -950,6 +954,18 @@ std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline, Status* spt
   return meta_cli;
 }
 
+Status Cluster::GetTableMasters(const std::string& table,
+    std::set<Node>* related_nodes) {
+  slash::RWLock l(&meta_rw_, false);
+  auto table_iter = tables_.find(table);
+  if (table_iter == tables_.end()) {
+    return Status::InvalidArgument("this table does not exist");
+  }
+  table_iter->second->GetAllMasters(related_nodes);
+  return Status::OK();
+}
+
+
 Status Cluster::GetDataMaster(const std::string& table,
     const std::string& key, Node* master) {
   slash::RWLock l(&meta_rw_, false);
@@ -967,7 +983,17 @@ Status Cluster::GetDataMaster(const std::string& table,
   }
 }
 
-void Cluster::ResetTableMeta(const std::string& table_name,
+Status Cluster::UpdateDataMaster(const std::string& table_name,
+    const std::string& sample_key, const Node& target) {
+  slash::RWLock l(&meta_rw_, true);
+  auto it = tables_.find(table_name);
+  if (it == tables_.end()) {
+    return Status::InvalidArgument("table does not exist");
+  }
+  return it->second->UpdatePartitionMaster(sample_key, target);
+}
+
+void Cluster::ResetMetaInfo(const std::string& table_name,
     const ZPMeta::MetaCmdResponse_Pull& pull) {
   slash::RWLock l(&meta_rw_, true);
   epoch_ = pull.version();
@@ -984,5 +1010,6 @@ void Cluster::ResetTableMeta(const std::string& table_name,
   Table* new_table = new Table(pull.info(0));
   tables_.insert(std::make_pair(pull.info(0).name(), new_table));
 }
+
 
 }  // namespace libzp

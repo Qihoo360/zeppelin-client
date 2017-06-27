@@ -48,6 +48,11 @@ void Partition::DebugDump() const {
   }
 }
 
+void Partition::SetMaster(const Node& new_master) {
+  master_.ip = new_master.ip;
+  master_.port = new_master.port;
+}
+
 Table::Table()
   : partition_num_(0) {
   
@@ -101,6 +106,21 @@ void Table::DebugDump(int partition_id) const {
   for (auto& par : partitions_) {
     par.second.DebugDump();
   }
+}
+
+Status Table::UpdatePartitionMaster(const std::string& key,
+    const Node& target) {
+  if (partitions_.empty()) {
+    return Status::InvalidArgument("no partition yet");
+  }
+
+  int par_num = std::hash<std::string>()(key) % partitions_.size();
+  auto iter = partitions_.find(par_num);
+  if (iter == partitions_.end()) {
+    return Status::InvalidArgument("not fount partition");
+  }
+  partitions_.at(par_num).SetMaster(target);
+  return Status::OK();
 }
 
 void Table::GetAllMasters(std::set<Node>* nodes) const {
