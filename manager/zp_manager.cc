@@ -304,6 +304,14 @@ void StartRepl(libzp::Cluster* cluster) {
         s = cluster->DropTable(line_args[1]);
         std::cout << s.ToString() << std::endl;
 
+    } else if (!strncasecmp(line, "FLUSHTABLE ", 11)) {
+        if (line_args.size() != 2) {
+          std::cout << "arg num wrong" << std::endl;
+          continue;
+        }
+        s = cluster->FlushTable(line_args[1]);
+        std::cout << s.ToString() << std::endl;
+
     } else if (!strncasecmp(line, "QPS", 3)) {
         if (line_args.size() != 2) {
           std::cout << "arg num wrong" << std::endl;

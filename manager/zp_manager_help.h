@@ -61,6 +61,11 @@ CommandHelp commandHelp[] = {
     1,
     "drop one table"},
 
+  { "FLUSHTABLE",
+    "table",
+    1,
+    "clean one table"},
+
   { "LISTNODE",
     "",
     0,
