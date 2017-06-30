@@ -46,7 +46,21 @@ zend_class_entry *zeppelin_client_ext;
  * Every user visible function must have an entry in zeppelin_functions[].
  */
 
+//zend_function_entry zeppelin_functions[] = {
+//    PHP_FE(confirm_zeppelin_compiled,    NULL)        /* For testing, remove later. */
+//    PHP_ME(Zeppelin, __construct, NULL, ZEND_ACC_CTOR | ZEND_ACC_PUBLIC)
+//    PHP_ME(Zeppelin, __destruct, NULL, ZEND_ACC_DTOR | ZEND_ACC_PUBLIC)
+//    PHP_ME(Zeppelin, set, NULL, ZEND_ACC_PUBLIC)
+//    PHP_ME(Zeppelin, get, NULL, ZEND_ACC_PUBLIC)
+//    PHP_ME(Zeppelin, delete, NULL, ZEND_ACC_PUBLIC)
+//    {NULL, NULL, NULL}
+//    //PHP_FE_END    /* Must be the last line in zeppelin_functions[] */
+//};
 zend_function_entry zeppelin_functions[] = {
+	{NULL, NULL, NULL}
+};
+
+zend_function_entry phppan_functions[] = {
     PHP_FE(confirm_zeppelin_compiled,    NULL)        /* For testing, remove later. */
     PHP_ME(Zeppelin, __construct, NULL, ZEND_ACC_CTOR | ZEND_ACC_PUBLIC)
     PHP_ME(Zeppelin, __destruct, NULL, ZEND_ACC_DTOR | ZEND_ACC_PUBLIC)
@@ -54,7 +68,6 @@ zend_function_entry zeppelin_functions[] = {
     PHP_ME(Zeppelin, get, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(Zeppelin, delete, NULL, ZEND_ACC_PUBLIC)
     {NULL, NULL, NULL}
-    //PHP_FE_END    /* Must be the last line in zeppelin_functions[] */
 };
 /* }}} */ 
 
@@ -116,7 +129,8 @@ PHP_MINIT_FUNCTION(zeppelin)
     REGISTER_INI_ENTRIES();
     */
     zend_class_entry zeppelin_class_entry;
-    INIT_CLASS_ENTRY(zeppelin_class_entry, "Zeppelin", zeppelin_functions);
+//    INIT_CLASS_ENTRY(zeppelin_class_entry, "Zeppelin", zeppelin_functions);
+    INIT_CLASS_ENTRY(zeppelin_class_entry, "Zeppelin", phppan_functions);
     zeppelin_client_ext = zend_register_internal_class(&zeppelin_class_entry TSRMLS_CC);
 
     le_zeppelin = zend_register_list_destructors_ex(
