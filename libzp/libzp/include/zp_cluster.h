@@ -55,6 +55,7 @@ public:
       std::string* value);
   Status Mget(const std::string& table, const std::vector<std::string>& keys,
       std::map<std::string, std::string>* values);
+  Status FlushTable(const std::string& table);
 
   // async data cmd
   Status Aset(const std::string& table, const std::string& key,
@@ -130,10 +131,14 @@ public:
 
   Status GetTableMasters(const std::string& table_name,
     std::set<Node>* related_nodes);
+  Status GetDataMasterById(const std::string& table,
+    int partition_id, Node* master);
   Status GetDataMaster(const std::string& table,
       const std::string& key, Node* master);
   Status UpdateDataMaster(const std::string& table,
       const std::string& key, const Node& target);
+  Status UpdateDataMasterById(const std::string& table_name,
+      int partition_id, const Node& target);
 
   // connection pool
   ConnectionPool* meta_pool_;

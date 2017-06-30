@@ -81,6 +81,9 @@ const Partition* Table::GetPartition(const std::string& key) const {
 }
 
 const Partition* Table::GetPartitionById(int par_num) const {
+  if (partitions_.empty()) {
+    return NULL;
+  }
   auto iter = partitions_.find(par_num);
   if (iter != partitions_.end()) {
     return &(iter->second);
@@ -113,13 +116,21 @@ Status Table::UpdatePartitionMaster(const std::string& key,
   if (partitions_.empty()) {
     return Status::InvalidArgument("no partition yet");
   }
-
   int par_num = std::hash<std::string>()(key) % partitions_.size();
-  auto iter = partitions_.find(par_num);
+  return UpdatePartitionMasterById(par_num, target);
+}
+
+Status Table::UpdatePartitionMasterById(int partition_id,
+    const Node& target) {
+  if (partitions_.empty()) {
+    return Status::InvalidArgument("no partition yet");
+  }
+
+  auto iter = partitions_.find(partition_id);
   if (iter == partitions_.end()) {
     return Status::InvalidArgument("not fount partition");
   }
-  partitions_.at(par_num).SetMaster(target);
+  partitions_.at(partition_id).SetMaster(target);
   return Status::OK();
 }
 

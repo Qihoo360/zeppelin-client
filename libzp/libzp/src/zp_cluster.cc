@@ -35,7 +35,11 @@ static inline uint64_t CalcDeadline(int timeout) {
 struct CmdContext {
   Cluster* cluster;
   std::string table;
+  
+  // key and partition_id as two different type of routing info
+  // used by different command
   std::string key;
+  int partition_id;
   client::CmdRequest* request;
   client::CmdResponse* response;
   Status result;
@@ -44,12 +48,21 @@ struct CmdContext {
   uint64_t deadline; //0 means no limit
 
   CmdContext()
-    : cluster(NULL), result(Status::Incomplete("Not complete")),
+    : cluster(NULL), partition_id(-1),
+    result(Status::Incomplete("Not complete")),
     user_data(NULL), cond_(&mu_), done_(false) {
       request = new client::CmdRequest();
       response = new client::CmdResponse();
     }
 
+  // Init with partition id
+  void Init(Cluster* c, const std::string& tab, int id,
+      zp_completion_t comp = NULL, void* d = NULL) {
+    partition_id = id;
+    Init(c, tab, std::string(), comp, d);
+  }
+
+  // Init with key
   void Init(Cluster* c, const std::string& tab, const std::string& k = std::string(),
       zp_completion_t comp = NULL, void* d = NULL) {
     cluster = c;
@@ -144,6 +157,15 @@ static void BuildMgetContext(Cluster* cluster, const std::string& table,
   for (auto& key : keys) {
     mget_cmd->add_keys(key);
   }
+}
+
+static void BuildFlushTableContext(Cluster*cluster, const std::string& table,
+    int partition_id, CmdContext* flush_context) {
+  flush_context->Init(cluster, table, partition_id);
+  flush_context->request->set_type(client::Type::FLUSHDB);
+  client::CmdRequest_FlushDB* flush_cmd = flush_context->request->mutable_flushdb();
+  flush_cmd->set_table_name(table);
+  flush_cmd->set_partition_id(partition_id);
 }
 
 static void BuildInfoContext(Cluster* cluster, const std::string& table,
@@ -391,7 +413,13 @@ bool Cluster::Deliver(CmdContext* context) {
 
   // Prepare Request
   Node master;
-  context->result = GetDataMaster(context->table, context->key, &master);
+  if (context->partition_id >= 0) {
+    // specified partition_id
+    context->result = GetDataMasterById(context->table,
+        context->partition_id, &master);
+  } else {
+    context->result = GetDataMaster(context->table, context->key, &master);
+  }
   if (!context->result.ok()) {
     return false;
   }
@@ -418,9 +446,15 @@ void Cluster::DeliverAndPull(CmdContext* context) {
     if (context->response->code() == client::StatusCode::kMove
         && context->response->has_redirect()) {
       // Update meta info with redirect message
-      need_pull = !(UpdateDataMaster(context->table, context->key,
-          Node(context->response->redirect().ip(),
-            context->response->redirect().port())).ok());
+      if (context->partition_id >= 0) {
+        need_pull = !(UpdateDataMasterById(context->table, context->partition_id,
+              Node(context->response->redirect().ip(),
+                context->response->redirect().port())).ok());
+      } else {
+        need_pull = !(UpdateDataMaster(context->table, context->key,
+              Node(context->response->redirect().ip(),
+                context->response->redirect().port())).ok());
+      }
     } else if (context->response->code() == client::StatusCode::kWait) {
       // could not solved by just wait
     } else {
@@ -496,6 +530,26 @@ void Cluster::AddNodeTask(const Node& node, CmdContext* context) {
   peer_workers_[node]->Schedule(DoNodeTask, arg);
 }
 
+Status Cluster::FlushTable(const std::string& table_name) {
+  Table table;
+  Status s = FetchMetaInfo(table_name, &table);
+  if (!s.ok()) {
+    return s;
+  }
+
+  for (int id = 0; id < table.partition_num(); ++id) {
+    BuildFlushTableContext(this, table_name, id, context_);
+    DeliverAndPull(context_);
+    if (!context_->result.ok()) {
+      return context_->result;
+    }
+    if (context_->response->code() != client::StatusCode::kOk) {
+      return Status::Corruption(context_->response->msg());
+    }
+  }
+  return Status::OK();
+}
+
 Status Cluster::CreateTable(const std::string& table_name,
     const int partition_num) {
   if (partition_num == 0) {
@@ -539,6 +593,7 @@ Status Cluster::DropTable(const std::string& table_name) {
     return Status::OK();
   }
 }
+
 Status Cluster::Pull(const std::string& table) {
   return PullInternal(table, CalcDeadline(options_.op_timeout));
 }
@@ -975,10 +1030,25 @@ Status Cluster::GetTableMasters(const std::string& table,
 Status Cluster::GetDataMaster(const std::string& table,
     const std::string& key, Node* master) {
   slash::RWLock l(&meta_rw_, false);
-  std::unordered_map<std::string, Table*>::iterator it =
-    tables_.find(table);
+  auto it = tables_.find(table);
   if (it != tables_.end()) {
     const Partition* part = it->second->GetPartition(key);
+    if (!part) {
+      return Status::Incomplete("no partitions yet");
+    }
+    *master = part->master();
+    return Status::OK();
+  } else {
+    return Status::InvalidArgument("table does not exist");
+  }
+}
+
+Status Cluster::GetDataMasterById(const std::string& table,
+    int partition_id, Node* master) {
+  slash::RWLock l(&meta_rw_, false);
+  auto it = tables_.find(table);
+  if (it != tables_.end()) {
+    const Partition* part = it->second->GetPartitionById(partition_id);
     if (!part) {
       return Status::Incomplete("no partitions yet");
     }
@@ -997,6 +1067,16 @@ Status Cluster::UpdateDataMaster(const std::string& table_name,
     return Status::InvalidArgument("table does not exist");
   }
   return it->second->UpdatePartitionMaster(sample_key, target);
+}
+
+Status Cluster::UpdateDataMasterById(const std::string& table_name,
+    int partition_id, const Node& target) {
+  slash::RWLock l(&meta_rw_, true);
+  auto it = tables_.find(table_name);
+  if (it == tables_.end()) {
+    return Status::InvalidArgument("table does not exist");
+  }
+  return it->second->UpdatePartitionMasterById(partition_id, target);
 }
 
 void Cluster::ResetMetaInfo(const std::string& table_name,
