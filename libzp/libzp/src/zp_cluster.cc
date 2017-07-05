@@ -32,6 +32,29 @@ static inline uint64_t CalcDeadline(int timeout) {
   return slash::NowMicros() / 1000 + timeout;
 }
 
+struct CmdContextResult {
+  Status status;
+  client::StatusCode res_code;
+  std::string res_msg;
+  bool is_filled;
+
+  CmdContextResult()
+    : status(Status::OK()),
+    res_code(client::StatusCode::kOk),
+    is_filled(false) {}
+
+  inline void Fill(const Status& s,
+      const client::StatusCode& code, const std::string& msg) {
+    status = s;
+    res_code = code;
+    res_msg = msg;
+    is_filled = true;
+  }
+  inline bool empty() const {
+    return (!is_filled);
+  }
+};
+
 struct CmdContext {
   Cluster* cluster;
   std::string table;
@@ -88,6 +111,12 @@ struct CmdContext {
     response->Clear();
     result = Status::Incomplete("Not complete");
     done_ = false;
+  }
+  
+  inline void SetResult(const CmdContextResult& ccr) {
+    result = ccr.status;
+    response->set_code(ccr.res_code);
+    response->set_msg(ccr.res_msg);
   }
   
   ~CmdContext() {
@@ -436,9 +465,16 @@ bool Cluster::Deliver(CmdContext* context) {
 }
 
 void Cluster::DeliverAndPull(CmdContext* context) {
-
+  CmdContextResult initiator;  
   while (!Deliver(context)) {
+    if (initiator.empty()) {
+      initiator.Fill(context->result,
+          context->response->code(), context->response->msg());
+    }
+
     if (context->result.IsTimeout()) {
+      // recover initiator result
+      context->SetResult(initiator);
       return;
     }
     
@@ -456,7 +492,7 @@ void Cluster::DeliverAndPull(CmdContext* context) {
                 context->response->redirect().port())).ok());
       }
     } else if (context->response->code() == client::StatusCode::kWait) {
-      // could not solved by just wait
+      // might be solved by just wait
     } else {
       need_pull = true;
     }
@@ -466,6 +502,10 @@ void Cluster::DeliverAndPull(CmdContext* context) {
       context->result = PullInternal(context->table, context->deadline);
 
       if (context->result.IsTimeout()) {
+        context->SetResult(initiator);
+        return;
+      } else if (!context->result.ok()) {
+        // No need to retry when pull failed
         return;
       }
     }
