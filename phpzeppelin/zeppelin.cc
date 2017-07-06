@@ -200,7 +200,7 @@ PHP_METHOD(Zeppelin, __construct)
     zval *z_array = NULL;
     zval **z_item= NULL;
     int options_count = 0;
-    slash::Options options;
+    libzp::Options options;
 
 	libzp::Client *zp = NULL;
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
@@ -215,9 +215,9 @@ PHP_METHOD(Zeppelin, __construct)
             unsigned long idx;
             zend_hash_get_current_data(Z_ARRVAL_P(z_array), (void**) &z_item);
             convert_to_string_ex(z_item);
-            if (zend_hash_get_current_key(Z_ARRVAL_P(apath), &key, &idx, 0) != HASH_KEY_IS_STRING) 
+            if (zend_hash_get_current_key(Z_ARRVAL_P(z_array), &key, &idx, 0) != HASH_KEY_IS_STRING) 
                 RETURN_NULL();
-            slash::Node node(key, Z_STRVAL_PP(z_item));
+            libzp::Node node(key, std::atoi(Z_STRVAL_PP(z_item)));
             options.meta_addr.push_back(node);
             zend_hash_move_forward(Z_ARRVAL_P(z_array));
         }
@@ -309,7 +309,7 @@ PHP_METHOD(Zeppelin, get)
 PHP_METHOD(Zeppelin, mget)
 {
     zval *keys = NULL;
-    int argc = ZEND_NUM_ARGS;
+    int argc = ZEND_NUM_ARGS();
     zval *object;
 
     if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa",
@@ -336,8 +336,8 @@ PHP_METHOD(Zeppelin, mget)
         }
     }
 
-    std::map<std::string, std::string> values;
-    libzp::Status s = zp->Mget(keys, &result);
+    std::map<std::string, std::string> result;
+    libzp::Status s = zp->Mget(vkeys, &result);
     if (s.ok()) {
         if (return_value_used) {
             array_init(return_value);
