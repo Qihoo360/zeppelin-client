@@ -197,13 +197,34 @@ PHP_METHOD(Zeppelin, __construct)
 	zval *self;
 	zval *object;
 	int id;
+    zval *z_array = NULL;
+    zval **z_item= NULL;
+    int options_count = 0;
+    slash::Options options;
 
 	libzp::Client *zp = NULL;
 	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
-				&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == FAILURE) {
-		RETURN_FALSE;
-	}
-	zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
+				&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
+        zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
+    } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oas",
+                &object, zeppelin_client_ext, &z_array, &table, &table_len) == SUCCESS) {
+		options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
+        zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
+        for (int i = 0; i < options_count; i++) {
+            char *key;
+            unsigned long idx;
+            zend_hash_get_current_data(Z_ARRVAL_P(z_array), (void**) &z_item);
+            convert_to_string_ex(z_item);
+            if (zend_hash_get_current_key(Z_ARRVAL_P(apath), &key, &idx, 0) != HASH_KEY_IS_STRING) 
+                RETURN_NULL();
+            slash::Node node(key, Z_STRVAL_PP(z_item));
+            options.meta_addr.push_back(node);
+            zend_hash_move_forward(Z_ARRVAL_P(z_array));
+        }
+        zp = new libzp::Client(options, std::string(table, table_len)); 
+	} else {
+        RETURN_FALSE;
+    }
 
 #if PHP_VERSION_ID >= 50400
 	id = zend_list_insert(zp, le_zeppelin TSRMLS_CC);
@@ -283,6 +304,52 @@ PHP_METHOD(Zeppelin, get)
 	} else {
         RETVAL_FALSE;
 	}
+}
+
+PHP_METHOD(Zeppelin, mget)
+{
+    zval *keys = NULL;
+    int argc = ZEND_NUM_ARGS;
+    zval *object;
+
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oa",
+                &object, zeppelin_client_ext, &keys) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    libzp::Client *zp;
+    if(zeppelin_client_get(object, &zp TSRMLS_CC, 0) < 0) {
+        RETURN_FALSE;
+    }
+
+    std::vector<std::string> vkeys;
+    if (Z_TYPE_P(keys) == IS_ARRAY) {
+        zval **arrval;
+        HashPosition pos;
+        zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(keys), &pos);
+
+        while (zend_hash_get_current_data_ex(Z_ARRVAL_P(keys), (void **)&arrval, &pos) == SUCCESS) {
+            if (Z_TYPE_PP(arrval) == IS_STRING) {
+                vkeys.push_back(std::string(Z_STRVAL_PP(arrval), Z_STRLEN_PP(arrval)));
+            }
+            zend_hash_move_forward_ex(Z_ARRVAL_P(keys), &pos);
+        }
+    }
+
+    std::map<std::string, std::string> values;
+    libzp::Status s = zp->Mget(keys, &result);
+    if (s.ok()) {
+        if (return_value_used) {
+            array_init(return_value);
+            std::map<std::string, std::string>::iterator r_it = result.begin();
+            for (; r_it != result.end(); ++r_it) {
+                add_assoc_stringl_ex(return_value, (char *) r_it->first.data(), r_it->first.size() + 1,
+                    (char *) r_it->second.data(), r_it->second.size(), 1);
+            }
+        }
+    } else {
+        RETVAL_FALSE;
+    }
 }
 
 PHP_METHOD(Zeppelin, delete)

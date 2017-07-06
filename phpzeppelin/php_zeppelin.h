@@ -53,6 +53,8 @@ PHP_METHOD(Zeppelin, __destruct);
 PHP_METHOD(Zeppelin, set);
 PHP_METHOD(Zeppelin, get);
 PHP_METHOD(Zeppelin, delete);
+PHP_METHOD(Zeppelin, mget);
+
 /* 
       Declare any global variables you may need between the BEGIN
     and END macros here:     
