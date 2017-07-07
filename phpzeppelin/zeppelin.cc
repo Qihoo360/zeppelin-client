@@ -67,6 +67,7 @@ zend_function_entry phppan_functions[] = {
     PHP_ME(Zeppelin, set, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(Zeppelin, get, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(Zeppelin, delete, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(Zeppelin, mget, NULL, ZEND_ACC_PUBLIC)
     {NULL, NULL, NULL}
 };
 /* }}} */ 
@@ -217,7 +218,7 @@ PHP_METHOD(Zeppelin, __construct)
             convert_to_string_ex(z_item);
             if (zend_hash_get_current_key(Z_ARRVAL_P(z_array), &key, &idx, 0) != HASH_KEY_IS_STRING) 
                 RETURN_NULL();
-            libzp::Node node(key, std::atoi(Z_STRVAL_PP(z_item)));
+            libzp::Node node(key, atoi(Z_STRVAL_PP(z_item)));
             options.meta_addr.push_back(node);
             zend_hash_move_forward(Z_ARRVAL_P(z_array));
         }
@@ -343,7 +344,7 @@ PHP_METHOD(Zeppelin, mget)
             array_init(return_value);
             std::map<std::string, std::string>::iterator r_it = result.begin();
             for (; r_it != result.end(); ++r_it) {
-                add_assoc_stringl_ex(return_value, (char *) r_it->first.data(), r_it->first.size() + 1,
+                add_assoc_stringl_ex(return_value, (char *) r_it->first.data(), r_it->first.size(),
                     (char *) r_it->second.data(), r_it->second.size(), 1);
             }
         }
