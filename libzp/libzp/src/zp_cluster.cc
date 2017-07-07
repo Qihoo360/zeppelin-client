@@ -334,6 +334,7 @@ Status Cluster::Mget(const std::string& table,
 
   BuildMgetContext(this, table, keys, context_);
   DeliverAndPull(context_);
+  
 
   if (!context_->result.ok()) {
     return context_->result;
@@ -419,7 +420,12 @@ bool Cluster::DeliverMget(CmdContext* context) {
   for (auto& kd : key_distribute) {
     context->key = kd.second->key;
     context->result = kd.second->result;
-    context->response->CopyFrom(*(kd.second->response));
+    context->response->set_code(kd.second->response->code());
+    context->response->set_msg(kd.second->response->msg());
+    if (kd.second->response->has_redirect()) {
+      client::Node* node =  context->response->mutable_redirect();
+      *node = kd.second->response->redirect();
+    }
     if (!context->result.ok()
         || context->response->code() != client::StatusCode::kOk) { // no NOTFOUND in mget response
       ClearDistributeMap(&key_distribute);
