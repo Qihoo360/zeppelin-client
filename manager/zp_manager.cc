@@ -239,12 +239,9 @@ void StartRepl(libzp::Cluster* cluster) {
       s = cluster->Mget(table_name, keys, &values);
       if (s.ok()) {
         std::map<std::string, std::string>::iterator it = values.begin();
-        std::cout << values.size() << std::endl;
-        /*
         for (; it != values.end(); ++it) {
           std::cout << it->first << "=>" << it->second << std::endl;
         }
-        */
       } else {
         std::cout << s.ToString() << std::endl;
       }
