@@ -211,7 +211,6 @@ PHP_METHOD(Zeppelin, __construct)
       &object, zeppelin_client_ext, &z_array, &table, &table_len) == SUCCESS) {
     options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
     zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
-    options.op_timeout = timeout;
     for (int i = 0; i < options_count; i++) {
       char *key;
       unsigned long idx;
@@ -219,9 +218,9 @@ PHP_METHOD(Zeppelin, __construct)
       convert_to_string_ex(z_item);
       if (zend_hash_get_current_key(Z_ARRVAL_P(z_array), &key, &idx, 0) != HASH_KEY_IS_STRING)
         RETURN_NULL();
-        libzp::Node node(key, atoi(Z_STRVAL_PP(z_item)));
-        options.meta_addr.push_back(node);
-        zend_hash_move_forward(Z_ARRVAL_P(z_array));
+      libzp::Node node(key, atoi(Z_STRVAL_PP(z_item)));
+      options.meta_addr.push_back(node);
+      zend_hash_move_forward(Z_ARRVAL_P(z_array));
     }
     zp = new libzp::Client(options, std::string(table, table_len));
     } else {
