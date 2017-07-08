@@ -2,8 +2,10 @@
 
 $metas["127.0.0.1"] ="9801";
 $metas["127.0.0.1"] ="9802";
+$timeout = 100
 
-$zp_options = new Zeppelin($metas, "options_test1");
+$zp_options = new Zeppelin($metas, "options_test1", $timeout);
+
 $times = 200;
 while($times--) {
   $num = rand(10, 1000);
