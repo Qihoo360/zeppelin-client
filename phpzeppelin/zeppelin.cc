@@ -190,31 +190,31 @@ PHP_MINFO_FUNCTION(zeppelin)
 
 PHP_METHOD(Zeppelin, __construct)
 {
-	char *ip = NULL;
-	int ip_len = 0;
-	int port = 0;
-	char *table = NULL;
-	int table_len = 0;
-	zval *self;
-	zval *object;
-	int id;
+  char *ip = NULL;
+  int ip_len = 0;
+  int port = 0;
+  char *table = NULL;
+  int table_len = 0;
+  zval *self;
+  zval *object;
+  int id;
   zval *z_array = NULL;
   zval **z_item= NULL;
   int options_count = 0;
-	int timeout = 0;
+  int timeout = 0;
   libzp::Options options;
-	libzp::Client *zp = NULL;
+  libzp::Client *zp = NULL;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
-			&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
+  if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
+	&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
     zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
-	} else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oasl",
+  } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oasl",
       &object, zeppelin_client_ext, &z_array, &table, &table_len, &timeout) == SUCCESS) {
-		options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
+    options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
     zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
-		options.op_timeout = timeout;
+    options.op_timeout = timeout;
     for (int i = 0; i < options_count; i++) {
-			char *key;
+      char *key;
       unsigned long idx;
       zend_hash_get_current_data(Z_ARRVAL_P(z_array), (void**) &z_item);
       convert_to_string_ex(z_item);
@@ -225,10 +225,10 @@ PHP_METHOD(Zeppelin, __construct)
         zend_hash_move_forward(Z_ARRVAL_P(z_array));
     }
     zp = new libzp::Client(options, std::string(table, table_len));
-		RETURN_LONG(options.op_timeout);
-	} else {
-    RETURN_FALSE;
-  }
+      RETURN_LONG(options.op_timeout);
+    } else {
+      RETURN_FALSE;
+    }
 
 #if PHP_VERSION_ID >= 50400
 	id = zend_list_insert(zp, le_zeppelin TSRMLS_CC);
