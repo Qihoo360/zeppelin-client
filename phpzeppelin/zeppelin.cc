@@ -201,15 +201,14 @@ PHP_METHOD(Zeppelin, __construct)
   zval *z_array = NULL;
   zval **z_item= NULL;
   int options_count = 0;
-  int timeout = 0;
   libzp::Options options;
   libzp::Client *zp = NULL;
 
   if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
 	&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
     zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
-  } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oasl",
-      &object, zeppelin_client_ext, &z_array, &table, &table_len, &timeout) == SUCCESS) {
+  } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oas",
+      &object, zeppelin_client_ext, &z_array, &table, &table_len) == SUCCESS) {
     options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
     zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
     options.op_timeout = timeout;
@@ -225,7 +224,6 @@ PHP_METHOD(Zeppelin, __construct)
         zend_hash_move_forward(Z_ARRVAL_P(z_array));
     }
     zp = new libzp::Client(options, std::string(table, table_len));
-      RETURN_LONG(options.op_timeout);
     } else {
       RETURN_FALSE;
     }
