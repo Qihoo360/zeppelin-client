@@ -33,7 +33,7 @@ extern "C"
 #include "slash/include/slash_status.h"
 #include "zend.h"
 
-/* If you declare any globals in php_zeppelin.h uncomment this: 
+/* If you declare any globals in php_zeppelin.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(zeppelin)
 */
 static int le_zeppelin;
@@ -70,7 +70,7 @@ zend_function_entry phppan_functions[] = {
     PHP_ME(Zeppelin, mget, NULL, ZEND_ACC_PUBLIC)
     {NULL, NULL, NULL}
 };
-/* }}} */ 
+/* }}} */
 
 /* {{{ zeppelin_module_entry
  */
@@ -90,7 +90,7 @@ zend_module_entry zeppelin_module_entry = {
 #endif
     STANDARD_MODULE_PROPERTIES
 };
-/* }}} */ 
+/* }}} */
 
 extern "C"
 {
@@ -126,7 +126,7 @@ int zeppelin_client_get(zval *id, libzp::Client **zeppelin_sock TSRMLS_DC, int n
 
 PHP_MINIT_FUNCTION(zeppelin)
 {
-    /* If you have INI entries, uncomment these lines 
+    /* If you have INI entries, uncomment these lines
     REGISTER_INI_ENTRIES();
     */
     zend_class_entry zeppelin_class_entry;
@@ -171,7 +171,7 @@ PHP_RSHUTDOWN_FUNCTION(zeppelin)
 {
     return SUCCESS;
 }
-/* }}} */ 
+/* }}} */
 
 /* {{{ PHP _MINFO_FUNCTION
  */
@@ -190,41 +190,41 @@ PHP_MINFO_FUNCTION(zeppelin)
 
 PHP_METHOD(Zeppelin, __construct)
 {
-	char *ip = NULL;
-	int ip_len = 0;
-	int port = 0;
-	char *table = NULL;
-	int table_len = 0;
-	zval *self;
-	zval *object;
-	int id;
-    zval *z_array = NULL;
-    zval **z_item= NULL;
-    int options_count = 0;
-    libzp::Options options;
+  char *ip = NULL;
+  int ip_len = 0;
+  int port = 0;
+  char *table = NULL;
+  int table_len = 0;
+  zval *self;
+  zval *object;
+  int id;
+  zval *z_array = NULL;
+  zval **z_item= NULL;
+  int options_count = 0;
+  libzp::Options options;
+  libzp::Client *zp = NULL;
 
-	libzp::Client *zp = NULL;
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
-				&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
-        zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
-    } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oas",
-                &object, zeppelin_client_ext, &z_array, &table, &table_len) == SUCCESS) {
-		options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
-        zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
-        for (int i = 0; i < options_count; i++) {
-            char *key;
-            unsigned long idx;
-            zend_hash_get_current_data(Z_ARRVAL_P(z_array), (void**) &z_item);
-            convert_to_string_ex(z_item);
-            if (zend_hash_get_current_key(Z_ARRVAL_P(z_array), &key, &idx, 0) != HASH_KEY_IS_STRING) 
-                RETURN_NULL();
-            libzp::Node node(key, atoi(Z_STRVAL_PP(z_item)));
-            options.meta_addr.push_back(node);
-            zend_hash_move_forward(Z_ARRVAL_P(z_array));
-        }
-        zp = new libzp::Client(options, std::string(table, table_len)); 
-	} else {
-        RETURN_FALSE;
+  if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
+	&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
+    zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
+  } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oas",
+      &object, zeppelin_client_ext, &z_array, &table, &table_len) == SUCCESS) {
+    options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
+    zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
+    for (int i = 0; i < options_count; i++) {
+      char *key;
+      unsigned long idx;
+      zend_hash_get_current_data(Z_ARRVAL_P(z_array), (void**) &z_item);
+      convert_to_string_ex(z_item);
+      if (zend_hash_get_current_key(Z_ARRVAL_P(z_array), &key, &idx, 0) != HASH_KEY_IS_STRING)
+        RETURN_NULL();
+      libzp::Node node(key, atoi(Z_STRVAL_PP(z_item)));
+      options.meta_addr.push_back(node);
+      zend_hash_move_forward(Z_ARRVAL_P(z_array));
+    }
+    zp = new libzp::Client(options, std::string(table, table_len));
+    } else {
+      RETURN_FALSE;
     }
 
 #if PHP_VERSION_ID >= 50400
@@ -267,12 +267,12 @@ PHP_METHOD(Zeppelin, set)
                 &object, zeppelin_client_ext, &key, &key_len, &value, &value_len) == FAILURE) {
         return;
     }
-    
+
 	libzp::Client *zp;
     if(zeppelin_client_get(object, &zp TSRMLS_CC, 0) < 0) {
         RETURN_FALSE;
     }
-   
+
 	libzp::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len));
     if (s.ok()) {
         RETVAL_TRUE;
@@ -292,12 +292,12 @@ PHP_METHOD(Zeppelin, get)
                 &object, zeppelin_client_ext, &key, &key_len) == FAILURE) {
         return;
     }
-    
+
 	libzp::Client *zp;
     if(zeppelin_client_get(object, &zp TSRMLS_CC, 0) < 0) {
         RETURN_FALSE;
     }
-    
+
     std::string val;
 	libzp::Status s = zp->Get(std::string(key, key_len), &val);
 	if (s.ok()) {
@@ -328,7 +328,6 @@ PHP_METHOD(Zeppelin, mget)
         zval **arrval;
         HashPosition pos;
         zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(keys), &pos);
-
         while (zend_hash_get_current_data_ex(Z_ARRVAL_P(keys), (void **)&arrval, &pos) == SUCCESS) {
             if (Z_TYPE_PP(arrval) == IS_STRING) {
                 vkeys.push_back(std::string(Z_STRVAL_PP(arrval), Z_STRLEN_PP(arrval)));
@@ -363,12 +362,12 @@ PHP_METHOD(Zeppelin, delete)
                 &object, zeppelin_client_ext, &key, &key_len) == FAILURE) {
         return;
     }
-    
+
 	libzp::Client *zp;
     if(zeppelin_client_get(object, &zp TSRMLS_CC, 0) < 0) {
         RETURN_FALSE;
     }
-    
+
 	libzp::Status s = zp->Delete(std::string(key, key_len));
     if (s.ok()) {
         RETVAL_TRUE;
@@ -377,15 +376,15 @@ PHP_METHOD(Zeppelin, delete)
     }
 }
 
-/* The previous line is meant for vim and emacs, so it can correctly fold and 
-   unfold functions in source code. See the corresponding marks just before 
-   function definition, where the functions purpose is also documented. Please 
+/* The previous line is meant for vim and emacs, so it can correctly fold and
+   unfold functions in source code. See the corresponding marks just before
+   function definition, where the functions purpose is also documented. Please
    follow this convention for the convenience of others editing your code.
 */
 
-/* The previous line is meant for vim and emacs, so it can correctly fold and 
-   unfold functions in source code. See the corresponding marks just before 
-   function definition, where the functions purpose is also documented. Please 
+/* The previous line is meant for vim and emacs, so it can correctly fold and
+   unfold functions in source code. See the corresponding marks just before
+   function definition, where the functions purpose is also documented. Please
    follow this convention for the convenience of others editing your code.
 */
 
@@ -393,9 +392,9 @@ PHP_METHOD(Zeppelin, delete)
 /*
  * Local variables:
 
-/* The previous line is meant for vim and emacs, so it can correctly fold and 
-   unfold functions in source code. See the corresponding marks just before 
-   function definition, where the functions purpose is also documented. Please 
+/* The previous line is meant for vim and emacs, so it can correctly fold and
+   unfold functions in source code. See the corresponding marks just before
+   function definition, where the functions purpose is also documented. Please
    follow this convention for the convenience of others editing your code.
 */
 
