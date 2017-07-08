@@ -20,6 +20,11 @@ CommandHelp commandHelp[] = {
     "table key",
     2,
     "get key's value"},
+  
+  { "MGET",
+    "key [key ...]",
+    2,
+    "Get the values of all the given keys"},
 
   { "Delete",
     "table key",

@@ -224,6 +224,27 @@ void StartRepl(libzp::Cluster* cluster) {
       } else {
         std::cout << s.ToString() << std::endl;
       }
+    } else if ((!strncasecmp(line, "Mget ", 5))) {
+      if (line_args.size() < 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::vector<std::string> keys;
+      std::map<std::string, std::string> values;
+      for (size_t i = 2; i < line_args.size(); ++i) {
+        keys.push_back(line_args[i]);
+      }
+
+      s = cluster->Mget(table_name, keys, &values);
+      if (s.ok()) {
+        std::map<std::string, std::string>::iterator it = values.begin();
+        for (; it != values.end(); ++it) {
+          std::cout << it->first << "=>" << it->second << std::endl;
+        }
+      } else {
+        std::cout << s.ToString() << std::endl;
+      }
     } else if (!strncasecmp(line, "DELETE ", 6)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
