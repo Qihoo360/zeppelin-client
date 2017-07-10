@@ -203,45 +203,45 @@ PHP_METHOD(Zeppelin, __construct)
   int timeout = -1;
   libzp::Options options;
   libzp::Client *zp = NULL;
-	char * addrs = NULL;
-	int addrs_len = 0;
+  char * addrs = NULL;
+  int addrs_len = 0;
 
   if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l",
 	&object, zeppelin_client_ext, &addrs, &addrs_len, &table, &table_len, &timeout) == SUCCESS) {
-		std::vector<std::string> addr_v;
-		char *addr = strtok(addrs, ";");
-		while(addr != NULL) {
-			addr_v.push_back(std::string(addr));
-			addr = strtok(NULL,";");
-		}
+	std::vector<std::string> addr_v;
+	char *addr = strtok(addrs, ";");
+	while(addr != NULL) {
+		addr_v.push_back(std::string(addr));
+		addr = strtok(NULL,";");
+	}
 
-		// Split address into ip and port
-		std::string ip;
-		int port = 0;
-		for (size_t i = 0; i < addr_v.size(); i++) {
-			char *c_addr = new char[addr_v[i].length() + 1];
-			strcpy(c_addr, addr_v[i].c_str());
-			char * socket = strtok(c_addr, ":");
-      if (socket != NULL) {
-        ip = std::string(socket);
-      }
-      socket = strtok(NULL, ";");
-      if (socket != NULL) {
-        port = atoi(socket);
-      }
-			libzp::Node node(ip, port);
-			options.meta_addr.push_back(node);
+	// Split address into ip and port
+	std::string ip;
+	int port = 0;
+	for (size_t i = 0; i < addr_v.size(); i++) {
+		char *c_addr = new char[addr_v[i].length() + 1];
+		strcpy(c_addr, addr_v[i].c_str());
+		char * socket = strtok(c_addr, ":");
+		if (socket != NULL) {
+			ip = std::string(socket);
 		}
-		// Timeout
-		if (timeout != -1) {
-			options.op_timeout = timeout;
+		socket = strtok(NULL, ";");
+		if (socket != NULL) {
+			port = atoi(socket);
 		}
-		// Connect
-		if (options.meta_addr.size() == 1) {
-			zp = new libzp::Client(options.meta_addr[0].ip, options.meta_addr[0].port, std::string(table, table_len));
-		} else {
-			zp = new libzp::Client(options, std::string(table, table_len));
-		}
+		libzp::Node node(ip, port);
+		options.meta_addr.push_back(node);
+	}
+	// Timeout
+	if (timeout != -1) {
+		options.op_timeout = timeout;
+	}
+	// Connect
+	if (options.meta_addr.size() == 1) {
+		zp = new libzp::Client(options.meta_addr[0].ip, options.meta_addr[0].port, std::string(table, table_len));
+	} else {
+		zp = new libzp::Client(options, std::string(table, table_len));
+	}
   } else {
     RETURN_FALSE;
   }
