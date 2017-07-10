@@ -28,6 +28,8 @@ extern "C"
 #include "ext/standard/info.h"
 }
 
+#include <vector>
+#include <string>
 #include "php_zeppelin.h"
 #include "libzp/include/zp_client.h"
 #include "slash/include/slash_status.h"
@@ -198,34 +200,51 @@ PHP_METHOD(Zeppelin, __construct)
   zval *self;
   zval *object;
   int id;
-  zval *z_array = NULL;
-  zval **z_item= NULL;
-  int options_count = 0;
+  int timeout = -1;
   libzp::Options options;
   libzp::Client *zp = NULL;
+	char * addrs = NULL;
+	int addrs_len = 0;
 
-  if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Osls",
-	&object, zeppelin_client_ext, &ip, &ip_len, &port, &table, &table_len) == SUCCESS) {
-    zp = new libzp::Client(std::string(ip, ip_len), port, std::string(table, table_len));
-  } else if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oas",
-      &object, zeppelin_client_ext, &z_array, &table, &table_len) == SUCCESS) {
-    options_count = zend_hash_num_elements(Z_ARRVAL_P(z_array));
-    zend_hash_internal_pointer_reset(Z_ARRVAL_P(z_array));
-    for (int i = 0; i < options_count; i++) {
-      char *key;
-      unsigned long idx;
-      zend_hash_get_current_data(Z_ARRVAL_P(z_array), (void**) &z_item);
-      convert_to_string_ex(z_item);
-      if (zend_hash_get_current_key(Z_ARRVAL_P(z_array), &key, &idx, 0) != HASH_KEY_IS_STRING)
-        RETURN_NULL();
-      libzp::Node node(key, atoi(Z_STRVAL_PP(z_item)));
-      options.meta_addr.push_back(node);
-      zend_hash_move_forward(Z_ARRVAL_P(z_array));
-    }
-    zp = new libzp::Client(options, std::string(table, table_len));
-    } else {
-      RETURN_FALSE;
-    }
+  if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l",
+	&object, zeppelin_client_ext, &addrs, &addrs_len, &table, &table_len, &timeout) == SUCCESS) {
+		std::vector<std::string> addr_v;
+		char *addr = strtok(addrs, ";");
+		while(addr != NULL) {
+			addr_v.push_back(std::string(addr));
+			addr = strtok(NULL,";");
+		}
+
+		// Split address into ip and port
+		std::string ip;
+		int port = 0;
+		for (size_t i = 0; i < addr_v.size(); i++) {
+			char *c_addr = new char[addr_v[i].length() + 1];
+			strcpy(c_addr, addr_v[i].c_str());
+			char * socket = strtok(c_addr, ":");
+      if (socket != NULL) {
+        ip = std::string(socket);
+      }
+      socket = strtok(NULL, ";");
+      if (socket != NULL) {
+        port = atoi(socket);
+      }
+			libzp::Node node(ip, port);
+			options.meta_addr.push_back(node);
+		}
+		// Timeout
+		if (timeout != -1) {
+			options.op_timeout = timeout;
+		}
+		// Connect
+		if (options.meta_addr.size() == 1) {
+			zp = new libzp::Client(options.meta_addr[0].ip, options.meta_addr[0].port, std::string(table, table_len));
+		} else {
+			zp = new libzp::Client(options, std::string(table, table_len));
+		}
+  } else {
+    RETURN_FALSE;
+  }
 
 #if PHP_VERSION_ID >= 50400
 	id = zend_list_insert(zp, le_zeppelin TSRMLS_CC);
