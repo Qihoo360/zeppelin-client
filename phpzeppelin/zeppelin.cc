@@ -220,8 +220,8 @@ PHP_METHOD(Zeppelin, __construct)
 	// Split address into ip and port
 	for (size_t i = 0; i < addr_v.size(); i++) {
 	  if(!slash::ParseIpPortString(addr_v[i], ip, port)) {
-			RETURN_FALSE;
-		}
+		RETURN_FALSE;
+	  }
 	  libzp::Node node(ip, port);
 	  options.meta_addr.push_back(node);
 	}
@@ -232,7 +232,7 @@ PHP_METHOD(Zeppelin, __construct)
 	// Connect
 	zp = new libzp::Client(options, std::string(table, table_len));
   } else {
-	  RETURN_FALSE;
+	RETURN_FALSE;
   }
 
 #if PHP_VERSION_ID >= 50400
