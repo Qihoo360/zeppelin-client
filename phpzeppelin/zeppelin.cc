@@ -215,20 +215,13 @@ PHP_METHOD(Zeppelin, __construct)
 	  addr = strtok(NULL,";");
 	}
 
-	// Split address into ip and port
 	std::string ip;
 	int port = 0;
+	// Split address into ip and port
 	for (size_t i = 0; i < addr_v.size(); i++) {
-	  char *c_addr = new char[addr_v[i].length() + 1];
-	  strcpy(c_addr, addr_v[i].c_str());
-	  char * socket = strtok(c_addr, ":");
-	  if (socket != NULL) {
-		ip = std::string(socket);
-	  }
-	  socket = strtok(NULL, ";");
-	  if (socket != NULL) {
-		port = atoi(socket);
-	  }
+	  if(!slash::ParseIpPortString(addr_v[i], ip, port)) {
+			RETURN_FALSE;
+		}
 	  libzp::Node node(ip, port);
 	  options.meta_addr.push_back(node);
 	}
@@ -237,11 +230,7 @@ PHP_METHOD(Zeppelin, __construct)
 	  options.op_timeout = timeout;
 	}
 	// Connect
-	if (options.meta_addr.size() == 1) {
-	  zp = new libzp::Client(options.meta_addr[0].ip, options.meta_addr[0].port, std::string(table, table_len));
-	} else {
-	  zp = new libzp::Client(options, std::string(table, table_len));
-	}
+	zp = new libzp::Client(options, std::string(table, table_len));
   } else {
 	  RETURN_FALSE;
   }

@@ -1,7 +1,8 @@
 <?php
 
 $timeout = 100;
-$zp_options = new Zeppelin("127.0.0.1:9801;127.0.0.1:9802;127.0.0.1:9803;", "example_options_test", $timeout);
+$zp_options = new Zeppelin("127.0.0.1:9801;127.0.0.1:9802;127.0.0.1:9803", "example_options_test", $timeout);
+
 $times = 200;
 while($times--) {
   $num = rand(10, 1000);
