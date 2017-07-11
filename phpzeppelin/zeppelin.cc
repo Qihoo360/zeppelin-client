@@ -351,8 +351,8 @@ PHP_METHOD(Zeppelin, mget)
             array_init(return_value);
             std::map<std::string, std::string>::iterator r_it = result.begin();
             for (; r_it != result.end(); ++r_it) {
-                add_assoc_stringl_ex(return_value, (char *) r_it->first.data(), r_it->first.size(),
-                    (char *) r_it->second.data(), r_it->second.size(), 1);
+                add_assoc_string(return_value, (char *) r_it->first.data(),
+                    (char *) r_it->second.data(), 1);
             }
         }
     } else {
