@@ -1013,6 +1013,7 @@ Status Cluster::DebugDumpPartition(const std::string& table,
   if (it == tables_.end()) {
     return Status::InvalidArgument("don't have this table's info");
   }
+  std::cout << "-epoch: " << epoch_ << std::endl;
   it->second->DebugDump(partition_id);
   return Status::OK();
 }
