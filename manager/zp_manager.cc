@@ -119,6 +119,10 @@ void StartRepl(libzp::Cluster* cluster) {
     SplitByBlank(info, line_args);
 
     if (!strncasecmp(line, "CREATE ", 7)) {
+      if (line_args.size() != 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
       std::string table_name = line_args[1];
       int partition_num = atoi(line_args[2].c_str());
       s = cluster->CreateTable(table_name, partition_num);
