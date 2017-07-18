@@ -440,19 +440,7 @@ int main(int argc, char* argv[]) {
   // cluster handle cluster operation
   std::cout << "create cluster" << std::endl;
   libzp::Cluster* cluster = new libzp::Cluster(option);
-  std::cout << "connect cluster" << std::endl;
-  // needs connect to cluster first
-  libzp::Status s = cluster->Connect();
-  if (!s.ok()) {
-    std::cout << s.ToString() << std::endl;
-    exit(-1);
-  }
 
   cliInitHelp();
   StartRepl(cluster);
-  /*
-  Status s = cluster.ListMetaNode(node_list);
-  node_list.clear();
-  s = cluster.ListDataNode(node_list);
-  */
 }

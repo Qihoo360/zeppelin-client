@@ -67,6 +67,9 @@ zp_parallel: $(ZP) zp_parallel.cc
 $(ZP):
 	make -C $(ZP_PATH)/libzp/ __COMBINE=1 __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
+$(CLEAN):
+	make -C $(ZP_PATH)/libzp/ clean
+
 clean: 
 	rm -rf $(OUTPUT)
 	rm -f $(SRC_DIR)/*.o
