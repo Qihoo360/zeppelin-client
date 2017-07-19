@@ -270,6 +270,10 @@ void StartRepl(libzp::Cluster* cluster) {
       std::vector<libzp::Node> slaves;
       libzp::Node master;
       s = cluster->ListMeta(&master, &slaves);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
       std::cout << "master" << ":" << master.ip
         << " " << master.port << std::endl;
       std::cout << "slave" << ":" << std::endl;
@@ -287,6 +291,10 @@ void StartRepl(libzp::Cluster* cluster) {
       }
       std::string meta_status;
       s = cluster->MetaStatus(&meta_status);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
       std::cout << std::string(140, '=') << std::endl;
       std::cout << meta_status << std::endl;
       std::cout << s.ToString() << std::endl;
@@ -297,123 +305,147 @@ void StartRepl(libzp::Cluster* cluster) {
       }
       std::vector<libzp::Node> nodes;
       std::vector<std::string> status;
-        s = cluster->ListNode(&nodes, &status);
-        if (nodes.size() == 0) {
-          std::cout << "no node exist" << std::endl;
-          continue;
-        }
-        for (size_t i = 0; i <= nodes.size() - 1; i++) {
-          std::cout << nodes[i].ip << ":" << nodes[i].port
-            << " " << status[i] << std::endl;
-        }
+      s = cluster->ListNode(&nodes, &status);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      if (nodes.size() == 0) {
+        std::cout << "no node exist" << std::endl;
+        continue;
+      }
+      for (size_t i = 0; i <= nodes.size() - 1; i++) {
+        std::cout << nodes[i].ip << ":" << nodes[i].port
+          << " " << status[i] << std::endl;
+      }
 
     } else if (!strncasecmp(line, "LISTTABLE", 9)) {
-        if (line_args.size() != 1) {
-          std::cout << "arg num wrong" << std::endl;
-          continue;
-        }
-        std::vector<std::string> tables;
-        s = cluster->ListTable(&tables);
-        std::vector<std::string>::iterator iter = tables.begin();
-        while (iter != tables.end()) {
-          std::cout << *iter << std::endl;
-          iter++;
-        }
-        std::cout << s.ToString() << std::endl;
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::vector<std::string> tables;
+      s = cluster->ListTable(&tables);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      std::vector<std::string>::iterator iter = tables.begin();
+      while (iter != tables.end()) {
+        std::cout << *iter << std::endl;
+        iter++;
+      }
+      std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "DROPTABLE ", 10)) {
-        if (line_args.size() != 2) {
-          std::cout << "arg num wrong" << std::endl;
-          continue;
-        }
-        s = cluster->DropTable(line_args[1]);
-        std::cout << s.ToString() << std::endl;
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      s = cluster->DropTable(line_args[1]);
+      std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "FLUSHTABLE ", 11)) {
-        if (line_args.size() != 2) {
-          std::cout << "arg num wrong" << std::endl;
-          continue;
-        }
-        s = cluster->FlushTable(line_args[1]);
-        std::cout << s.ToString() << std::endl;
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      s = cluster->FlushTable(line_args[1]);
+      std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "QPS", 3)) {
-        if (line_args.size() != 2) {
-          std::cout << "arg num wrong" << std::endl;
-          continue;
-        }
-        std::string table_name = line_args[1];
-        int32_t qps = 0; int64_t total_query = 0;
-        s = cluster->InfoQps(table_name, &qps, &total_query);
-        std::cout << "qps:" << qps << std::endl;
-        std::cout << "total query:" << total_query << std::endl;
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      int32_t qps = 0; int64_t total_query = 0;
+      s = cluster->InfoQps(table_name, &qps, &total_query);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      std::cout << "qps:" << qps << std::endl;
+      std::cout << "total query:" << total_query << std::endl;
 
     } else if (!strncasecmp(line, "REPLSTATE", 9)) {
-        if (line_args.size() != 4) {
-          std::cout << "arg num wrong" << std::endl;
+      if (line_args.size() != 4) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::string ip = line_args[2];
+      int port = atoi(line_args[3].c_str());
+      libzp::Node node(ip, port);
+      std::map<int, libzp::PartitionView> partitions;
+      libzp::Status s = cluster->InfoRepl(node, table_name, &partitions);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+      }
+      for (auto& p : partitions) {
+        std::cout << "partition:" << p.first << std::endl;
+        std::cout << " -role:" << p.second.role << std::endl;
+        std::cout << " -repl_state:" << p.second.repl_state << std::endl;
+        std::cout << " -master:" << p.second.master.ip <<
+          ":" << p.second.master.port << std::endl;
+        std::cout << " -slaves:" << std::endl;
+        for (auto& pss : p.second.slaves) {
+          std::cout << "  -slave:" << pss.ip << ":" << pss.port << std::endl;
           continue;
         }
-        std::string table_name = line_args[1];
-        std::string ip = line_args[2];
-        int port = atoi(line_args[3].c_str());
-        libzp::Node node(ip, port);
-        std::map<int, libzp::PartitionView> partitions;
-        libzp::Status s = cluster->InfoRepl(node, table_name, &partitions);
-        for (auto& p : partitions) {
-          std::cout << "partition:" << p.first << std::endl;
-          std::cout << " -role:" << p.second.role << std::endl;
-          std::cout << " -repl_state:" << p.second.repl_state << std::endl;
-          std::cout << " -master:" << p.second.master.ip <<
-            ":" << p.second.master.port << std::endl;
-          std::cout << " -slaves:" << std::endl;
-          for (auto& s : p.second.slaves) {
-            std::cout << "  -slave:" << s.ip << ":" << s.port << std::endl;
-          }
-          std::cout << " -filenum:" << p.second.file_num << std::endl;
-          std::cout << " -offset:" << p.second.offset << std::endl;
-        }
+        std::cout << " -filenum:" << p.second.file_num << std::endl;
+        std::cout << " -offset:" << p.second.offset << std::endl;
+      }
 
     } else if (!strncasecmp(line, "SPACE", 5)) {
-       if (line_args.size() != 2) {
-         std::cout << "arg num wrong" << std::endl;
-         continue;
-       }
-       std::string table_name = line_args[1];
-       std::vector<std::pair<libzp::Node, libzp::SpaceInfo>> nodes;
-       libzp::Status s = cluster->InfoSpace(table_name, &nodes);
-       std::cout << "space info for " << table_name << std::endl;
-       for (size_t i = 0; i < nodes.size(); i++) {
-         std::cout << "node: " << nodes[i].first.ip << " " <<
-           nodes[i].first.port << std::endl;
-         std::cout << "  used:" << nodes[i].second.used
-           << " bytes" << std::endl;
-         std::cout << "  remain:" << nodes[i].second.remain
-           << " bytes" << std::endl;
-       }
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::vector<std::pair<libzp::Node, libzp::SpaceInfo>> nodes;
+      libzp::Status s = cluster->InfoSpace(table_name, &nodes);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      std::cout << "space info for " << table_name << std::endl;
+      for (size_t i = 0; i < nodes.size(); i++) {
+        std::cout << "node: " << nodes[i].first.ip << " " <<
+          nodes[i].first.port << std::endl;
+        std::cout << "  used:" << nodes[i].second.used
+          << " bytes" << std::endl;
+        std::cout << "  remain:" << nodes[i].second.remain
+          << " bytes" << std::endl;
+      }
     } else if (!strncasecmp(line, "NODESTATE", 9)) {
-       if (line_args.size() != 3) {
-         std::cout << "arg num wrong" << std::endl;
-         continue;
-       }
-       std::string ip = line_args[1];
-       int port = atoi(line_args[2].c_str());
-       libzp::Node node(ip, port);
-       libzp::ServerState state;
-       libzp::Status s = cluster->InfoServer(node, &state);
-       std::cout << "node: (" << node.ip << ":" << node.port << ")" << std::endl;
-       std::cout << " -epoch:" << state.epoch << std::endl;
-       std::cout << " -tables:" << std::endl;
-       for (auto& t : state.table_names) {
-         std::cout << "  -table:" << t << std::endl;
-       }
-       std::cout << " -current_meta: " << state.cur_meta.ip
-         << ":" << state.cur_meta.port << std::endl;
-       std::cout << " -meta_renewing:"
-         << (state.meta_renewing ? "true" : "false") << std::endl;
+      if (line_args.size() != 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string ip = line_args[1];
+      int port = atoi(line_args[2].c_str());
+      libzp::Node node(ip, port);
+      libzp::ServerState state;
+      libzp::Status s = cluster->InfoServer(node, &state);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      std::cout << "node: (" << node.ip << ":" << node.port << ")" << std::endl;
+      std::cout << " -epoch:" << state.epoch << std::endl;
+      std::cout << " -tables:" << std::endl;
+      for (auto& t : state.table_names) {
+        std::cout << "  -table:" << t << std::endl;
+      }
+      std::cout << " -current_meta: " << state.cur_meta.ip
+        << ":" << state.cur_meta.port << std::endl;
+      std::cout << " -meta_renewing:"
+        << (state.meta_renewing ? "true" : "false") << std::endl;
     } else if (!strncasecmp(line, "EXIT", 4)) {
-       // Exit manager
-       free(line);
-       break;
+      // Exit manager
+      free(line);
+      break;
     } else {
       printf("Unrecognized command: %s\n", line);
     }
@@ -424,7 +456,7 @@ void StartRepl(libzp::Cluster* cluster) {
 
 void usage() {
   std::cout << "usage:\n"
-            << "      zp_cli host port\n";
+    << "      zp_cli host port\n";
 }
 
 int main(int argc, char* argv[]) {
