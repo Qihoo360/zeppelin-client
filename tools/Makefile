@@ -20,23 +20,37 @@ ifndef PINK_PATH
 PINK_PATH = $(realpath ../third/pink)
 endif
 
-OBJECT = zp_parade zp_benchmark zp_expansion zp_empty_trash
+assert = $(if $(filter whatever,${CROSS_COMPILE}),$(if ${VARIABLE},,$(error Urk! Variable problem)))
+
+ifndef ROCKSDB_PATH
+	exit;
+endif
+
+OBJECT = zp_parade zp_benchmark zp_expansion rocksdb_to_zp
 SRC_DIR = ./
 OUTPUT = ./output
 
 LIB_PATH = -L$(SLASH_PATH)/slash/lib/ \
 		   -L$(PINK_PATH)/pink/lib/ \
-		   -L$(ZP_PATH)/libzp/lib/
+		   -L$(ZP_PATH)/libzp/lib/ \
+			 -L$(ROCKSDB_PATH)
 
 LIBS = -lzp \
 			 -lprotobuf \
 			 -lpink \
 			 -lslash \
-			 -lpthread
+			 -lrocksdb \
+			 -lpthread \
+			 -lz \
+			 -lbz2 \
+			 -lsnappy \
+			 -lrt
 
 INCLUDE_PATH = -I$(ZP_PATH)/ \
 		   -I$(PINK_PATH)/  \
 		   -I$(SLASH_PATH)/ \
+			 -I$(ROCKSDB_PATH)/ \
+			 -I$(ROCKSDB_PATH)/include
 
 .PHONY: all clean distclean
 
@@ -54,7 +68,7 @@ all: $(OBJECT)
 	rm -rf $(OBJECT)
 	@echo "Success, go, go, go..."
 
-zp_empty_trash: $(ZP) $(PINK) $(SLASH) zp_empty_trash.cc
+rocksdb_to_zp: $(ZP) $(PINK) $(SLASH) rocksdb_to_zp.cc
 	$(CXX) $(CXXFLAGS) -o $@ $^  $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
 
 zp_parade: $(ZP) $(PINK) $(SLASH) zp_parade.cc
