@@ -62,23 +62,21 @@ int main(int argc, char* argv[]) {
   }
 
   // Iterator all key value and write into zp
+  int succ_num = 0, fail_num = 0;
   rocksdb::Iterator* it = db->NewIterator(rocksdb::ReadOptions());
   for (it->SeekToFirst(); it->Valid(); it->Next()) {
     s = cluster->Set(table_name, it->key().ToString(), it->value().ToString());
     if (!s.ok()) {
       std::cout << "set key " << it->key().ToString() << " failed: "
         << s.ToString() << std::endl;
-      delete cluster;
-      delete db;
-      return -1;
+      fail_num++;
+      continue;
     }
+    succ_num++;
     std::cout << "set key " << it->key().ToString() << " success." << std::endl;
   }
-  if (it->status().ok()) {
-    std::cout << "Success" << std::endl;
-  } else {
-    std::cout << "Failed" << it->status().ToString() << std::endl;
-  }
+  std::cout << "Finished. succ: " << succ_num
+    << ", fail: " << fail_num << std::endl;
   
   delete it;
   delete db;
