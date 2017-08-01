@@ -26,6 +26,14 @@ void SplitByBlank(const std::string& old_line,
   }
 }
 
+std::string TimeString(uint64_t nowmicros) {
+  time_t t = static_cast<time_t>(nowmicros * 1e-6);
+  char buf[100];
+  struct tm t_ = *gmtime(&t);
+  strftime(buf, sizeof buf, "%a, %d %b %Y %H:%M:%S %Z", &t_);
+  return std::string(buf);
+}
+
 typedef struct {
   std::string name;
   std::string params;
@@ -117,7 +125,7 @@ void StartRepl(libzp::Cluster* cluster) {
     std::string info = line;
     std::vector<std::string> line_args;
     SplitByBlank(info, line_args);
-
+    
     if (!strncasecmp(line, "CREATE ", 7)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -393,8 +401,14 @@ void StartRepl(libzp::Cluster* cluster) {
           std::cout << "  -slave:" << pss.ip << ":" << pss.port << std::endl;
           continue;
         }
-        std::cout << " -filenum:" << p.second.file_num << std::endl;
-        std::cout << " -offset:" << p.second.offset << std::endl;
+        std::cout << " -boffset:" << p.second.offset << std::endl;
+        if (p.second.fallback_time != 0) {
+          std::cout << " -Notice! has binlog fallback" << std::endl;
+          std::cout << "  -time:"
+            << TimeString(p.second.fallback_time) << std::endl;
+          std::cout << "  -before: " << p.second.fallback_before << std::endl;  
+          std::cout << "  -after: " << p.second.fallback_after << std::endl;  
+        }
       }
 
     } else if (!strncasecmp(line, "SPACE", 5)) {

@@ -7,14 +7,22 @@
 #include "libzp/include/zp_entity.h"
 
 namespace libzp {
+
 PartitionView::PartitionView(const client::PartitionState& state)
   : role(state.role()),
   repl_state(state.repl_state()),
   master(state.master().ip(), state.master().port()),
-  file_num(state.sync_offset().filenum()),
-  offset(state.sync_offset().offset()) {
+  offset(state.sync_offset().filenum(), state.sync_offset().offset()),
+  fallback_time(0) {
     for (auto& s : state.slaves()) {
       slaves.push_back(Node(s.ip(), s.port()));
+    }
+    if (state.has_fallback()) {
+      fallback_time = state.fallback().time();
+      fallback_before = BinlogOffset(state.fallback().before().filenum(),
+          state.fallback().before().offset());
+      fallback_after = BinlogOffset(state.fallback().after().filenum(),
+          state.fallback().after().offset());
     }
   }
 

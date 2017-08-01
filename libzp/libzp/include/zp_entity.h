@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <ostream>
 
 #include "libzp/include/zp_option.h"
 
@@ -70,13 +71,45 @@ class Table {
   std::map<int, Partition> partitions_;
 };
 
+struct BinlogOffset {
+  uint32_t filenum;
+  uint64_t offset;
+  BinlogOffset()
+    : filenum(0), offset(0) {}
+  
+  BinlogOffset(uint32_t num, uint64_t off)
+    : filenum(num), offset(off) {}
+
+  bool operator== (const BinlogOffset& rhs) const {
+    return (filenum == rhs.filenum && offset == rhs.offset);
+  }
+  bool operator!= (const BinlogOffset& rhs) const {
+    return (filenum != rhs.filenum || offset != rhs.offset);
+  }
+  bool operator< (const BinlogOffset& rhs) const {
+    return (filenum < rhs.filenum ||
+        (filenum == rhs.filenum && offset < rhs.offset));
+  }
+  bool operator> (const BinlogOffset& rhs) const {
+    return (filenum > rhs.filenum ||
+        (filenum == rhs.filenum && offset > rhs.offset));
+  }
+};
+
+std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo) {
+  out << bo.filenum << "_" << bo.offset;
+  return out;
+}
+
 struct PartitionView {
   std::string role;
   std::string repl_state;
   Node master;
   std::vector<Node> slaves;
-  int32_t file_num;
-  int64_t offset;
+  BinlogOffset offset;
+  uint64_t fallback_time;
+  BinlogOffset fallback_before;
+  BinlogOffset fallback_after;
   PartitionView(const client::PartitionState& state);
 };
 
