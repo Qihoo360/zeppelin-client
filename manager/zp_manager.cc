@@ -181,7 +181,7 @@ void StartRepl(libzp::Cluster* cluster) {
       int ttl = -1;
       if (line_args.size() == 5) {
         char* end = NULL;
-        int ttl = std::strtol(line_args[4].c_str(), &end, 10);
+        ttl = std::strtol(line_args[4].c_str(), &end, 10);
         if (*end != 0) {
           std::cout << "ttl must be a integer" << std::endl;
           continue;
