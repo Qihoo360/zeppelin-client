@@ -13,9 +13,9 @@ dnl [  --with-zeppelin             Include zeppelin support])
 
 dnl Otherwise use enable:
 
-dnl PHP_ARG_ENABLE(zeppelin, whether to enable zeppelin support,
+PHP_ARG_ENABLE(zeppelin, whether to enable zeppelin support,
 dnl Make sure that the comment is aligned:
-dnl [  --enable-zeppelin           Enable zeppelin support])
+[  --enable-zeppelin           Enable zeppelin support])
 
 if test "$PHP_ZEPPELIN" != "no"; then
   dnl Write more examples of tests here...
@@ -41,7 +41,9 @@ if test "$PHP_ZEPPELIN" != "no"; then
   dnl fi
 
   dnl # --with-zeppelin -> add include path
-  dnl PHP_ADD_INCLUDE($ZEPPELIN_DIR/include)
+  PHP_ADD_INCLUDE(../libzp)
+  PHP_ADD_INCLUDE(../third/pink)
+  PHP_ADD_INCLUDE(../third/slash)
 
   dnl # --with-zeppelin -> check for lib and symbol presence
   dnl LIBNAME=zeppelin # you may want to change this
@@ -58,6 +60,13 @@ if test "$PHP_ZEPPELIN" != "no"; then
   dnl ])
   dnl
   dnl PHP_SUBST(ZEPPELIN_SHARED_LIBADD)
+
+  PHP_REQUIRE_CXX()
+  PHP_ADD_LIBRARY(stdc++, 1, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY(protobuf, 1, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY_WITH_PATH(slash, ../third/slash/slash/lib, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY_WITH_PATH(pink, ../third/pink/pink/lib, EXTRA_LDFLAGS)
+  PHP_ADD_LIBRARY_WITH_PATH(zp, ../libzp/libzp/lib, EXTRA_LDFLAGS)
 
   PHP_NEW_EXTENSION(zeppelin, zeppelin.cc, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 fi

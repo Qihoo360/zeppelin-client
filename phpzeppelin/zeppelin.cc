@@ -270,9 +270,10 @@ PHP_METHOD(Zeppelin, set)
     int argc = ZEND_NUM_ARGS();
     int key_len   = 0;
     int value_len = 0;
+	int ttl = -1;
     zval *object;
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss",
-                &object, zeppelin_client_ext, &key, &key_len, &value, &value_len) == FAILURE) {
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l",
+                &object, zeppelin_client_ext, &key, &key_len, &value, &value_len, &ttl) == FAILURE) {
         return;
     }
 
@@ -281,7 +282,7 @@ PHP_METHOD(Zeppelin, set)
         RETURN_FALSE;
     }
 
-	libzp::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len));
+	libzp::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len), ttl);
     if (s.ok()) {
         RETVAL_TRUE;
     } else {

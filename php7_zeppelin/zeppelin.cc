@@ -81,15 +81,15 @@ void zeppelin_free_storage(zend_object *object TSRMLS_DC)
 }
 
 static inline struct zeppelin_object * php_custom_object_fetch_object(zend_object *obj) {
-      return (struct qconfzk_object *)((char *)obj - XtOffsetOf(struct qconfzk_object , std));
+      return (struct zeppelin_object *)((char *)obj - XtOffsetOf(struct zeppelin_object , std));
 }
 
-#define Z_ZEPPLIN_OBJ_P(zv) php_custom_object_fetch_object(Z_OBJ_P(zv));
+#define Z_ZEPPELIN_OBJ_P(zv) php_custom_object_fetch_object(Z_OBJ_P(zv));
 
 zend_object * zeppelin_create_handler(zend_class_entry *ce TSRMLS_DC) {
      // Allocate sizeof(custom) + sizeof(properties table requirements)
 	struct zeppelin_object *intern = (struct zeppelin_object *)ecalloc(
-		1, sizeof(struct qconfzk_object) + zend_object_properties_size(ce));
+		1, sizeof(struct zeppelin_object) + zend_object_properties_size(ce));
 	zend_object_std_init(&intern->std, ce TSRMLS_CC);
 	zeppelin_object_handlers.offset = XtOffsetOf(struct zeppelin_object, std);
 	zeppelin_object_handlers.free_obj = zeppelin_free_storage;
@@ -101,26 +101,6 @@ zend_object * zeppelin_create_handler(zend_class_entry *ce TSRMLS_DC) {
 
 zend_class_entry *zeppelin_ce;
 
-/* {{{ PHP_MINIT_FUNCTION
- */
-PHP_MINIT_FUNCTION(zeppelin)
-{
-	/* If you have INI entries, uncomment these lines
-	REGISTER_INI_ENTRIES();
-	*/
-
-    zend_class_entry ce;
-    INIT_CLASS_ENTRY(ce, "Zeppelin", zeppelin_functions);
-    zeppelin_ce = zend_register_internal_class(&ce TSRMLS_CC);
-    zeppelin_ce->create_object = zeppelin_create_handler;
-    memcpy(&zeppelin_object_handlers,
-    zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-    zeppelin_object_handlers.clone_obj = NULL;
-
-	return SUCCESS;
-}
-/* }}} */
-
 PHP_METHOD(Zeppelin, __construct)
 {
 	char *ip = NULL;
@@ -128,8 +108,6 @@ PHP_METHOD(Zeppelin, __construct)
 	int port = 0;
 	char *table = NULL;
 	int table_len = 0;
-	zval *self;
-	zval *object;
 	int id;
 	int timeout = -1;
 	libzp::Options options;
@@ -137,10 +115,9 @@ PHP_METHOD(Zeppelin, __construct)
 	char * addrs = NULL;
 	int addrs_len = 0;
 
-	if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l",
-									 &object, zeppelin_client_ext, &addrs,
-									 &addrs_len, &table,
-									 &table_len, &timeout) == SUCCESS) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l",
+									 &addrs, &addrs_len, &table, &table_len,
+									 &timeout) == SUCCESS) {
 		std::vector<std::string> addr_v;
 		char *addr = strtok(addrs, ";");
 		while(addr != NULL) {
@@ -183,22 +160,24 @@ PHP_METHOD(Zeppelin, set)
     char *value = NULL;
     int key_len   = 0;
     int value_len = 0;
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
             &key, &key_len, &value, &value_len) == FAILURE) {
         RETVAL_FALSE;
     }
 
 	libzp::Client *zp = NULL;
-    zepplin_object *obj = Z_ZEPPLIN_OBJ_P(getThis());
+    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
     zp = obj->zp;
 	if (zp != NULL) {
 		slash::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len));
 		if (s.ok()) {
-			RETVAL_TRUE;
+			RETVAL_TRUE; // Won't return
+		} else {
+			RETURN_FALSE;
 		}
+	} else {
+		RETURN_FALSE;
 	}
-
-	RETURN_FALSE;
 }
 
 PHP_METHOD(Zeppelin, get)
@@ -207,22 +186,25 @@ PHP_METHOD(Zeppelin, get)
     char *key   = NULL;
     int key_len   = 0;
     zval *object;
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
             &key, &key_len) == FAILURE) {
 		RETURN_FALSE;
     }
 
 	libzp::Client *zp = NULL;
-    zepplin_object *obj = Z_ZEPPLIN_OBJ_P(getThis());
+    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
     zp = obj->zp;
 	if (zp != NULL) {
 		std::string val;
 		libzp::Status s = zp->Get(std::string(key, key_len), &val);
 		if (s.ok()) {
 			RETVAL_STRINGL((char *)val.data(), val.size());
+		} else {
+			RETVAL_FALSE;
 		}
+	} else {
+		RETVAL_FALSE;
 	}
-	RETVAL_FALSE;
 }
 
 PHP_METHOD(Zeppelin, mget)
@@ -230,38 +212,30 @@ PHP_METHOD(Zeppelin, mget)
     zval *keys = NULL;
     zval *object;
 
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a",
-            &keys) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &keys) == FAILURE) {
         RETURN_FALSE;
     }
 
 	libzp::Client *zp = NULL;
-    zepplin_object *obj = Z_ZEPPLIN_OBJ_P(getThis());
+    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
     zp = obj->zp;
 	if (zp != NULL) {
+		// keys value
 		std::vector<std::string> vkeys;
-		if (Z_TYPE_P(keys) == IS_ARRAY) {
-			zval **arrval;
-			HashPosition pos;
-			zend_hash_internal_pointer_reset_ex(Z_ARRVAL_P(keys), &pos);
-			while (zend_hash_get_current_data_ex(Z_ARRVAL_P(keys), (void **)&arrval, &pos) == SUCCESS) {
-				if (Z_TYPE_PP(arrval) == IS_STRING) {
-					vkeys.push_back(std::string(Z_STRVAL_PP(arrval), Z_STRLEN_PP(arrval)));
-				}
-				zend_hash_move_forward_ex(Z_ARRVAL_P(keys), &pos);
-			}
-		}
+		HashTable *keys_arr = Z_ARRVAL_P(keys);
+		zval* val;
+		ZEND_HASH_FOREACH_VAL(keys_arr, val) {
+			vkeys.push_back(std::string(Z_STR_P(val)->val, Z_STR_P(val)->len));
+		} ZEND_HASH_FOREACH_END();
 
 		std::map<std::string, std::string> result;
 		libzp::Status s = zp->Mget(vkeys, &result);
 		if (s.ok()) {
-			if (return_value_used) {
-				array_init(return_value);
-				std::map<std::string, std::string>::iterator r_it = result.begin();
-				for (; r_it != result.end(); ++r_it) {
-					add_assoc_stringl_ex(return_value, (char *) r_it->first.data(), r_it->first.size(),
-										 (char *) r_it->second.data(), r_it->second.size(), 1);
-				}
+			array_init(return_value);
+			std::map<std::string, std::string>::iterator r_it = result.begin();
+			for (; r_it != result.end(); ++r_it) {
+				add_assoc_stringl_ex(return_value, (char *) r_it->first.data(), r_it->first.size(),
+									 (char *) r_it->second.data(), r_it->second.size());
 			}
 		} else {
 			RETVAL_FALSE;
@@ -276,22 +250,24 @@ PHP_METHOD(Zeppelin, delete)
     char *key   = NULL;
     int key_len   = 0;
     zval *object;
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s",
             &key, &key_len) == FAILURE) {
 		RETURN_FALSE;
     }
 
 	libzp::Client *zp = NULL;
-    zepplin_object *obj = Z_ZEPPLIN_OBJ_P(getThis());
+    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
     zp = obj->zp;
 	if (zp != NULL) {
-
 		libzp::Status s = zp->Delete(std::string(key, key_len));
 		if (s.ok()) {
 			RETVAL_TRUE;
+		} else {
+			RETVAL_FALSE;
 		}
+	} else {
+		RETVAL_FALSE;
 	}
-	RETVAL_FALSE;
 }
 
 /* {{{ PHP_MSHUTDOWN_FUNCTION
@@ -354,6 +330,26 @@ const zend_function_entry zeppelin_functions[] = {
     PHP_ME(Zeppelin, mget,				NULL, ZEND_ACC_PUBLIC)
 	PHP_FE_END	/* Must be the last line in zeppelin_functions[] */
 };
+/* }}} */
+
+/* {{{ PHP_MINIT_FUNCTION
+ */
+PHP_MINIT_FUNCTION(zeppelin)
+{
+	/* If you have INI entries, uncomment these lines
+	REGISTER_INI_ENTRIES();
+	*/
+
+    zend_class_entry ce;
+    INIT_CLASS_ENTRY(ce, "Zeppelin", zeppelin_functions);
+    zeppelin_ce = zend_register_internal_class(&ce TSRMLS_CC);
+    zeppelin_ce->create_object = zeppelin_create_handler;
+    memcpy(&zeppelin_object_handlers,
+    zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+    zeppelin_object_handlers.clone_obj = NULL;
+
+	return SUCCESS;
+}
 /* }}} */
 
 /* {{{ zeppelin_module_entry

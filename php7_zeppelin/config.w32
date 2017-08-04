@@ -8,6 +8,6 @@
 // ARG_ENABLE("zeppelin", "enable zeppelin support", "no");
 
 if (PHP_ZEPPELIN != "no") {
-	EXTENSION("zeppelin", "zeppelin.c", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
+	EXTENSION("zeppelin", "zeppelin.cc", PHP_EXTNAME_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1");
 }
 

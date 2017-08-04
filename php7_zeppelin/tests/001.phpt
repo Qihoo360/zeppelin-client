@@ -16,6 +16,9 @@ echo "zeppelin extension is available";
 	see php7/README.TESTING for further information on
   writing regression tests
 */
+
+  $zp = new Zeppelin();
+
 ?>
 --EXPECT--
 zeppelin extension is available
