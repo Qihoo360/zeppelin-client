@@ -160,8 +160,9 @@ PHP_METHOD(Zeppelin, set)
     char *value = NULL;
     int key_len   = 0;
     int value_len = 0;
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss",
-            &key, &key_len, &value, &value_len) == FAILURE) {
+	int ttl = -1;
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|l",
+            &key, &key_len, &value, &value_len, &ttl) == FAILURE) {
         RETVAL_FALSE;
     }
 
@@ -169,7 +170,7 @@ PHP_METHOD(Zeppelin, set)
     zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
     zp = obj->zp;
 	if (zp != NULL) {
-		slash::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len));
+		slash::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len), ttl);
 		if (s.ok()) {
 			RETVAL_TRUE; // Won't return
 		} else {
