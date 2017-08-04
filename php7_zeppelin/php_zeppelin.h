@@ -24,7 +24,7 @@
 extern zend_module_entry zeppelin_module_entry;
 #define phpext_zeppelin_ptr &zeppelin_module_entry
 
-#define PHP_ZEPPELIN_VERSION "0.1.0" /* Replace with version number for your extension */
+#define PHP_ZEPPELIN_VERSION "0.2.4" /* Replace with version number for your extension */
 
 #ifdef PHP_WIN32
 #	define PHP_ZEPPELIN_API __declspec(dllexport)

@@ -59,5 +59,5 @@ if test "$PHP_ZEPPELIN" != "no"; then
   dnl
   dnl PHP_SUBST(ZEPPELIN_SHARED_LIBADD)
 
-  PHP_NEW_EXTENSION(zeppelin, zeppelin.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+  PHP_NEW_EXTENSION(zeppelin, zeppelin.cc, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
 fi
