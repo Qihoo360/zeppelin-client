@@ -41,12 +41,11 @@ extern zend_module_entry zeppelin_module_entry;
 /*
   	Declare any global variables you may need between the BEGIN
 	and END macros here:
+*/
 
 ZEND_BEGIN_MODULE_GLOBALS(zeppelin)
-	zend_long  global_value;
-	char *global_string;
+	void* g_zp_cli;
 ZEND_END_MODULE_GLOBALS(zeppelin)
-*/
 
 /* Always refer to the globals in your function as ZEPPELIN_G(variable).
    You are encouraged to rename these macros something shorter, see

@@ -35,9 +35,8 @@ extern "C"
 #include "libzp/include/zp_client.h"
 #include "slash/include/slash_status.h"
 
-/* If you declare any globals in php_zeppelin.h uncomment this:
+/* If you declare any globals in php_zeppelin.h uncomment this:*/
 ZEND_DECLARE_MODULE_GLOBALS(zeppelin)
-*/
 
 /* True global resources - no need for thread safety here */
 static int le_zeppelin;
@@ -66,6 +65,15 @@ PHP_FUNCTION(confirm_zeppelin_compiled)
    follow this convention for the convenience of others editing your code.
 */
 
+struct ClientInfo {
+	ClientInfo() : timeout(-1), zp_cli(NULL) {}
+	~ClientInfo() { delete zp_cli; }
+	std::string addrs;
+	std::string table;
+	int timeout;
+	libzp::Client* zp_cli;
+};
+
 zend_object_handlers zeppelin_object_handlers;
 struct zeppelin_object
 {
@@ -76,7 +84,6 @@ struct zeppelin_object
 void zeppelin_free_storage(zend_object *object TSRMLS_DC)
 {
     zeppelin_object *obj = (zeppelin_object *)object;
-    delete obj->zp;
     efree(obj);
 }
 
@@ -99,6 +106,16 @@ zend_object * zeppelin_create_handler(zend_class_entry *ce TSRMLS_DC) {
      return &intern->std;
 }
 
+static bool need_reconnect(ClientInfo* info, std::string new_addrs,
+						   std::string new_table, int new_timeout) {
+	if (info->addrs != new_addrs ||
+		info->table != new_table ||
+		info->timeout != new_timeout) {
+		return true;
+	}
+	return false;
+}
+
 zend_class_entry *zeppelin_ce;
 
 PHP_METHOD(Zeppelin, __construct)
@@ -111,7 +128,6 @@ PHP_METHOD(Zeppelin, __construct)
 	int id;
 	int timeout = -1;
 	libzp::Options options;
-	libzp::Client *zp = NULL;
 	char * addrs = NULL;
 	int addrs_len = 0;
 
@@ -139,14 +155,23 @@ PHP_METHOD(Zeppelin, __construct)
 		if (timeout != -1) {
 			options.op_timeout = timeout;
 		}
-		// Connect
-		zp = new libzp::Client(options, std::string(table, table_len));
+		// Connect TODO (gaodq) thread safe ?
+		zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
+
+		ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
+
+		if (info->zp_cli == NULL ||
+			need_reconnect(info, addrs, table, timeout)) {
+			delete info->zp_cli;
+			info->zp_cli = new libzp::Client(options, std::string(table, table_len));
+		}
+
+		obj->zp = info->zp_cli;
+
+		RETVAL_TRUE;
 	} else {
 		RETURN_FALSE;
 	}
-
-	zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
-	obj->zp = zp;
 }
 
 PHP_METHOD(Zeppelin, __destruct)
@@ -278,6 +303,7 @@ PHP_MSHUTDOWN_FUNCTION(zeppelin)
 	/* uncomment this line if you have INI entries
 	UNREGISTER_INI_ENTRIES();
 	*/
+	delete reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
 	return SUCCESS;
 }
 /* }}} */
@@ -348,6 +374,8 @@ PHP_MINIT_FUNCTION(zeppelin)
     memcpy(&zeppelin_object_handlers,
     zend_get_std_object_handlers(), sizeof(zend_object_handlers));
     zeppelin_object_handlers.clone_obj = NULL;
+
+	ZEPPELIN_G(g_zp_cli) = reinterpret_cast<void*>(new ClientInfo());
 
 	return SUCCESS;
 }
