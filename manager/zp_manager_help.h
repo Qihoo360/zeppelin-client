@@ -26,7 +26,7 @@ CommandHelp commandHelp[] = {
     2,
     "Get the values of all the given keys"},
 
-  { "Delete",
+  { "DELETE",
     "table key",
     2,
     "delete key"},

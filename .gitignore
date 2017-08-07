@@ -1,2 +1,7 @@
 libzp/libzp/lib/
+manager/zp_manager
+
 *.o
+*.d
+*.out
+*.swp

@@ -1,0 +1,4 @@
+#include "libzp/include/build_version.h"
+const char* libzp_build_git_sha = "libzp_build_git_sha:@@GIT_SHA@@";
+const char* libzp_build_git_date = "libzp_build_git_date:@@GIT_DATE_TIME@@";
+const char* libzp_build_compile_date = __DATE__;

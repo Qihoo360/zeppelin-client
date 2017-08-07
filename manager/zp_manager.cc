@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "libzp/include/zp_cluster.h"
-#include "linenoise/linenoise.h"
+#include "linenoise.h"
 #include "zp_manager_help.h"
 
 void SplitByBlank(const std::string& old_line,
@@ -43,11 +43,9 @@ typedef struct {
 
 
 static std::vector<CommandEntry> commandEntries;
-static int helpEntriesLen;
 
 static void cliInitHelp(void) {
   int commands_num = sizeof(commandHelp)/sizeof(struct CommandHelp);
-  int i, len, pos = 0;
   CommandEntry tmp;
   for (int i = 0; i < commands_num; i++) {
     tmp.name = std::string(commandHelp[i].name);
@@ -60,7 +58,6 @@ static void cliInitHelp(void) {
 
 // completion example
 void completion(const char *buf, linenoiseCompletions *lc) {
-  size_t start_pos = 0;
   size_t match_len = 0;
   std::string tmp;
 
@@ -109,18 +106,19 @@ char *hints(const char *buf, int *color, int *bold) {
   return NULL;
 }
 
+const char* history_file = "/tmp/zp_manager_history.txt";
 
 void StartRepl(libzp::Cluster* cluster) {
   char *line;
   linenoiseSetMultiLine(1);
   linenoiseSetCompletionCallback(completion);
   linenoiseSetHintsCallback(hints);
-  linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
+  linenoiseHistoryLoad(history_file); /* Load the history at startup */
 
   libzp::Status s;
   while ((line = linenoise("zp >> ")) != NULL) {
     linenoiseHistoryAdd(line); /* Add to the history. */
-    linenoiseHistorySave("history.txt"); /* Save the history on disk. */
+    linenoiseHistorySave(history_file); /* Save the history on disk. */
     /* Do something with the string. */
     std::string info = line;
     std::vector<std::string> line_args;
