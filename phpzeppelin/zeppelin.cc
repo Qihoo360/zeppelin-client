@@ -36,12 +36,32 @@ extern "C"
 #include "zend.h"
 
 /* If you declare any globals in php_zeppelin.h uncomment this:
-ZEND_DECLARE_MODULE_GLOBALS(zeppelin)
 */
+ZEND_DECLARE_MODULE_GLOBALS(zeppelin)
+
 static int le_zeppelin;
 
 /* True global resources - no need for thread safety here */
 zend_class_entry *zeppelin_client_ext;
+
+struct ClientInfo {
+	ClientInfo() : timeout(-1), zp_cli(NULL) {}
+	~ClientInfo() { delete zp_cli; }
+	std::string addrs;
+	std::string table;
+	int timeout;
+	libzp::Client* zp_cli;
+};
+
+static bool need_reconnect(ClientInfo* info, std::string new_addrs,
+						   std::string new_table, int new_timeout) {
+	if (info->addrs != new_addrs ||
+		info->table != new_table ||
+		info->timeout != new_timeout) {
+		return true;
+	}
+	return false;
+}
 
 /* {{{ zeppelin_functions[]
  *
@@ -88,7 +108,7 @@ zend_module_entry zeppelin_module_entry = {
     PHP_RSHUTDOWN(zeppelin),    /* Replace with NULL if there's nothing to do at request end */
     PHP_MINFO(zeppelin),
 #if ZEND_MODULE_API_NO >= 20010901
-    "0.1", /* Replace with version number for your extension */
+    "0.2.4", /* Replace with version number for your extension */
 #endif
     STANDARD_MODULE_PROPERTIES
 };
@@ -103,8 +123,6 @@ ZEND_GET_MODULE(zeppelin)
 
 static void zeppelin_destructor_zeppelin_client(zend_rsrc_list_entry * rsrc TSRMLS_DC)
 {
-	libzp::Client *zp = (libzp::Client *) rsrc->ptr;
-    delete zp;
 }
 
 int zeppelin_client_get(zval *id, libzp::Client **zeppelin_sock TSRMLS_DC, int no_throw)
@@ -142,6 +160,8 @@ PHP_MINIT_FUNCTION(zeppelin)
         "zeppelin-client", module_number
     );
 
+	ZEPPELIN_G(g_zp_cli) = reinterpret_cast<void*>(new ClientInfo());
+
     return SUCCESS;
 }
 /* }}} */
@@ -153,6 +173,7 @@ PHP_MSHUTDOWN_FUNCTION(zeppelin)
     /* uncomment this line if you have INI entries
     UNREGISTER_INI_ENTRIES();
     */
+	delete reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
     return SUCCESS;
 }
 /* }}} */
@@ -229,8 +250,16 @@ PHP_METHOD(Zeppelin, __construct)
 	if (timeout != -1) {
 	  options.op_timeout = timeout;
 	}
-	// Connect
-	zp = new libzp::Client(options, std::string(table, table_len));
+
+	// Connect TODO (gaodq) thread safe ?
+	ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
+	if (info->zp_cli == NULL ||
+		need_reconnect(info, addrs, table, timeout)) {
+		delete info->zp_cli;
+		info->zp_cli = new libzp::Client(options, std::string(table, table_len));
+	}
+
+	zp = info->zp_cli;
   } else {
 	RETURN_FALSE;
   }
@@ -270,9 +299,10 @@ PHP_METHOD(Zeppelin, set)
     int argc = ZEND_NUM_ARGS();
     int key_len   = 0;
     int value_len = 0;
+	int ttl = -1;
     zval *object;
-    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss",
-                &object, zeppelin_client_ext, &key, &key_len, &value, &value_len) == FAILURE) {
+    if (zend_parse_method_parameters(ZEND_NUM_ARGS() TSRMLS_CC, getThis(), "Oss|l",
+                &object, zeppelin_client_ext, &key, &key_len, &value, &value_len, &ttl) == FAILURE) {
         return;
     }
 
@@ -281,7 +311,7 @@ PHP_METHOD(Zeppelin, set)
         RETURN_FALSE;
     }
 
-	libzp::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len));
+	libzp::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len), ttl);
     if (s.ok()) {
         RETVAL_TRUE;
     } else {
