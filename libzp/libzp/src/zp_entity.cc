@@ -157,5 +157,9 @@ void Table::GetAllNodes(std::set<Node>* nodes) const {
   }
 }
 
+std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo) {
+  out << bo.filenum << "_" << bo.offset;
+  return out;
+}
 
 }  // namespace libzp

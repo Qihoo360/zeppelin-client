@@ -96,10 +96,7 @@ struct BinlogOffset {
   }
 };
 
-std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo) {
-  out << bo.filenum << "_" << bo.offset;
-  return out;
-}
+extern std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo);
 
 struct PartitionView {
   std::string role;
