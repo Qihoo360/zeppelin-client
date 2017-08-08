@@ -106,6 +106,30 @@ char *hints(const char *buf, int *color, int *bold) {
   return NULL;
 }
 
+const int64_t KB = 1024;
+const int64_t MB = KB << 10;
+const int64_t GB = MB << 10;
+const int64_t TB = GB << 10;
+const int64_t PB = TB << 10;
+
+static std::string to_human(int64_t bytes) {
+  char buf[100];
+  if (bytes < KB) {
+    sprintf(buf, "%ld bytes", bytes);
+  } else if (bytes < MB) {
+    sprintf(buf, "%0.3f KB", (double)bytes / KB);
+  } else if (bytes < GB) {
+    sprintf(buf, "%0.3f MB", (double)bytes / MB);
+  } else if (bytes < TB) {
+    sprintf(buf, "%0.3f GB", (double)bytes / GB);
+  } else if (bytes < PB) {
+    sprintf(buf, "%0.3f TB", (double)bytes / TB);
+  } else {
+    sprintf(buf, "%0.3f PB", (double)bytes / PB);
+  }
+  return std::string(buf);
+}
+
 const char* history_file = "/tmp/zp_manager_history.txt";
 
 void StartRepl(libzp::Cluster* cluster) {
@@ -425,10 +449,10 @@ void StartRepl(libzp::Cluster* cluster) {
       for (size_t i = 0; i < nodes.size(); i++) {
         std::cout << "node: " << nodes[i].first.ip << " " <<
           nodes[i].first.port << std::endl;
-        std::cout << "  used:" << nodes[i].second.used
-          << " bytes" << std::endl;
-        std::cout << "  remain:" << nodes[i].second.remain
-          << " bytes" << std::endl;
+        int64_t used = nodes[i].second.used;
+        int64_t remain = nodes[i].second.remain;
+        printf("  used: %ld bytes(%s)\n", used, to_human(used).c_str());
+        printf("  remain: %ld bytes(%s)\n", remain, to_human(remain).c_str());
       }
     } else if (!strncasecmp(line, "NODESTATE", 9)) {
       if (line_args.size() != 3) {
