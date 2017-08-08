@@ -1,0 +1,21 @@
+sudo: required
+dist: trusty
+language: cpp
+
+os:
+  - linux
+
+addons:
+  apt:
+    packages: ['libprotobuf-dev', 'libgoogle-glog-dev']
+
+compiler:
+  - gcc
+
+language: cpp
+
+script:
+  - make -C third/slash/slash
+  - make -C third/pink/pink
+  - make -C libzp/libzp
+  - make -C manager
