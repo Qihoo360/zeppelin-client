@@ -1049,13 +1049,13 @@ std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline, Status* spt
   // No Exist one, try to connect any
   int cur = RandomIndex(0, options_.meta_addr.size() - 1);
   int count = 0;
-  while (count++ < options_.meta_addr.size()) {
+  while (static_cast<size_t>(count++) < options_.meta_addr.size()) {
     meta_cli = meta_pool_->GetConnection(options_.meta_addr[cur], deadline, sptr);
     if (meta_cli) {
       break;
     }
     cur++;
-    if (cur == options_.meta_addr.size()) {
+    if (static_cast<size_t>(cur) == options_.meta_addr.size()) {
       cur = 0;
     }
   }

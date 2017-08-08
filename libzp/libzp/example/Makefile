@@ -1,80 +1,63 @@
 RPATH = /usr/local/zeppelin/lib/
-LFLAGS = -Wl,-rpath=$(RPATH)
-
+CLEAN_FILES = # deliberately empty, so we can append below.
 CXX = g++
-ifeq ($(__PERF), 1)
-CXXFLAGS = -O2 -g -pg -pipe -fPIC -D__XDEBUG__ -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-unused-variable
-else
-	CXXFLAGS = -O2 -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-unused-variable
-endif
+LDFLAGS= -Wl,-rpath=$(RPATH) -lpthread -lrt -lprotobuf
+CXXFLAGS= -g -std=c++11 -fno-builtin-memcmp -msse -msse4.2
+PROFILING_FLAGS = -pg
+ARFLAGS = rs
+OPT=
 
-OBJECT = zp_simple zp_timeout zp_get zp_mget zp_create_table zp_async zp_parallel
-SRC_DIR = ./
-OUTPUT = ./output
+.PHONY: clean all
+
+all: zp_simple zp_timeout zp_get zp_mget zp_create_table zp_async zp_parallel
 
 ifndef ZP_PATH 
-ZP_PATH = $(realpath ../..)
+  $(warning Warning: missing zp path, using default)
+  ZP_PATH = $(CURDIR)/../..
 endif
+ZP_INCLUDE_DIR=$(ZP_PATH)
+ZP_LIBRARY=$(ZP_PATH)/libzp/lib/libzp.a
+
+ifndef PINK_PATH
+  $(warning Warning: missing pink path, using default)
+  PINK_PATH=$(CURDIR)/../../../third/pink
+endif
+PINK_INCLUDE_DIR=$(PINK_PATH)
+PINK_LIBRARY=$(PINK_PATH)/pink/lib/libpink.a
 
 ifndef SLASH_PATH
-SLASH_PATH = $(realpath ../../../third/slash)
+  $(warning Warning: missing slash path, using default)
+	SLASH_PATH=$(CURDIR)/../../../third/slash
 endif
+SLASH_INCLUDE_DIR=$(SLASH_PATH)
+SLASH_LIBRARY=$(SLASH_PATH)/slash/lib/libslash.a
 
-ifndef PINK_PATH 
-PINK_PATH = $(realpath ../../../third/pink)
-endif
+CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I$(ZP_INCLUDE_DIR)
+DEP_LIBS = $(ZP_LIBRARY) $(PINK_LIBRARY) $(SLASH_LIBRARY)
 
-ZP = $(ZP_PATH)/libzp/lib/libzp.a
-
-LIB_PATH = -L$(ZP_PATH)/libzp/lib/
-
-LIBS = -lzp \
-			 -lprotobuf \
-			 -lpthread
-
-INCLUDE_PATH = -I$(ZP_PATH) \
-							 -I$(PINK_PATH) \
-							 -I$(SLASH_PATH)
-
-.PHONY: all clean
-
-all: $(OBJECT)
-	rm -rf $(OUTPUT)
-	mkdir -p $(OUTPUT)
-	mkdir -p $(OUTPUT)/bin
-	cp $(OBJECT) $(OUTPUT)/bin/
-	rm -rf $(OBJECT)
-	@echo "Success, go, go, go..."
+LDFLAGS+= $(DEP_LIBS)
 
 zp_simple: $(ZP) zp_simple.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 zp_timeout: $(ZP) zp_timeout.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 zp_get: $(ZP) zp_get.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 zp_mget: $(ZP) zp_mget.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 zp_create_table: $(ZP) zp_create_table.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 zp_async: $(ZP) zp_async.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 zp_parallel: $(ZP) zp_parallel.cc
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(INCLUDE_PATH) $(LIB_PATH) $(LFLAGS) $(LIBS)
-
-$(ZP):
-	make -C $(ZP_PATH)/libzp/ __COMBINE=1 __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
-
-$(CLEAN):
-	make -C $(ZP_PATH)/libzp/ clean
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 clean: 
-	rm -rf $(OUTPUT)
-	rm -f $(SRC_DIR)/*.o
-	rm -rf $(OBJECT)
-
+	find . -name "*.[oda]" -exec rm -f {} \;
+	rm -rf ./zp_simple ./zp_timeout ./zp_get ./zp_mget ./zp_create_table ./zp_async ./zp_parallel

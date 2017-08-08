@@ -96,7 +96,7 @@ struct BinlogOffset {
   }
 };
 
-std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo);
+extern std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo);
 
 struct PartitionView {
   std::string role;

@@ -1,79 +1,149 @@
-RPATH = /usr/local/zeppelin/lib/
-LFLAGS = -Wl,-rpath=$(RPATH)
-
+CLEAN_FILES = # deliberately empty, so we can append below.
 CXX = g++
-ifeq ($(__PERF), 1)
-	CXXFLAGS = -O0 -g -pg -pipe -fPIC -D__XDEBUG__ -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -std=c++11 -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls
-else
-	CXXFLAGS = -O2 -g -pipe -fPIC -W -Wwrite-strings -Wpointer-arith -Wreorder -Wswitch -Wsign-promo -Wredundant-decls -Wformat -Wall -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -std=c++11 -gdwarf-2 -Wno-redundant-decls -Wno-sign-compare
+CXXFLAGS= -g -std=c++11 -fno-builtin-memcmp -msse -msse4.2 -pipe -fPIC
+PROFILING_FLAGS = -pg
+ARFLAGS = rs
+OPT=
+
+# Set the default DEBUG_LEVEL to 0
+DEBUG_LEVEL?=0
+
+ifeq ($(MAKECMDGOALS),dbg)
+  DEBUG_LEVEL=2 # compatible with rocksdb
 endif
+
+# compile with -O2 if for release
+# if we're compiling for release, compile without debug code (-DNDEBUG) and
+# don't treat warnings as errors
+ifeq ($(DEBUG_LEVEL),0)
+DISABLE_WARNING_AS_ERROR=1
+OPT += -O2 -fno-omit-frame-pointer -DNDEBUG
+else
+$(warning Warning: Compiling in debug mode. Don't use the resulting binary in production)
+OPT += -O0 -D__XDEBUG__ $(PROFILING_FLAGS)
+endif
+
+#-----------------------------------------------
+
+SRC_DIR=src
+VERSION_CC=$(SRC_DIR)/build_version.cc
+LIB_SOURCES :=  $(VERSION_CC) \
+				$(filter-out $(VERSION_CC), $(wildcard $(SRC_DIR)/*.cc))
+
+ifndef PINK_PATH
+  $(warning Warning: missing pink path, using default)
+  PINK_PATH=$(CURDIR)/../../third/pink
+endif
+PINK_INCLUDE_DIR=$(PINK_PATH)
 
 ifndef SLASH_PATH
-SLASH_PATH = $(realpath ../../third/slash)
+  $(warning Warning: missing slash path, using default)
+  SLASH_PATH=$(CURDIR)/../../third/slash
+endif
+SLASH_INCLUDE_DIR=$(SLASH_PATH)
+
+AM_DEFAULT_VERBOSITY = 0
+
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN     " $@;
+am__v_GEN_1 =
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
+am__v_at_1 =
+
+AM_V_CXX = $(am__v_CXX_$(V))
+am__v_CXX_ = $(am__v_CXX_$(AM_DEFAULT_VERBOSITY))
+am__v_CXX_0 = @echo "  CXX     " $@;
+am__v_CXX_1 =
+LD = $(CXX)
+AM_V_LD = $(am__v_LD_$(V))
+am__v_LD_ = $(am__v_LD_$(AM_DEFAULT_VERBOSITY))
+am__v_LD_0 = @echo "  LD      " $@;
+am__v_LD_1 =
+AM_V_AR = $(am__v_AR_$(V))
+am__v_AR_ = $(am__v_AR_$(AM_DEFAULT_VERBOSITY))
+am__v_AR_0 = @echo "  AR      " $@;
+am__v_AR_1 =
+
+# This (the first rule) must depend on "all".
+default: all
+
+WARNING_FLAGS = -W -Wextra -Wall -Wsign-compare \
+  -Wno-unused-parameter -Wno-redundant-decls -Wwrite-strings \
+	-Wpointer-arith -Wreorder -Wswitch -Wsign-promo \
+	-Woverloaded-virtual -Wnon-virtual-dtor -Wno-missing-field-initializers
+
+ifndef DISABLE_WARNING_AS_ERROR
+  WARNING_FLAGS += -Werror
 endif
 
-ifndef PINK_PATH 
-PINK_PATH = $(realpath ../../third/pink)
+CXXFLAGS += $(WARNING_FLAGS) -I.. -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) $(OPT)
+
+date := $(shell date +%F)
+git_sha := $(shell git rev-parse HEAD 2>/dev/null)
+gen_build_version = sed -e s/@@GIT_SHA@@/$(git_sha)/ -e s/@@GIT_DATE_TIME@@/$(date)/ $(SRC_DIR)/build_version.cc.in
+# Record the version of the source that we are compiling.
+# We keep a record of the git revision in this file.  It is then built
+# as a regular source file as part of the compilation process.
+# One can run "strings executable_filename | grep _build_" to find
+# the version of the source that we used to build the executable file.
+CLEAN_FILES += $(SRC_DIR)/build_version.cc
+
+$(SRC_DIR)/build_version.cc: FORCE
+	$(AM_V_GEN)rm -f $@-t
+	$(AM_V_at)$(gen_build_version) > $@-t
+	$(AM_V_at)if test -f $@; then         \
+	  cmp -s $@-t $@ && rm -f $@-t || mv -f $@-t $@;    \
+	else mv -f $@-t $@; fi
+FORCE: 
+
+LIBOBJECTS = $(LIB_SOURCES:.cc=.o)
+
+# if user didn't config LIBNAME, set the default
+ifeq ($(LIBNAME),)
+# we should only run pink in production with DEBUG_LEVEL 0
+ifeq ($(DEBUG_LEVEL),0)
+        LIBNAME=libzp
+else
+        LIBNAME=libzp_debug
 endif
+endif
+LIBOUTPUT = ./lib
+dummy := $(shell mkdir -p $(LIBOUTPUT))
+LIBRARY = $(LIBOUTPUT)/${LIBNAME}.a
 
-SRC_DIR := ./src/
-INC_DIR := ./include/
-OUTPUT := ./lib/
-
-INCLUDE_PATH = -I../ \
-							 -I$(SLASH_PATH) \
-							 -I$(PINK_PATH)
-
-LIB_PATH = -L$(SLASH_PATH)/pink/lib/ \
-					 -L$(PINK_PATH)/slash/lib/ 
-
-LIBS = -lpthread \
-			 -lprotobuf \
-			 -lpink \
-			 -lslash
-
-LIBRARY = libzp.a
-
-.PHONY: all clean distclean
-
-BASE_OBJS := $(wildcard $(SRC_DIR)/*.cc)
-BASE_OBJS += $(wildcard $(SRC_DIR)/*.c)
-BASE_OBJS += $(wildcard $(SRC_DIR)/*.cpp)
-OBJS = $(patsubst %.cc,%.o,$(BASE_OBJS))
-
-PINK = $(PINK_PATH)/pink/lib/libpink.a
-SLASH = $(SLASH_PATH)/slash/lib/libslash.a
+.PHONY: clean dbg static_lib all example
 
 all: $(LIBRARY)
-	@echo "Success, go, go, go..."
 
-$(LIBRARY): $(PINK) $(SLASH) $(OBJS)
-	rm -rf $(OUTPUT)
-	mkdir $(OUTPUT)
-	rm -rf $@
-ifeq ($(__COMBINE), 1)
-	cd $(OUTPUT) ; ar x $(PINK) ;ar x $(SLASH)
-	ar -rcs $@ $(OBJS) $(OUTPUT)/*.o
-	rm -f $(OUTPUT)/*.o
-else
-	ar -rcs $@ $(OBJS)
+example:
+	@make -C example ZP_PATH=$(CURDIR)/.. SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
+
+static_lib: $(LIBRARY)
+
+dbg: $(LIBRARY)
+
+$(LIBRARY): $(LIBOBJECTS)
+	$(AM_V_AR)rm -f $@
+	$(AM_V_at)$(AR) $(ARFLAGS) $@ $(LIBOBJECTS)
+
+clean:
+	rm -f $(LIBRARY)
+	rm -rf $(CLEAN_FILES)
+	rm -rf $(LIBOUTPUT)
+	find . -name "*.[oda]*" ! -path "./third/*" -exec rm -f {} \;
+	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+
+%.o: %.cc
+	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@
+
+%.d: %.cc
+	@set -e; rm -f $@; $(CXX) -MM $(CXXFLAGS) $< > $@.$$$$; \
+	sed 's,\($(notdir $*)\)\.o[ :]*,$(SRC_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
+	rm -f $@.$$$$
+
+ifneq ($(MAKECMDGOALS),clean)
+  -include $(LIBOBJECTS:.o=.d)
 endif
-	mv $@ $(OUTPUT)
-
-$(OBJS): %.o : %.cc
-	$(CXX) $(CXXFLAGS) -c $< -o $@ $(INCLUDE_PATH) $(LIBS)
-
-$(SLASH):
-	make -C $(SLASH_PATH)/slash/ __PERF=$(__PERF)
-
-$(PINK):
-	make -C $(PINK_PATH)/pink/ __PERF=$(__PERF) SLASH_PATH=$(SLASH_PATH)
-
-clean: 
-	rm -rf $(SRC_DIR)/*.o
-	rm -rf $(OUTPUT)/*
-	rm -rf $(OUTPUT)
-
-distclean: clean
-	make -C $(SLASH_PATH)/slash/ clean
-	make -C $(PINK_PATH)/pink/ clean
