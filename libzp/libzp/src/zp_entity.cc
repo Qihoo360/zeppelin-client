@@ -8,6 +8,11 @@
 
 namespace libzp {
 
+std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo) {
+  out << bo.filenum << "_" << bo.offset;
+  return out;
+}
+
 PartitionView::PartitionView(const client::PartitionState& state)
   : role(state.role()),
   repl_state(state.repl_state()),
