@@ -74,38 +74,6 @@ struct ClientInfo {
 	libzp::Client* zp_cli;
 };
 
-zend_object_handlers zeppelin_object_handlers;
-struct zeppelin_object
-{
-    zend_object std;
-	libzp::Client *zp;
-};
-
-void zeppelin_free_storage(zend_object *object TSRMLS_DC)
-{
-    zeppelin_object *obj = (zeppelin_object *)object;
-    efree(obj);
-}
-
-static inline struct zeppelin_object * php_custom_object_fetch_object(zend_object *obj) {
-      return (struct zeppelin_object *)((char *)obj - XtOffsetOf(struct zeppelin_object , std));
-}
-
-#define Z_ZEPPELIN_OBJ_P(zv) php_custom_object_fetch_object(Z_OBJ_P(zv));
-
-zend_object * zeppelin_create_handler(zend_class_entry *ce TSRMLS_DC) {
-     // Allocate sizeof(custom) + sizeof(properties table requirements)
-	struct zeppelin_object *intern = (struct zeppelin_object *)ecalloc(
-		1, sizeof(struct zeppelin_object) + zend_object_properties_size(ce));
-	zend_object_std_init(&intern->std, ce TSRMLS_CC);
-	zeppelin_object_handlers.offset = XtOffsetOf(struct zeppelin_object, std);
-	zeppelin_object_handlers.free_obj = zeppelin_free_storage;
-
-     intern->std.handlers = &zeppelin_object_handlers;
-
-     return &intern->std;
-}
-
 static bool need_reconnect(ClientInfo* info, std::string new_addrs,
 						   std::string new_table, int new_timeout) {
 	if (info->addrs != new_addrs ||
@@ -156,8 +124,6 @@ PHP_METHOD(Zeppelin, __construct)
 			options.op_timeout = timeout;
 		}
 		// Connect TODO (gaodq) thread safe ?
-		zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
-
 		ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
 
 		if (info->zp_cli == NULL ||
@@ -165,8 +131,6 @@ PHP_METHOD(Zeppelin, __construct)
 			delete info->zp_cli;
 			info->zp_cli = new libzp::Client(options, std::string(table, table_len));
 		}
-
-		obj->zp = info->zp_cli;
 
 		RETVAL_TRUE;
 	} else {
@@ -176,7 +140,7 @@ PHP_METHOD(Zeppelin, __construct)
 
 PHP_METHOD(Zeppelin, __destruct)
 {
-    // TODO
+    // Do nothing
 }
 
 PHP_METHOD(Zeppelin, set)
@@ -191,9 +155,8 @@ PHP_METHOD(Zeppelin, set)
         RETVAL_FALSE;
     }
 
-	libzp::Client *zp = NULL;
-    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
-    zp = obj->zp;
+	ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
+	libzp::Client *zp = info->zp_cli;
 	if (zp != NULL) {
 		slash::Status s = zp->Set(std::string(key, key_len), std::string(value, value_len), ttl);
 		if (s.ok()) {
@@ -217,9 +180,8 @@ PHP_METHOD(Zeppelin, get)
 		RETURN_FALSE;
     }
 
-	libzp::Client *zp = NULL;
-    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
-    zp = obj->zp;
+	ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
+	libzp::Client *zp = info->zp_cli;
 	if (zp != NULL) {
 		std::string val;
 		libzp::Status s = zp->Get(std::string(key, key_len), &val);
@@ -242,9 +204,8 @@ PHP_METHOD(Zeppelin, mget)
         RETURN_FALSE;
     }
 
-	libzp::Client *zp = NULL;
-    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
-    zp = obj->zp;
+	ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
+	libzp::Client *zp = info->zp_cli;
 	if (zp != NULL) {
 		// keys value
 		std::vector<std::string> vkeys;
@@ -281,9 +242,8 @@ PHP_METHOD(Zeppelin, delete)
 		RETURN_FALSE;
     }
 
-	libzp::Client *zp = NULL;
-    zeppelin_object *obj = Z_ZEPPELIN_OBJ_P(getThis());
-    zp = obj->zp;
+	ClientInfo* info = reinterpret_cast<ClientInfo*>(ZEPPELIN_G(g_zp_cli));
+	libzp::Client *zp = info->zp_cli;
 	if (zp != NULL) {
 		libzp::Status s = zp->Delete(std::string(key, key_len));
 		if (s.ok()) {
@@ -370,10 +330,6 @@ PHP_MINIT_FUNCTION(zeppelin)
     zend_class_entry ce;
     INIT_CLASS_ENTRY(ce, "Zeppelin", zeppelin_functions);
     zeppelin_ce = zend_register_internal_class(&ce TSRMLS_CC);
-    zeppelin_ce->create_object = zeppelin_create_handler;
-    memcpy(&zeppelin_object_handlers,
-    zend_get_std_object_handlers(), sizeof(zend_object_handlers));
-    zeppelin_object_handlers.clone_obj = NULL;
 
 	ZEPPELIN_G(g_zp_cli) = reinterpret_cast<void*>(new ClientInfo());
 
