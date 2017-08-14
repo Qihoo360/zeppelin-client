@@ -772,9 +772,9 @@ static int NodeLoad(
   return load;
 }
 
-static void SelectOnePartition(
+static void SelectOnePartition(const std::string& table,
     int p_id, const Node& node, bool avoid_same_ip, int bottom_of_load,
-    const std::vector<Node>& new_nodes,
+    const std::vector<Node>& new_nodes, ZPMeta::MetaCmd_Migrate* migrate_cmd,
     std::map<Node, std::vector<const Partition*>>* nodes_loads) {
 
   // Sort by partition load, descending order
@@ -816,7 +816,19 @@ static void SelectOnePartition(
         if ((*iter)->id() == p_id) {
           (*nodes_loads)[node].push_back(*iter);
           vec.erase(iter);
+
+          // Build cmd proto
           std::cout << "Move " << item.first << " " << p_id << " => " << node << std::endl;
+          auto cmd_unit = migrate_cmd->add_diff();
+          cmd_unit->set_table(table);
+          cmd_unit->set_partition(p_id);
+          auto l = cmd_unit->mutable_left();
+          l->set_ip(item.first.ip);
+          l->set_port(item.first.port);
+          auto r = cmd_unit->mutable_right();
+          r->set_ip(node.ip);
+          r->set_port(node.port);
+
           return;
         }
         iter++;
@@ -855,13 +867,18 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   int limit_of_load = static_cast<int>(std::ceil(average));
   int bottom_of_load = static_cast<int>(std::floor(average));
 
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
+  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  migrate_cmd->set_origin_epoch(epoch_);
+
   // Select node to move
   int p_id = 0;
   for (auto& node : new_nodes) {
     bool avoid_same_ip = true;
     for (;;) {
-      SelectOnePartition(p_id, node, avoid_same_ip, bottom_of_load,
-                         new_nodes, &nodes_loads);
+      SelectOnePartition(table, p_id, node, avoid_same_ip, bottom_of_load,
+                         new_nodes, migrate_cmd, &nodes_loads);
 
       if (NodeLoad(nodes_loads, node) >= limit_of_load) {
         break;
@@ -874,28 +891,21 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
     }
   }
 
-  printf("\nAll %s nodes loads: \n", table.c_str());
-  for (auto& info : nodes_loads) {
-    std::cout << "  --- Node " << info.first << std::endl;
-    int score = 0;
-    for (auto p : info.second) {
-      const char* role;
-      if (p->master() == info.first) {
-        score += 3;
-        role = "master";
-      } else {
-        score += 2;
-        role = "slave";
-      }
-      printf("    +++ Partition: %d, %s\n", p->id(), role);
-    }
-    printf("(score: %d)\n", score);
+  // Debug
+  for (int i = 0; i < migrate_cmd->diff_size(); i++) {
+    auto diff = migrate_cmd->diff(i);
+    auto l = diff.left();
+    auto r = diff.right();
+    printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
+           r.ip().c_str(), r.port());
   }
+
   return s;
 }
 
-static void DeleteOneNode(const Node& node, double average,
+static void DeleteOneNode(const std::string& table, const Node& node, double average,
                           const std::vector<const Partition*>& p_vec,
+                          ZPMeta::MetaCmd_Migrate* migrate_cmd,
                           std::map<Node, std::vector<const Partition*>>* nodes_loads) {
   int limit_of_load = static_cast<int>(std::ceil(average));
 
@@ -925,7 +935,19 @@ static void DeleteOneNode(const Node& node, double average,
           load >= limit_of_load) {
         continue;
       }
+
+      // Build cmd proto
       std::cout << "Move " << node << " " << p_vec[pos]->id() << " to " << info.first << std::endl;
+      auto cmd_unit = migrate_cmd->add_diff();
+      cmd_unit->set_table(table);
+      cmd_unit->set_partition(p_vec[pos]->id());
+      auto l = cmd_unit->mutable_left();
+      l->set_ip(node.ip);
+      l->set_port(node.port);
+      auto r = cmd_unit->mutable_right();
+      r->set_ip(info.first.ip);
+      r->set_port(info.first.port);
+
       pos_moved = true;
       (*nodes_loads)[info.first].push_back(p_vec[pos]);
       break;
@@ -977,9 +999,23 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   }
   double average = static_cast<double>(total_load) / nodes_loads.size();
 
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
+  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  migrate_cmd->set_origin_epoch(epoch_);
+
   for (auto& dn : deleting) {
     auto& p_vec = nodes_tobe_deleted[dn];
-    DeleteOneNode(dn, average, p_vec, &nodes_loads);
+    DeleteOneNode(table, dn, average, p_vec, migrate_cmd, &nodes_loads);
+  }
+
+  // Debug
+  for (int i = 0; i < migrate_cmd->diff_size(); i++) {
+    auto diff = migrate_cmd->diff(i);
+    auto l = diff.left();
+    auto r = diff.right();
+    printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
+           r.ip().c_str(), r.port());
   }
 
   return s;
