@@ -11,12 +11,18 @@ using slash::Status;
 struct Node {
   Node(const std::string& other_ip, int other_port)
     : ip(other_ip),
-    port(other_port) {}
-  Node()
-    : port(0) {}
+      port(other_port) {
+  }
+  Node() : port(0) {}
 
   std::string ip;
   int port;
+
+  std::string ToString() {
+    char buf[100];
+    sprintf(buf, "%s:%d\n", ip.c_str(), port);
+    return std::string(buf);
+  }
 
   bool operator < (const Node& other) const {
     return (slash::IpPortString(ip, port) <

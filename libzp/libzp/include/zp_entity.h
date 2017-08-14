@@ -63,6 +63,7 @@ class Table {
   Status UpdatePartitionMasterById(int partition_id, const Node& target);
   void GetAllMasters(std::set<Node>* nodes) const;
   void GetAllNodes(std::set<Node>* nodes) const;
+  void GetNodesLoads(std::map<Node, std::vector<const Partition*>>* loads) const;
   void DebugDump(int partition_id = -1) const;
 
  private:

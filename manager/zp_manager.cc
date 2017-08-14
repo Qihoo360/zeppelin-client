@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 
+#include "slash/include/slash_string.h"
 #include "libzp/include/zp_cluster.h"
 #include "linenoise.h"
 #include "zp_manager_help.h"
@@ -58,14 +59,10 @@ static void cliInitHelp(void) {
 
 // completion example
 void completion(const char *buf, linenoiseCompletions *lc) {
-  size_t match_len = 0;
-  std::string tmp;
-
   for (size_t i = 0; i < commandEntries.size(); i++) {
-    match_len = strlen(buf);
+    size_t match_len = strlen(buf);
     if (strncasecmp(buf, commandEntries[i].name.c_str(), match_len) == 0) {
-      tmp = std::string();
-      tmp = commandEntries[i].name;
+      std::string tmp = commandEntries[i].name;
       linenoiseAddCompletion(lc, tmp.c_str());
     }
   }
@@ -244,6 +241,52 @@ void StartRepl(libzp::Cluster* cluster) {
       libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
       s = cluster->RemoveSlave(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "EXPAND ", 7)) {
+      if (line_args.size() < 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::vector<libzp::Node> new_nodes;
+      for (size_t i = 2; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        new_nodes.push_back(libzp::Node(ip, port));
+      }
+      printf("Adding new nodes to [%s]:\n", table_name.c_str());
+      for (auto& node : new_nodes) {
+        printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+      }
+
+      s = cluster->Expand(table_name, new_nodes);
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "SHRINK ", 7)) {
+      if (line_args.size() < 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::vector<libzp::Node> deleting;
+      for (size_t i = 2; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        deleting.push_back(libzp::Node(ip, port));
+      }
+      printf("Deleting nodes of [%s]:\n", table_name.c_str());
+      for (auto& node : deleting) {
+        printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+      }
+
+      s = cluster->Shrink(table_name, deleting);
+      std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "GET ", 4)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -258,7 +301,7 @@ void StartRepl(libzp::Cluster* cluster) {
       } else {
         std::cout << s.ToString() << std::endl;
       }
-    } else if ((!strncasecmp(line, "Mget ", 5))) {
+    } else if ((!strncasecmp(line, "MGET ", 5))) {
       if (line_args.size() < 3) {
         std::cout << "arg num wrong" << std::endl;
         continue;

@@ -22,7 +22,7 @@ CommandHelp commandHelp[] = {
     "get key's value"},
   
   { "MGET",
-    "key [key ...]",
+    "table key [key ...]",
     2,
     "Get the values of all the given keys"},
 
@@ -42,7 +42,7 @@ CommandHelp commandHelp[] = {
     "pull table info"},
 
   { "SETMASTER",
-    "table partit p",
+    "table partition ip port",
     4,
     "set a partition's master"},
 
@@ -55,6 +55,16 @@ CommandHelp commandHelp[] = {
     "table partition ip port",
     4,
     "remove master for partition"},
+
+  { "EXPAND",
+    "table ip:port [ip:port ...]",
+    2,
+    "expand table's capacity"},
+
+  { "SHRINK",
+    "table ip:port [ip:port ...]",
+    2,
+    "shrink table's capacity"},
 
   { "LISTTABLE",
     "",

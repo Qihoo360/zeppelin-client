@@ -1,6 +1,6 @@
 CXX=g++
 CC=gcc
-LDFLAGS= -lpthread -lrt -lprotobuf
+LDFLAGS= -L/usr/local/protobuf/lib -lpthread -lrt -lprotobuf
 CXXFLAGS= -g -std=c++11 -fno-builtin-memcmp -msse -msse4.2
 CFLAGS= -g -fno-builtin-memcmp -msse -msse4.2
 PROFILING_FLAGS=-pg

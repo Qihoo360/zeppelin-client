@@ -79,6 +79,8 @@ public:
       const Node& ip_port);
   Status RemoveSlave(const std::string& table, const int partition,
       const Node& ip_port);
+  Status Expand(const std::string& table, const std::vector<Node>& ip_ports);
+  Status Shrink(const std::string& table, const std::vector<Node>& ip_ports);
 
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);

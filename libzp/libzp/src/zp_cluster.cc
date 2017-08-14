@@ -3,7 +3,11 @@
  */
 #include "libzp/include/zp_cluster.h"
 
+#include <unordered_set>
+#include <tuple>
+#include <deque>
 #include <string>
+#include <algorithm>
 
 #include "slash/include/slash_string.h"
 #include "slash/include/env.h"
@@ -753,6 +757,162 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   } else {
     return Status::OK();
   }
+}
+
+static int NodeLoad(
+    const std::map<Node, std::vector<const Partition*>>& nodes_loads,
+    const Node& n)  {
+  int load = 0;
+  auto iter = nodes_loads.find(n);
+  if (iter != nodes_loads.end()) {
+    for (auto p : iter->second) {
+      load += p->master() == n ? 3 : 2;
+    }
+  }
+  return load;
+}
+
+static void SelectOneNode(
+    int p_id, const Node& node, bool avoid_same_ip, int bottom_of_load,
+    const std::vector<Node>& new_nodes,
+    std::map<Node, std::vector<const Partition*>>* nodes_loads) {
+
+  // Sort by value
+  std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes;
+  for (auto& item : *nodes_loads) {
+    bool is_new_node = false;
+    for (auto& n : new_nodes) {
+      if (n == item.first) {
+        is_new_node = true;
+      }
+    }
+    if (!is_new_node) {
+      sorted_nodes.push_back(item);
+    }
+  }
+  auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
+                       const std::pair<Node, std::vector<const Partition*>>& rhs) {
+    int lscore = 0, rscore = 0;
+    for (auto& p : lhs.second) {
+      lscore += p->master() == lhs.first ? 3 : 2;
+    }
+    for (auto& p : rhs.second) {
+      rscore += p->master() == rhs.first ? 3 : 2;
+    }
+    return lscore > rscore;
+  };
+  std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
+
+  // item -> std::pair<Node, std::vector<const Partition*>>
+  // node -> destination node
+  for (auto& item : sorted_nodes) {
+    if (item.first == node || (item.first.ip == node.ip && avoid_same_ip)) {
+      continue;
+    }
+    if (NodeLoad(*nodes_loads, item.first) > bottom_of_load) {
+      std::vector<const Partition*>& vec = (*nodes_loads)[item.first];
+      auto iter = vec.begin();
+      while (iter != vec.end()) {
+        if ((*iter)->id() == p_id) {
+          (*nodes_loads)[node].push_back(*iter);
+          vec.erase(iter);
+          std::cout << "Move " << item.first << " " << p_id << " => " << node << std::endl;
+          return;
+        }
+        iter++;
+      }
+    }
+  }
+}
+
+Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_nodes) {
+  Status s;
+  if (new_nodes.empty()) {
+    return s; // OK
+  }
+  s = PullInternal(table, CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+  if (tables_.find(table) == tables_.end()) {
+    return Status::InvalidArgument("table not fount");
+  }
+
+  // Get origin and new nodes loads
+  Table* table_ptr = tables_[table];
+  std::map<Node, std::vector<const Partition*>> nodes_loads;
+  table_ptr->GetNodesLoads(&nodes_loads);
+  for (auto& nn : new_nodes) {
+    nodes_loads.insert(std::make_pair(nn, std::vector<const Partition*>{}));
+  }
+
+  // Calculate average load and restriction
+  int total_load = 0;
+  for (auto& n : nodes_loads) {
+    total_load += NodeLoad(nodes_loads, n.first);
+  }
+  double average = static_cast<double>(total_load) / nodes_loads.size();
+  int limit_of_load = static_cast<int>(std::ceil(average));
+  int bottom_of_load = static_cast<int>(std::floor(average));
+
+  // Select node to move
+  int p_id = 0;
+  for (auto& node : new_nodes) {
+    bool avoid_same_ip = true;
+    for (;;) {
+      SelectOneNode(p_id, node, avoid_same_ip, bottom_of_load,
+                    new_nodes, &nodes_loads);
+
+      if (NodeLoad(nodes_loads, node) > limit_of_load) {
+        break;
+      } else if (avoid_same_ip) {
+        avoid_same_ip = false;
+      } else {
+        break;
+      }
+      p_id = (p_id + 1) % table_ptr->partition_num();
+    }
+  }
+
+  printf("\nAll %s nodes loads: \n", table.c_str());
+  for (auto& info : nodes_loads) {
+    std::cout << "  --- Node " << info.first << std::endl;
+    int score = 0;
+    for (auto p : info.second) {
+      const char* role;
+      if (p->master() == info.first) {
+        score += 3;
+        role = "master";
+      } else {
+        score += 2;
+        role = "slave";
+      }
+      printf("    +++ Partition: %d, %s\n", p->id(), role);
+    }
+    printf("(score: %d)\n", score);
+  }
+  return s;
+}
+
+Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleting) {
+  Status s;
+  if (deleting.empty()) {
+    return s; // OK
+  }
+  s = PullInternal(table, CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+
+  // TODO (gaodq) Debug
+  printf("Shrink: %s in libzp\n", table.c_str());
+  for (auto& node : deleting) {
+    printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+  }
+
+  // Table* table_ptr = tables_[table];
+
+  return s;
 }
 
 Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {

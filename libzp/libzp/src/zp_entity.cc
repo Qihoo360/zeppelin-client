@@ -157,6 +157,30 @@ void Table::GetAllNodes(std::set<Node>* nodes) const {
   }
 }
 
+void Table::GetNodesLoads(
+      std::map<Node, std::vector<const Partition*>>* loads) const {
+  for (auto& p : partitions_) {
+    const Partition* p_ptr = &p.second;
+    // Master
+    auto mn = p.second.master();
+    auto m_iter = loads->find(mn);
+    if (m_iter == loads->end()) {
+      loads->insert(std::make_pair(mn, std::vector<const Partition*>{p_ptr}));
+    } else {
+      m_iter->second.push_back(p_ptr);
+    }
+    // Slaves
+    for (auto& s : p.second.slaves()) {
+      auto s_iter = loads->find(s);
+      if (s_iter == loads->end()) {
+        loads->insert(std::make_pair(s, std::vector<const Partition*>{p_ptr}));
+      } else {
+        s_iter->second.push_back(p_ptr);
+      }
+    }
+  }
+}
+
 std::ostream& operator<< (std::ostream& out, const BinlogOffset& bo) {
   out << bo.filenum << "_" << bo.offset;
   return out;
