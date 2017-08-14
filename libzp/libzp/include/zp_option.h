@@ -18,7 +18,7 @@ struct Node {
   std::string ip;
   int port;
 
-  std::string ToString() {
+  std::string ToString() const {
     char buf[100];
     sprintf(buf, "%s:%d\n", ip.c_str(), port);
     return std::string(buf);

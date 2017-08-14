@@ -772,12 +772,12 @@ static int NodeLoad(
   return load;
 }
 
-static void SelectOneNode(
+static void SelectOnePartition(
     int p_id, const Node& node, bool avoid_same_ip, int bottom_of_load,
     const std::vector<Node>& new_nodes,
     std::map<Node, std::vector<const Partition*>>* nodes_loads) {
 
-  // Sort by value
+  // Sort by partition load, descending order
   std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes;
   for (auto& item : *nodes_loads) {
     bool is_new_node = false;
@@ -860,10 +860,10 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   for (auto& node : new_nodes) {
     bool avoid_same_ip = true;
     for (;;) {
-      SelectOneNode(p_id, node, avoid_same_ip, bottom_of_load,
-                    new_nodes, &nodes_loads);
+      SelectOnePartition(p_id, node, avoid_same_ip, bottom_of_load,
+                         new_nodes, &nodes_loads);
 
-      if (NodeLoad(nodes_loads, node) > limit_of_load) {
+      if (NodeLoad(nodes_loads, node) >= limit_of_load) {
         break;
       } else if (avoid_same_ip) {
         avoid_same_ip = false;
@@ -894,6 +894,50 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   return s;
 }
 
+static void DeleteOneNode(const Node& node, double average,
+                          const std::vector<const Partition*>& p_vec,
+                          std::map<Node, std::vector<const Partition*>>* nodes_loads) {
+  int limit_of_load = static_cast<int>(std::ceil(average));
+
+  // Sort by partition load, ascending order
+  std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes(
+      nodes_loads->begin(), nodes_loads->end());
+  auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
+                       const std::pair<Node, std::vector<const Partition*>>& rhs) {
+    int lscore = 0, rscore = 0;
+    for (auto& p : lhs.second) {
+      lscore += p->master() == lhs.first ? 3 : 2;
+    }
+    for (auto& p : rhs.second) {
+      rscore += p->master() == rhs.first ? 3 : 2;
+    }
+    return lscore < rscore;
+  };
+  std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
+
+  bool avoid_same_ip = true;
+  size_t pos = 0;
+  while (pos != p_vec.size()) {
+    bool pos_moved = false;
+    for (auto info : sorted_nodes) {
+      int load = NodeLoad(*nodes_loads, info.first);
+      if ((info.first.ip == node.ip && avoid_same_ip) ||
+          load >= limit_of_load) {
+        continue;
+      }
+      std::cout << "Move " << node << " " << p_vec[pos]->id() << " to " << info.first << std::endl;
+      pos_moved = true;
+      (*nodes_loads)[info.first].push_back(p_vec[pos]);
+      break;
+    }
+    if (!pos_moved) {
+      avoid_same_ip = false;
+    } else {
+      pos++;
+    }
+  }
+}
+
 Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleting) {
   Status s;
   if (deleting.empty()) {
@@ -903,14 +947,40 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   if (!s.ok()) {
     return s;
   }
-
-  // TODO (gaodq) Debug
-  printf("Shrink: %s in libzp\n", table.c_str());
-  for (auto& node : deleting) {
-    printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+  if (tables_.find(table) == tables_.end()) {
+    return Status::InvalidArgument("table not fount");
   }
 
-  // Table* table_ptr = tables_[table];
+  // Get origin and new nodes loads
+  Table* table_ptr = tables_[table];
+  std::map<Node, std::vector<const Partition*>> nodes_loads;
+  std::map<Node, std::vector<const Partition*>> nodes_tobe_deleted;
+  table_ptr->GetNodesLoads(&nodes_loads);
+
+  // Checking
+  for (auto& n : deleting) {
+    auto iter = nodes_loads.find(n);
+    if (iter == nodes_loads.end()) {
+      return Status::NotFound(n.ToString());
+    }
+    nodes_tobe_deleted.insert(*iter);
+    nodes_loads.erase(iter);
+  }
+
+  // Calculate average load and restriction
+  int total_load = 0;
+  for (auto& n : nodes_loads) {
+    total_load += NodeLoad(nodes_loads, n.first);
+  }
+  for (auto& n : nodes_tobe_deleted) {
+    total_load += NodeLoad(nodes_tobe_deleted, n.first);
+  }
+  double average = static_cast<double>(total_load) / nodes_loads.size();
+
+  for (auto& dn : deleting) {
+    auto& p_vec = nodes_tobe_deleted[dn];
+    DeleteOneNode(dn, average, p_vec, &nodes_loads);
+  }
 
   return s;
 }
