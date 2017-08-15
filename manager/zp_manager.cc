@@ -68,16 +68,18 @@ void completion(const char *buf, linenoiseCompletions *lc) {
   }
 }
 
-// hints example
-char *hints(const char *buf, int *color, int *bold) {
+// hints callback
+char hint_buf[100] = {0};
+char *hints_callback(const char *buf, int *color, int *bold) {
   std::string buf_str = std::string(buf);
   std::vector<std::string> buf_args;
   SplitByBlank(buf_str, buf_args);
   size_t buf_len = strlen(buf);
   if (buf_len == 0) {
-    return NULL;
+    return nullptr;
   }
   int endspace = buf_len && isspace(buf[buf_len-1]);
+  char* hint = nullptr;
   for (size_t i = 0; i < commandEntries.size(); i++) {
     size_t match_len = std::max(strlen(commandEntries[i].name.c_str()),
         strlen(buf_args[0].c_str()));
@@ -85,22 +87,26 @@ char *hints(const char *buf, int *color, int *bold) {
           commandEntries[i].name.c_str(), match_len) == 0) {
       *color = 90;
       *bold = 0;
-      char* hint = const_cast<char *>(commandEntries[i].params.c_str());
+      hint = hint_buf;
+      snprintf(hint, 100, "%s", commandEntries[i].params.c_str());
       int to_move = buf_args.size() - 1;
       while (strlen(hint) && to_move > 0) {
+        if (hint[0] == '[') break;
         if (hint[0] == ' ') {
           to_move--;
         }
         hint = hint + 1;
       }
       if (!endspace) {
-        std::string new_hint = std::string(" ") + std::string(hint);
-        hint = const_cast<char *>(new_hint.c_str());
+        char buf[100];
+        snprintf(buf, 100, " %s", hint);
+        strncpy(hint_buf, buf, 100);
+        hint = hint_buf;
       }
-      return strlen(hint)? hint:NULL;
+      return strlen(hint) ? hint : nullptr;
     }
   }
-  return NULL;
+  return hint;
 }
 
 const int64_t KB = 1024;
@@ -133,11 +139,11 @@ void StartRepl(libzp::Cluster* cluster) {
   char *line;
   linenoiseSetMultiLine(1);
   linenoiseSetCompletionCallback(completion);
-  linenoiseSetHintsCallback(hints);
+  linenoiseSetHintsCallback(hints_callback);
   linenoiseHistoryLoad(history_file); /* Load the history at startup */
 
   libzp::Status s;
-  while ((line = linenoise("zp >> ")) != NULL) {
+  while ((line = linenoise("zp >> ")) != nullptr) {
     linenoiseHistoryAdd(line); /* Add to the history. */
     linenoiseHistorySave(history_file); /* Save the history on disk. */
     /* Do something with the string. */
@@ -199,7 +205,7 @@ void StartRepl(libzp::Cluster* cluster) {
       std::string value = line_args[3];
       int ttl = -1;
       if (line_args.size() == 5) {
-        char* end = NULL;
+        char* end = nullptr;
         ttl = std::strtol(line_args[4].c_str(), &end, 10);
         if (*end != 0) {
           std::cout << "ttl must be a integer" << std::endl;
