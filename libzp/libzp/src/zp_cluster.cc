@@ -770,59 +770,84 @@ static int NodeLoad(
   return load;
 }
 
-static void MigrateOnePartition(const std::string& table,
-    int p_id, const Node& node, bool avoid_same_ip, int bottom_of_load,
-    const std::vector<Node>& new_nodes, ZPMeta::MetaCmd_Migrate* migrate_cmd,
+static bool PartitionOnSameHost(
+    const std::map<Node, std::vector<const Partition*>>& nodes_loads,
+    const std::string& candidate_ip, int p_id) {
+  int count = 0;
+  for (auto& item : nodes_loads) {
+    if (item.first.ip == candidate_ip) {
+      for (auto p : item.second) {
+        if (p->id() == p_id) {
+          ++count;
+        }
+      }
+    }
+  }
+  return count > 1;
+}
+
+static bool PartitionOnSameHost(
+    const std::map<Node, std::vector<const Partition*>>& nodes_loads1,
+    const std::map<Node, std::vector<const Partition*>>& nodes_loads2,
+    const std::string& candidate_ip, int p_id) {
+  std::map<Node, std::vector<const Partition*>> nodes_loads(
+      nodes_loads1.begin(), nodes_loads1.end());
+  nodes_loads.insert(nodes_loads2.begin(), nodes_loads2.end());
+  return PartitionOnSameHost(nodes_loads, candidate_ip, p_id);
+}
+
+static void MigrateOnePartition(
+    const std::string& table, const Node& dst_node, double average,
+    ZPMeta::MetaCmd_Migrate* migrate_cmd,
+    std::map<Node, std::vector<const Partition*>>* new_nodes_loads,
     std::map<Node, std::vector<const Partition*>>* nodes_loads) {
 
   // Sort by partition load, descending order
-  std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes;
-  for (auto& item : *nodes_loads) {
-    bool is_new_node = false;
-    for (auto& n : new_nodes) {
-      if (n == item.first) {
-        is_new_node = true;
-      }
-    }
-    if (!is_new_node) {
-      sorted_nodes.push_back(item);
-    }
-  }
+  std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes(
+      nodes_loads->begin(), nodes_loads->end());
   auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
                        const std::pair<Node, std::vector<const Partition*>>& rhs) {
     return lhs.second.size() > rhs.second.size();
   };
   std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
+  int bottom_of_load = static_cast<int>(std::floor(average));
+  int limit_of_load = static_cast<int>(std::ceil(average));
 
   // item -> std::pair<Node, std::vector<const Partition*>>
   // node -> destination node
-  for (auto& item : sorted_nodes) {
-    if (item.first == node || (item.first.ip == node.ip && avoid_same_ip)) {
-      continue;
-    }
-    if (NodeLoad(*nodes_loads, item.first) > bottom_of_load) {
-      std::vector<const Partition*>& vec = (*nodes_loads)[item.first];
-      auto iter = vec.begin();
-      while (iter != vec.end()) {
-        if ((*iter)->id() == p_id) {
-          (*nodes_loads)[node].push_back(*iter);
-          vec.erase(iter);
 
-          // Build cmd proto
-          auto cmd_unit = migrate_cmd->add_diff();
-          cmd_unit->set_table(table);
-          cmd_unit->set_partition(p_id);
-          auto l = cmd_unit->mutable_left();
-          l->set_ip(item.first.ip);
-          l->set_port(item.first.port);
-          auto r = cmd_unit->mutable_right();
-          r->set_ip(node.ip);
-          r->set_port(node.port);
-
-          return;
-        }
+  for (auto& src_node : sorted_nodes) {
+    std::vector<const Partition*>& vec = (*nodes_loads)[src_node.first];
+    auto iter = vec.begin();
+    while (iter != vec.end()) {
+      int p_id = (*iter)->id();
+      if (src_node.first.ip != dst_node.ip &&
+          PartitionOnSameHost(*nodes_loads, *new_nodes_loads,
+                              dst_node.ip, p_id)) {
         iter++;
+        continue;
       }
+      if (NodeLoad(*nodes_loads, src_node.first) <= bottom_of_load) {
+        // Next source node
+        break;
+      }
+      if (NodeLoad(*new_nodes_loads, dst_node) >= limit_of_load) {
+        return;
+      }
+
+      (*new_nodes_loads)[dst_node].push_back(*iter);
+      iter = vec.erase(iter);
+
+      // Build cmd proto
+      auto cmd_unit = migrate_cmd->add_diff();
+      cmd_unit->set_table(table);
+      cmd_unit->set_partition(p_id);
+      auto l = cmd_unit->mutable_left();
+      l->set_ip(src_node.first.ip);
+      l->set_port(src_node.first.port);
+      auto r = cmd_unit->mutable_right();
+      r->set_ip(dst_node.ip);
+      r->set_port(dst_node.port);
     }
   }
 }
@@ -843,9 +868,10 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   // Get origin and new nodes loads
   Table* table_ptr = tables_[table];
   std::map<Node, std::vector<const Partition*>> nodes_loads;
+  std::map<Node, std::vector<const Partition*>> new_nodes_loads;
   table_ptr->GetNodesLoads(&nodes_loads);
   for (auto& nn : new_nodes) {
-    nodes_loads.insert(std::make_pair(nn, std::vector<const Partition*>{}));
+    new_nodes_loads.insert(std::make_pair(nn, std::vector<const Partition*>{}));
   }
 
   // Calculate average load and restriction
@@ -853,9 +879,9 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   for (auto& n : nodes_loads) {
     total_load += NodeLoad(nodes_loads, n.first);
   }
-  double average = static_cast<double>(total_load) / nodes_loads.size();
+  double average = static_cast<double>(total_load) /
+    (nodes_loads.size() + new_nodes_loads.size());
   int limit_of_load = static_cast<int>(std::ceil(average));
-  int bottom_of_load = static_cast<int>(std::floor(average));
 
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
@@ -863,18 +889,15 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   migrate_cmd->set_origin_epoch(epoch_);
 
   // Select node to move
-  int p_id = 0;
   for (auto& node : new_nodes) {
-    bool avoid_same_ip = true;
+    int count = 0;
     for (;;) {
-      MigrateOnePartition(table, p_id, node, avoid_same_ip, bottom_of_load,
-                          new_nodes, migrate_cmd, &nodes_loads);
-      p_id = (p_id + 1) % table_ptr->partition_num();
-      if (NodeLoad(nodes_loads, node) >= limit_of_load) {
+      count++;
+      MigrateOnePartition(table, node, average, migrate_cmd,
+                          &new_nodes_loads, &nodes_loads);
+      if (NodeLoad(new_nodes_loads, node) >= limit_of_load) {
         break;
-      } else if (avoid_same_ip) {
-        avoid_same_ip = false;
-      } else {
+      } else if (count > 3) {
         break;
       }
     }
@@ -913,8 +936,10 @@ static void MigratePartitionsOnNode(
   while (pos != p_vec.size()) {
     bool pos_moved = false;
     for (auto info : sorted_nodes) {
-      if ((info.first.ip == node.ip && avoid_same_ip) ||
-          NodeLoad(*nodes_loads, info.first) >= limit_of_load) {
+      if (avoid_same_ip &&
+          PartitionOnSameHost(*nodes_loads, info.first.ip, p_vec[pos]->id())) {
+        continue;
+      } else if (NodeLoad(*nodes_loads, info.first) >= limit_of_load) {
         continue;
       }
 
@@ -1262,6 +1287,22 @@ Status Cluster::DebugDumpPartition(const std::string& table,
   }
   std::cout << "-epoch: " << epoch_ << std::endl;
   it->second->DebugDump(partition_id);
+
+  std::map<Node, std::vector<const Partition*>> nodes_loads;
+  it->second->GetNodesLoads(&nodes_loads);
+  for (auto& node : nodes_loads) {
+    std::cout << node.first << ": [";
+    const std::vector<const Partition*>& p_vec = node.second;
+    const Partition* p;
+    size_t i = 0;
+    for (i = 0; i < p_vec.size() - 1; i++) {
+      p = p_vec.at(i);
+      printf("%d%s, ", p->id(), p->master() == node.first ? "*" : "");
+    }
+    p = p_vec.at(i);
+    printf("%d%s]\n", p->id(), p->master() == node.first ? "*" : "");
+  }
+
   return Status::OK();
 }
 
