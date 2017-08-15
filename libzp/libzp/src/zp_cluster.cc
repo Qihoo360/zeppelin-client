@@ -765,14 +765,12 @@ static int NodeLoad(
   int load = 0;
   auto iter = nodes_loads.find(n);
   if (iter != nodes_loads.end()) {
-    for (auto p : iter->second) {
-      load += p->master() == n ? 3 : 2;
-    }
+    load = iter->second.size();
   }
   return load;
 }
 
-static void SelectOnePartition(const std::string& table,
+static void MigrateOnePartition(const std::string& table,
     int p_id, const Node& node, bool avoid_same_ip, int bottom_of_load,
     const std::vector<Node>& new_nodes, ZPMeta::MetaCmd_Migrate* migrate_cmd,
     std::map<Node, std::vector<const Partition*>>* nodes_loads) {
@@ -792,14 +790,7 @@ static void SelectOnePartition(const std::string& table,
   }
   auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
                        const std::pair<Node, std::vector<const Partition*>>& rhs) {
-    int lscore = 0, rscore = 0;
-    for (auto& p : lhs.second) {
-      lscore += p->master() == lhs.first ? 3 : 2;
-    }
-    for (auto& p : rhs.second) {
-      rscore += p->master() == rhs.first ? 3 : 2;
-    }
-    return lscore > rscore;
+    return lhs.second.size() > rhs.second.size();
   };
   std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
 
@@ -818,7 +809,6 @@ static void SelectOnePartition(const std::string& table,
           vec.erase(iter);
 
           // Build cmd proto
-          std::cout << "Move " << item.first << " " << p_id << " => " << node << std::endl;
           auto cmd_unit = migrate_cmd->add_diff();
           cmd_unit->set_table(table);
           cmd_unit->set_partition(p_id);
@@ -877,9 +867,9 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   for (auto& node : new_nodes) {
     bool avoid_same_ip = true;
     for (;;) {
-      SelectOnePartition(table, p_id, node, avoid_same_ip, bottom_of_load,
-                         new_nodes, migrate_cmd, &nodes_loads);
-
+      MigrateOnePartition(table, p_id, node, avoid_same_ip, bottom_of_load,
+                          new_nodes, migrate_cmd, &nodes_loads);
+      p_id = (p_id + 1) % table_ptr->partition_num();
       if (NodeLoad(nodes_loads, node) >= limit_of_load) {
         break;
       } else if (avoid_same_ip) {
@@ -887,7 +877,6 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
       } else {
         break;
       }
-      p_id = (p_id + 1) % table_ptr->partition_num();
     }
   }
 
@@ -903,10 +892,11 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   return s;
 }
 
-static void DeleteOneNode(const std::string& table, const Node& node, double average,
-                          const std::vector<const Partition*>& p_vec,
-                          ZPMeta::MetaCmd_Migrate* migrate_cmd,
-                          std::map<Node, std::vector<const Partition*>>* nodes_loads) {
+static void MigratePartitionsOnNode(
+      const std::string& table, const Node& node, double average,
+      const std::vector<const Partition*>& p_vec,
+      ZPMeta::MetaCmd_Migrate* migrate_cmd,
+      std::map<Node, std::vector<const Partition*>>* nodes_loads) {
   int limit_of_load = static_cast<int>(std::ceil(average));
 
   // Sort by partition load, ascending order
@@ -914,14 +904,7 @@ static void DeleteOneNode(const std::string& table, const Node& node, double ave
       nodes_loads->begin(), nodes_loads->end());
   auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
                        const std::pair<Node, std::vector<const Partition*>>& rhs) {
-    int lscore = 0, rscore = 0;
-    for (auto& p : lhs.second) {
-      lscore += p->master() == lhs.first ? 3 : 2;
-    }
-    for (auto& p : rhs.second) {
-      rscore += p->master() == rhs.first ? 3 : 2;
-    }
-    return lscore < rscore;
+    return lhs.second.size() < rhs.second.size();
   };
   std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
 
@@ -930,14 +913,12 @@ static void DeleteOneNode(const std::string& table, const Node& node, double ave
   while (pos != p_vec.size()) {
     bool pos_moved = false;
     for (auto info : sorted_nodes) {
-      int load = NodeLoad(*nodes_loads, info.first);
       if ((info.first.ip == node.ip && avoid_same_ip) ||
-          load >= limit_of_load) {
+          NodeLoad(*nodes_loads, info.first) >= limit_of_load) {
         continue;
       }
 
       // Build cmd proto
-      std::cout << "Move " << node << " " << p_vec[pos]->id() << " to " << info.first << std::endl;
       auto cmd_unit = migrate_cmd->add_diff();
       cmd_unit->set_table(table);
       cmd_unit->set_partition(p_vec[pos]->id());
@@ -1006,7 +987,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
 
   for (auto& dn : deleting) {
     auto& p_vec = nodes_tobe_deleted[dn];
-    DeleteOneNode(table, dn, average, p_vec, migrate_cmd, &nodes_loads);
+    MigratePartitionsOnNode(table, dn, average, p_vec, migrate_cmd, &nodes_loads);
   }
 
   // Debug
