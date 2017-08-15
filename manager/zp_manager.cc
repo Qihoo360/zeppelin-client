@@ -135,7 +135,7 @@ static std::string to_human(int64_t bytes) {
 
 const char* history_file = "/tmp/zp_manager_history.txt";
 
-void StartRepl(libzp::Cluster* cluster) {
+void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
   char *line;
   linenoiseSetMultiLine(1);
   linenoiseSetCompletionCallback(completion);
@@ -143,7 +143,9 @@ void StartRepl(libzp::Cluster* cluster) {
   linenoiseHistoryLoad(history_file); /* Load the history at startup */
 
   libzp::Status s;
-  while ((line = linenoise("zp >> ")) != nullptr) {
+  char prompt[100];
+  snprintf(prompt, 100, "Zeppelin(%s:%d)>> ", ip, port);
+  while ((line = linenoise(prompt)) != nullptr) {
     linenoiseHistoryAdd(line); /* Add to the history. */
     linenoiseHistorySave(history_file); /* Save the history on disk. */
     /* Do something with the string. */
@@ -462,17 +464,25 @@ void StartRepl(libzp::Cluster* cluster) {
         std::cout << "Failed: " << s.ToString() << std::endl;
       }
       for (auto& p : partitions) {
-        std::cout << "partition:" << p.first << std::endl;
-        std::cout << " -role:" << p.second.role << std::endl;
-        std::cout << " -repl_state:" << p.second.repl_state << std::endl;
-        std::cout << " -master:" << p.second.master.ip <<
-          ":" << p.second.master.port << std::endl;
-        std::cout << " -slaves:" << std::endl;
+        // std::cout << "partition:" << p.first << "\t";
+        // std::cout << " role:" << p.second.role << "\t";
+        // std::cout << " repl_state:" << p.second.repl_state << "\t";
+        // std::cout << " master:" << p.second.master.ip <<
+        //   ":" << p.second.master.port << std::endl;
+        // std::cout << " -slaves: ";
+        // for (auto& pss : p.second.slaves) {
+        //   std::cout << "  -slave:" << pss.ip << ":" << pss.port << " ";
+        // }
+        // std::cout << " -boffset:" << p.second.offset << std::endl;
+        printf("partition: %d, role: %s, repl_state: %s, boffset: %u_%lu\n",
+               p.first, p.second.role.c_str(), p.second.repl_state.c_str(),
+               p.second.offset.filenum, p.second.offset.offset);
+        printf("  --- master: %s:%d\t", p.second.master.ip.c_str(), p.second.master.port);
         for (auto& pss : p.second.slaves) {
-          std::cout << "  -slave:" << pss.ip << ":" << pss.port << std::endl;
-          continue;
+          printf("slave: %s:%d\t", pss.ip.c_str(), pss.port);
         }
-        std::cout << " -boffset:" << p.second.offset << std::endl;
+        printf("\n");
+
         if (p.second.fallback_time != 0) {
           std::cout << " -Notice! has binlog fallback" << std::endl;
           std::cout << "  -time:"
@@ -531,12 +541,18 @@ void StartRepl(libzp::Cluster* cluster) {
       // Exit manager
       free(line);
       break;
+    } else if (!strncasecmp(line, "HELP", 4)) {
+      for (auto& entry : commandEntries) {
+        std::cout << entry.name << ": " << entry.params << std::endl;
+        std::cout << " --- " << entry.info << std::endl;
+        std::cout << std::endl;
+      }
     } else {
       printf("Unrecognized command: %s\n", line);
     }
     free(line);
   }
-  std::cout << "out of loop" << std::endl;
+  std::cout << "Bye!" << std::endl;
 }
 
 void usage() {
@@ -549,15 +565,15 @@ int main(int argc, char* argv[]) {
     usage();
     return -1;
   }
-  std::cout << "start" << std::endl;
+
   libzp::Options option;
-  libzp::Node node(argv[1], atoi(argv[2]));
-  option.meta_addr.push_back(node);
+  const char* ip = argv[1];
+  int port = std::atoi(argv[2]);
+  option.meta_addr.push_back(libzp::Node(ip, port));
 
   // cluster handle cluster operation
-  std::cout << "create cluster" << std::endl;
   libzp::Cluster* cluster = new libzp::Cluster(option);
 
   cliInitHelp();
-  StartRepl(cluster);
+  StartRepl(cluster, ip, port);
 }

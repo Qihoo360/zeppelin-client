@@ -47,13 +47,12 @@ Partition::Partition(const ZPMeta::Partitions& partition_info)
   }
 
 void Partition::DebugDump() const {
-  std::cout << "  -partition: "<< id_ << std::endl;
-  std::cout << "   -active: " << (active_ ? "true" : "false") << std::endl;
-  std::cout << "   -master: " << master_.ip << " : "
-    << master_.port << std::endl;
+  printf("  -%d,\t active: %5s, master: %s:%d\t",
+         id_, active_ ? "true" : "false", master_.ip.c_str(), master_.port);
   for (auto& s : slaves_) {
-    std::cout << "   -slave: " << s.ip << " : " << s.port << std::endl;
+    printf("slave: %s:%d\t", s.ip.c_str(), s.port);
   }
+  printf("\n");
 }
 
 void Partition::SetMaster(const Node& new_master) {

@@ -126,6 +126,11 @@ CommandHelp commandHelp[] = {
     2,
     "locate a key, find corresponding nodes"},
 
+  { "HELP",
+    "",
+    0,
+    "list all commands"},
+
   { "EXIT",
     "",
     0,
