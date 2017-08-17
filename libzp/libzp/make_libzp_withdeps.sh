@@ -34,6 +34,7 @@ if [[ -z $? ]]; then
 fi
 
 LIBZP_A=$CURDIR/lib/libzp.a
+LIBZP_SO=$CURDIR/lib/libzp.so
 LIBPINK_A=$PINK_PATH/pink/lib/libpink.a
 LIBSLASH_A=$SLASH_PATH/slash/lib/libslash.a
 
@@ -43,8 +44,9 @@ ar x $LIBZP_A
 ar x $LIBPINK_A
 ar x $LIBSLASH_A
 
-rm -f $LIBZP_A
+rm -f $LIBZP_A $LIBZP_SO
 ar rs $LIBZP_A $TMPDIR/*.o
+g++ -o $LIBZP_SO -Wl,--no-as-needed -shared -Wl,-soname -Wl, -fPIC $TMPDIR/*.o
 rm -rf $TMPDIR
 
 echo "Done."

@@ -13,6 +13,10 @@ struct Node {
     : ip(other_ip),
       port(other_port) {
   }
+  Node(const char* other_ip, int other_port)
+    : ip(other_ip),
+      port(other_port) {
+  }
   Node() : port(0) {}
 
   std::string ip;
