@@ -130,6 +130,9 @@ PHP_METHOD(Zeppelin, __construct)
 			need_reconnect(info, addrs, table, timeout)) {
 			delete info->zp_cli;
 			info->zp_cli = new libzp::Client(options, std::string(table, table_len));
+			info->addrs = addrs;
+			info->table = table;
+			info->timeout = timeout;
 		}
 
 		RETVAL_TRUE;
