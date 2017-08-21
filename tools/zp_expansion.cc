@@ -92,6 +92,12 @@ int main(int argc, char* argv[]) {
   if (type == "ADD") {
     std::cout << "Begin ADD nodes into cluster" << std::endl;
     for (int i = 0, ti = 0; i < table_info.partition_num(); ++i) {
+      const libzp::Partition* part = table_info.GetPartitionById(i);
+      std::vector<libzp::Node> slaves = part->slaves();
+      int slave_num = slaves.size();
+      if (slave_num > 1) {
+        continue;
+      }
       s = cluster->AddSlave(table, i, target_nodes[ti]);
       std::cout << (s.ok() ? "Success" : "Failed")
         << " to add slave(" << target_nodes[ti] << ") into table:" << table

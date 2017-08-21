@@ -570,6 +570,7 @@ int main(int argc, char* argv[]) {
   const char* ip = argv[1];
   int port = std::atoi(argv[2]);
   option.meta_addr.push_back(libzp::Node(ip, port));
+  option.op_timeout = 5000;
 
   // cluster handle cluster operation
   libzp::Cluster* cluster = new libzp::Cluster(option);

@@ -1,4 +1,6 @@
 libzp/libzp/lib/
+tools/output/
+manager/golang/manager
 manager/zp_manager
 
 *.o
