@@ -8,13 +8,42 @@
 extern "C" {
 #endif
 
-typedef struct zp_status_t      zp_status_t;
-typedef struct zp_option_t      zp_option_t;
-typedef struct zp_cluster_t     zp_cluster_t;
-typedef struct zp_node_t        zp_node_t;
-typedef struct zp_node_vec_t    zp_node_vec_t;
-typedef struct zp_string_t      zp_string_t;
-typedef struct zp_string_vec_t  zp_string_vec_t;
+typedef struct zp_status_t          zp_status_t;
+typedef struct zp_option_t          zp_option_t;
+typedef struct zp_cluster_t         zp_cluster_t;
+typedef struct zp_node_t            zp_node_t;
+typedef struct zp_node_vec_t        zp_node_vec_t;
+typedef struct zp_string_t          zp_string_t;
+typedef struct zp_string_vec_t      zp_string_vec_t;
+
+typedef struct zp_binlog_offset_t {
+  unsigned int filenum;
+  unsigned long offset;  // 64bit ?
+} zp_binlog_offset_t;
+
+typedef struct zp_partition_view_t {
+  zp_string_t* role;
+  zp_string_t* repl_state;
+  zp_node_t* master;
+  zp_node_vec_t* slaves;
+  zp_binlog_offset_t offset;
+  unsigned long fallback_time;
+  zp_binlog_offset_t fallback_before;
+  zp_binlog_offset_t fallback_after;
+} zp_partition_view_t;
+
+typedef struct zp_space_info_t{
+  long used;
+  long remain;
+} zp_space_info_t;
+
+typedef struct zp_server_state_t {
+  long epoch;
+  zp_string_vec_t* table_names;
+  zp_node_t* cur_meta;
+  int meta_renewing;
+} zp_server_state_t;
+
 
 // struct's constructor and destructor
 extern int zp_status_ok(const zp_status_t* s);
@@ -37,6 +66,8 @@ extern zp_node_vec_t* zp_nodevec_create();
 extern void zp_nodevec_destroy(zp_node_vec_t* vec);
 extern void zp_nodevec_pushback(zp_node_vec_t* nodevec, const zp_node_t* node);
 extern zp_node_t* zp_nodevec_popback(zp_node_vec_t* nodevec);
+extern int zp_nodevec_length(zp_node_vec_t* vec);
+extern zp_node_t* zp_nodevec_get(zp_node_vec_t* vec, unsigned int index);
 
 extern zp_string_t* zp_string_create1(const char* data, int length);
 extern zp_string_t* zp_string_create();
@@ -48,6 +79,11 @@ extern zp_string_vec_t* zp_strvec_create();
 extern void zp_strvec_destroy(zp_string_vec_t* vec);
 extern void zp_strvec_pushback(zp_string_vec_t* nodevec, zp_string_t* str);
 extern zp_string_t* zp_strvec_popback(zp_string_vec_t* strvec);
+extern int zp_strvec_length(zp_string_vec_t* vec);
+extern zp_string_t* zp_strvec_get(zp_string_vec_t* vec, unsigned int index);
+
+extern void zp_partition_view_destroy(zp_partition_view_t* var);
+extern void zp_server_state_destroy(zp_server_state_t* var);
 
 // Zeppelin cluster interface
 extern zp_status_t* zp_create_table(
@@ -81,6 +117,33 @@ extern zp_status_t* zp_list_node(
     const zp_cluster_t* cluster,
     zp_node_vec_t* nodes,
     zp_string_vec_t* status);
+
+// info cmds
+extern zp_status_t* zp_info_qps(
+    const zp_cluster_t* cluster,
+    const char* table_name,
+    int* qps,
+    long* total_query);
+
+extern zp_status_t* zp_info_repl(
+    const zp_cluster_t* cluster,
+    const zp_node_t* node,
+    const char* table_name,
+    int* res_count,
+    int** p_ids,
+    zp_partition_view_t** views);
+
+extern zp_status_t* zp_info_space(
+    const zp_cluster_t* cluster,
+    const char* table_name,
+    int* res_count,
+    zp_node_vec_t* nodes,
+    zp_space_info_t** info);
+
+extern zp_status_t* zp_info_server(
+    const zp_cluster_t* cluster,
+    const zp_node_t* node,
+    zp_server_state_t* state);
 
 // data operation
 extern zp_status_t* zp_cluster_set(

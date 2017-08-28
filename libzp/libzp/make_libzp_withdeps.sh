@@ -46,7 +46,7 @@ ar x $LIBSLASH_A
 
 rm -f $LIBZP_A $LIBZP_SO
 ar rs $LIBZP_A $TMPDIR/*.o
-g++ -o $LIBZP_SO -Wl,--no-as-needed -shared -Wl,-soname -Wl, -fPIC $TMPDIR/*.o
+g++ -o $LIBZP_SO -shared -fPIC $TMPDIR/*.o
 rm -rf $TMPDIR
 
 echo "Done."
