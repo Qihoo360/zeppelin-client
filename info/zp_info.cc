@@ -30,7 +30,8 @@
 #define CLRLINE              "\r\e[K" //or "\e[1K\r"
 
 libzp::Cluster* cluster;
-void ListNode() {
+void InfoNode() {
+  printf(BLUE REVERSE "%-140s\n" NONE, "InfoNode");
   std::vector<libzp::Node> nodes;
   std::vector<std::string> status;
   slash::Status s = cluster->ListNode(&nodes, &status);
@@ -42,7 +43,9 @@ void ListNode() {
     printf(RED "No Nodes" NONE "\n");
     return;
   }
-  printf(BLUE REVERSE "Nodes Count: %8lu\n" NONE, nodes.size());
+  printf(L_PURPLE "Nodes Count:\n" NONE);
+  printf("  %lu\n", nodes.size());
+  printf(L_PURPLE "Detail:\n" NONE);
   for (size_t i = 0; i < nodes.size();) {
     printf(REVERSE "%15s:%5d" NONE" ", nodes[i].ip.c_str(), nodes[i].port);
     if (i + 1 < nodes.size()) {
@@ -57,14 +60,227 @@ void ListNode() {
     int num = 0;
     while (num < 3 && i < nodes.size()) {
       if (status[i] == "up") {
-        printf(GREEN "%21s" NONE, "UP"); 
+        printf(GREEN "%21s " NONE, "UP"); 
       } else {
-        printf(RED "%21s" NONE, "DOWN"); 
+        printf(RED "%21s " NONE, "DOWN"); 
       }
       i++;
       num++;
     }
     printf("\n");
+  }
+}
+
+void InfoNodeDetail() {
+  printf(BLUE REVERSE "%-140s\n" NONE, "InfoNodeDetail");
+  std::vector<libzp::Node> nodes;
+  std::vector<std::string> status;
+  slash::Status s = cluster->ListNode(&nodes, &status);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    return;
+  }
+  if (nodes.size() == 0) {
+    printf(RED "No Nodes" NONE "\n");
+    return;
+  }
+  printf(REVERSE "%21s" NONE" " REVERSE "%10s" NONE" " REVERSE "%10s" NONE" " 
+      REVERSE "%21s" NONE" " REVERSE "%10s" NONE" " 
+      REVERSE "%30s" NONE"\n",
+    "Node", "Status", "Epoch", "MetaNode", "Renewing", "Tables");
+  for (size_t i = 0; i < nodes.size(); i++) {
+    printf("%15s:%5d ", nodes[i].ip.c_str(), nodes[i].port);
+    if (status[i] == "down") {
+      printf(RED "%10s\n" NONE, "DOWN");
+      continue;
+    } else {
+      printf(GREEN "%10s " NONE, "UP");
+      libzp::Node node(nodes[i].ip, nodes[i].port);
+      libzp::ServerState state;
+      libzp::Status s = cluster->InfoServer(node, &state);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+      }
+      printf("%10ld %15s:%5d ",state.epoch, state.cur_meta.ip.c_str(),
+          state.cur_meta.port);
+      if (state.meta_renewing) {
+        printf(RED "%10s ", "true");
+      } else {
+        printf("%10s ", "true");
+      }
+      for (size_t j = 0; j < state.table_names.size(); j++) {
+        if (j < state.table_names.size() - 1) {
+          printf("%s, ", state.table_names[j].c_str());
+        } else {
+          printf("%s", state.table_names[j].c_str());
+        }
+      }
+      printf("\n");
+    }
+  }
+}
+
+
+void InfoMeta() {
+  printf(BLUE REVERSE "%-140s\n" NONE, "InfoMeta");
+  std::vector<libzp::Node> slaves;
+  libzp::Node master;
+  slash::Status s = cluster->ListMeta(&master, &slaves);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    return;
+  }
+  printf(L_PURPLE "Master:\n" NONE);
+  printf("  %s:%d\n", master.ip.c_str(), master.port);
+  printf(L_PURPLE "Slaves:\n" NONE);
+  for (auto iter = slaves.begin(); iter != slaves.end(); iter++) {
+    printf("  %s:%d\n", iter->ip.c_str(), iter->port);
+  }
+  std::string meta_status;
+  printf(L_PURPLE "Detail:\n" NONE);
+  s = cluster->MetaStatus(&meta_status);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+  }
+  printf("%s", meta_status.c_str());
+}
+
+void PartitionDetail(const std::string& table, int32_t id,
+    const std::string& ip, int32_t port) {
+  std::map<int, libzp::PartitionView> view;
+  libzp::Node node(ip, port);
+  slash::Status s = cluster->InfoRepl(node, table, &view);
+  if (!s.ok()) {
+    printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port,"[Maybe DOWN]");
+    return;
+  }
+  auto iter = view.find(id);
+  if (iter == view.end()) {
+//    printf(RED "Failed: %s-%d Not Found" NONE "\n", table.c_str(), id);
+    return;
+  }
+  printf("%15s:%5d[%s, %s, %10d %11ld] ", ip.c_str(), port,
+      iter->second.role.c_str(), iter->second.repl_state.c_str(),
+      iter->second.offset.filenum, iter->second.offset.offset);
+}
+
+void InfoTable(bool detail = false) {
+  printf(BLUE REVERSE "%-140s\n" NONE, "InfoTable");
+  std::vector<std::string> tables;
+  slash::Status s = cluster->ListTable(&tables);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    return;
+  }
+  printf(L_PURPLE "Tables:\n" NONE);
+  for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    printf("  %s", (*iter).c_str());
+  }
+  printf("\n");
+  printf(L_PURPLE "Detail:\n" NONE);
+  for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    s = cluster->Pull(*iter);
+//    cluster->DebugDumpPartition(*iter);
+    std::unordered_map<std::string, libzp::Table*> tables = cluster->tables();
+    auto it = tables.find(*iter);
+    if (it == tables.end()) {
+      printf(RED "Failed: %s Not Found" NONE "\n", (*iter).c_str());
+      continue;
+    }
+    printf("\e[0;35m%s [%d]\e[0m\n", it->second->table_name().c_str(),
+        it->second->partition_num());
+    printf("\e[7m%5s\e[0m \e[7m%10s\e[0m \e[7m%70s\e[0m \e[7m%140s\e[0m\n",
+        "Id", "Active", "Master", "Slaves");
+    std::map<int, libzp::Partition> partitions = it->second->partitions();
+    for (auto& par : partitions) {
+      printf("%5d ", par.second.id());
+      if (par.second.active()) {
+        printf("\e[0;32m%10s\e[0m ", "Yes");
+      } else {
+        printf("\e[0;31m%10s\e[0m ", "No");
+      }
+      if (detail) {
+        PartitionDetail(*iter, par.second.id(),
+            par.second.master().ip,
+            par.second.master().port);
+        printf(" ");
+        for (auto& s : par.second.slaves()) {
+          PartitionDetail(*iter, par.second.id(), s.ip,
+              s.port);
+        }
+      } else {
+        printf("%15s:%5d ", par.second.master().ip.c_str(),
+            par.second.master().port);
+        for (auto& s : par.second.slaves()) {
+          printf("%15s:%5d ", s.ip.c_str(), s.port);
+        }
+      }
+      printf("\n");
+    }
+    std::map<libzp::Node, std::vector<const libzp::Partition*>> nodes_loads;
+    it->second->GetNodesLoads(&nodes_loads);
+    for (auto& node : nodes_loads) {
+      std::cout << node.first << ": [";
+      const std::vector<const libzp::Partition*>& p_vec = node.second;
+      const libzp::Partition* p;
+      size_t i = 0;
+      for (i = 0; i < p_vec.size() - 1; i++) {
+        p = p_vec.at(i);
+        if (p->master() == node.first) {
+          printf("\e[0;35m%d*,\e[0m", p->id());
+        } else {
+          printf("%d,", p->id());
+        }
+      }
+      p = p_vec.at(i);
+      if (p->master() == node.first) {
+        printf("\e[0;35m%d*\e[0m]\n", p->id());
+      } else {
+        printf("%d]\n", p->id());
+      }
+    }
+  }
+}
+
+void InfoQuery() {
+  printf(BLUE REVERSE "%-140s\n" NONE, "InfoQuery");
+  std::vector<std::string> tables;
+  slash::Status s = cluster->ListTable(&tables);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+  }
+  printf(REVERSE "%35s" NONE" " REVERSE "%10s" NONE" " REVERSE "%15s" NONE"\n",
+      "Table", "QPS", "TotalQuery");
+  for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    int32_t qps = 0; int64_t total_query = 0;
+    s = cluster->InfoQps(*iter, &qps, &total_query);
+    if (!s.ok()) {
+      printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    }
+    printf("%35s %10d %15ld\n", (*iter).c_str(), qps, total_query);
+  }
+}
+
+void InfoSpace() {
+  printf(BLUE REVERSE "%-140s\n" NONE, "InfoSpace");
+  std::vector<std::string> tables;
+  slash::Status s = cluster->ListTable(&tables);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+  }
+  for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    printf(PURPLE "%s" NONE"\n", (*iter).c_str());
+    std::vector<std::pair<libzp::Node, libzp::SpaceInfo>> nodes;
+    libzp::Status s = cluster->InfoSpace(*iter, &nodes);
+    if (!s.ok()) {
+      std::cout << "Failed: " << s.ToString() << std::endl;
+    }
+    printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE" " REVERSE "%15s" NONE"\n",
+      "Node", "Used", "Remain");
+    for (auto it = nodes.begin(); it != nodes.end(); it++) {
+      printf("%15s:%5d %15ld %15ld\n", it->first.ip.c_str(), it->first.port,
+          it->second.used, it->second.remain);
+    }
   }
 }
 
@@ -76,13 +292,13 @@ int main(int argc, char* argv[]) {
   option.op_timeout = 5000;
   // cluster handle cluster operation
   cluster = new libzp::Cluster(option);
-  ListNode();
+  InfoNode();
+  InfoNodeDetail();
+  InfoMeta();
+  //InfoTable();
+  InfoTable(true);
+  InfoQuery();
+  InfoSpace();
 
-//  printf("\e[7m%21s\e[0m \e[7m%21s\e[0m \e[7m%21s\e[0m\n", "127.0.0.1:8123", "127.0.0.0:8124", "127.0.0.1:8125");
-//  printf("\e[0;32m%21s\e[0m \e[0;31m%21s\e[0m \e[0;32m%21s\e[0m\n", "UP", "DOWN", "UP");
-//  printf("\e[7m%21s\e[0m \e[7m%21s\e[0m \e[7m%21s\e[0m\n", "127.0.0.1:8126", "127.0.0.0:8127", "127.0.0.1:8128");
-//  printf("\e[0;32m%21s\e[0m \e[0;32m%21s\e[0m \e[0;31m%21s\e[0m\n", "UP", "UP", "DOWN");
-//  printf("\e[7m%21s\e[0m \e[7m%21s\e[0m \e[7m%21s\e[0m\n", "127.0.0.1:8129", "127.0.0.0:8130", "127.0.0.1:8131");
-//  printf("\e[0;32m%21s\e[0m \e[0;32m%21s\e[0m \e[0;32m%21s\e[0m\n", "UP", "UP", "UP");
   return 0;
 }

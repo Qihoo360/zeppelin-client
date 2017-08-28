@@ -1320,6 +1320,11 @@ int Cluster::LocateKey(const std::string& table,
   return part->id();
 }
 
+std::unordered_map<std::string, Table*> Cluster::tables() {
+  slash::RWLock l(&meta_rw_, false);
+  return tables_;
+}
+
 static int RandomIndex(int floor, int ceil) {
   assert(ceil >= floor);
   std::random_device rd;
