@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <vector>
+#include <unistd.h>
 
 #include "libzp/include/zp_cluster.h"
 
@@ -31,7 +32,7 @@
 
 libzp::Cluster* cluster;
 void InfoNode() {
-  printf(BLUE REVERSE "%-140s\n" NONE, "InfoNode");
+  printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoNode");
   std::vector<libzp::Node> nodes;
   std::vector<std::string> status;
   slash::Status s = cluster->ListNode(&nodes, &status);
@@ -72,7 +73,7 @@ void InfoNode() {
 }
 
 void InfoNodeDetail() {
-  printf(BLUE REVERSE "%-140s\n" NONE, "InfoNodeDetail");
+  printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoNodeDetail");
   std::vector<libzp::Node> nodes;
   std::vector<std::string> status;
   slash::Status s = cluster->ListNode(&nodes, &status);
@@ -106,7 +107,7 @@ void InfoNodeDetail() {
       if (state.meta_renewing) {
         printf(RED "%10s ", "true");
       } else {
-        printf("%10s ", "true");
+        printf("%10s ", "false");
       }
       for (size_t j = 0; j < state.table_names.size(); j++) {
         if (j < state.table_names.size() - 1) {
@@ -122,7 +123,7 @@ void InfoNodeDetail() {
 
 
 void InfoMeta() {
-  printf(BLUE REVERSE "%-140s\n" NONE, "InfoMeta");
+  printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoMeta");
   std::vector<libzp::Node> slaves;
   libzp::Node master;
   slash::Status s = cluster->ListMeta(&master, &slaves);
@@ -130,9 +131,9 @@ void InfoMeta() {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
     return;
   }
-  printf(L_PURPLE "Master:\n" NONE);
+  printf(L_PURPLE "Leader:\n" NONE);
   printf("  %s:%d\n", master.ip.c_str(), master.port);
-  printf(L_PURPLE "Slaves:\n" NONE);
+  printf(L_PURPLE "Followers:\n" NONE);
   for (auto iter = slaves.begin(); iter != slaves.end(); iter++) {
     printf("  %s:%d\n", iter->ip.c_str(), iter->port);
   }
@@ -165,7 +166,11 @@ void PartitionDetail(const std::string& table, int32_t id,
 }
 
 void InfoTable(bool detail = false) {
-  printf(BLUE REVERSE "%-140s\n" NONE, "InfoTable");
+  if (detail) {
+    printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoTableDetail");
+  } else {
+    printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoTable");
+  }
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
   if (!s.ok()) {
@@ -180,7 +185,6 @@ void InfoTable(bool detail = false) {
   printf(L_PURPLE "Detail:\n" NONE);
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
     s = cluster->Pull(*iter);
-//    cluster->DebugDumpPartition(*iter);
     std::unordered_map<std::string, libzp::Table*> tables = cluster->tables();
     auto it = tables.find(*iter);
     if (it == tables.end()) {
@@ -209,7 +213,7 @@ void InfoTable(bool detail = false) {
               s.port);
         }
       } else {
-        printf("%15s:%5d ", par.second.master().ip.c_str(),
+        printf("%64s:%5d ", par.second.master().ip.c_str(),
             par.second.master().port);
         for (auto& s : par.second.slaves()) {
           printf("%15s:%5d ", s.ip.c_str(), s.port);
@@ -243,7 +247,7 @@ void InfoTable(bool detail = false) {
 }
 
 void InfoQuery() {
-  printf(BLUE REVERSE "%-140s\n" NONE, "InfoQuery");
+  printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoQuery");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
   if (!s.ok()) {
@@ -262,7 +266,7 @@ void InfoQuery() {
 }
 
 void InfoSpace() {
-  printf(BLUE REVERSE "%-140s\n" NONE, "InfoSpace");
+  printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoSpace");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
   if (!s.ok()) {
@@ -284,21 +288,91 @@ void InfoSpace() {
   }
 }
 
+void Usage() {
+  fprintf(stderr,
+          "Usage: zp_info [-h host -p port -i info]\n"
+          "\t-h     -- zeppelin meta ip(OPTIONAL default: 127.0.0.1) \n"
+          "\t-p     -- zeppelin meta port(OPTIONAL default: 9221) \n"
+          "\t-i     -- info field [node, nodedetail, meta, table, tabledetail, query, space, all, alldetail](REQUIRE)\n"
+          "  example: ./zp_info -i all\n"
+         );
+}
+
 int main(int argc, char* argv[]) {
+  if (argc == 1) {
+    Usage();
+    return 0;
+  }
   libzp::Options option;
-  const char* ip = "127.0.0.1";
+  std::string ip = "127.0.0.1";
   int port = 9221;
+  std::string info = "";
+  char buf[1024];
+  char c;
+  while (-1 != (c = getopt(argc, argv, "h:p:i:"))) {
+    switch (c) {
+      case 'h':
+        snprintf(buf, 1024, "%s", optarg);
+        ip = std::string(buf);
+        break;
+      case 'p':
+        snprintf(buf, 1024, "%s", optarg);
+        port = std::atoi(buf);
+        break;
+      case 'i':
+        snprintf(buf, 1024, "%s", optarg);
+        info = buf;
+        break;
+      default:
+        Usage();
+        return 0;
+    }
+  }
+  if (info == "") {
+    Usage();
+    return 0;
+  }
   option.meta_addr.push_back(libzp::Node(ip, port));
   option.op_timeout = 5000;
   // cluster handle cluster operation
   cluster = new libzp::Cluster(option);
-  InfoNode();
-  InfoNodeDetail();
-  InfoMeta();
-  //InfoTable();
-  InfoTable(true);
-  InfoQuery();
-  InfoSpace();
+  if (info == "node") {
+    InfoNode();
+  } else if (info == "nodedetail") {
+    InfoNodeDetail();
+  } else if (info == "meta") {
+    InfoMeta();
+  } else if (info == "table") {
+    InfoTable(false);
+  } else if (info == "tabledetail") {
+    InfoTable(true);
+  } else if (info == "query") {
+    InfoQuery();
+  } else if (info == "space") {
+    InfoSpace();
+  } else if (info == "all") {
+    InfoNode();
+    printf("\n");
+    InfoMeta();
+    printf("\n");
+    InfoTable();
+    printf("\n");
+    InfoQuery();
+    printf("\n");
+    InfoSpace();
+  } else if (info == "alldetail") {
+    InfoNodeDetail();
+    printf("\n");
+    InfoMeta();
+    printf("\n");
+    InfoTable(true);
+    printf("\n");
+    InfoQuery();
+    printf("\n");
+    InfoSpace();
+  } else {
+    Usage();
+  }
 
   return 0;
 }
