@@ -1,6 +1,17 @@
+// Copyright (c) 2015-present, Qihoo, Inc.  All rights reserved.
+// This source code is licensed under the BSD-style license found in the
+// LICENSE file in the root directory of this source tree. An additional grant
+// of patent rights can be found in the PATENTS file in the same directory.
+//
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+//
 #include <stdio.h>
-#include <vector>
 #include <unistd.h>
+
+#include <vector>
 
 #include "libzp/include/zp_cluster.h"
 
@@ -28,7 +39,7 @@
 #define REVERSE              "\e[7m"
 #define HIDE                 "\e[8m"
 #define CLEAR                "\e[2J"
-#define CLRLINE              "\r\e[K" //or "\e[1K\r"
+#define CLRLINE              "\r\e[K"  // or "\e[1K\r"
 
 libzp::Cluster* cluster;
 std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
@@ -51,10 +62,12 @@ void InfoNode() {
   for (size_t i = 0; i < nodes.size();) {
     printf(REVERSE "%15s:%5d" NONE" ", nodes[i].ip.c_str(), nodes[i].port);
     if (i + 1 < nodes.size()) {
-      printf(REVERSE "%15s:%5d" NONE" ", nodes[i + 1].ip.c_str(), nodes[i + 1].port);
+      printf(REVERSE "%15s:%5d" NONE" ",
+          nodes[i + 1].ip.c_str(), nodes[i + 1].port);
     }
     if (i + 2 < nodes.size()) {
-      printf(REVERSE "%15s:%5d" NONE" ", nodes[i + 2].ip.c_str(), nodes[i + 2].port);
+      printf(REVERSE "%15s:%5d" NONE" ",
+          nodes[i + 2].ip.c_str(), nodes[i + 2].port);
     }
 
     printf("\n");
@@ -62,9 +75,9 @@ void InfoNode() {
     int num = 0;
     while (num < 3 && i < nodes.size()) {
       if (status[i] == "up") {
-        printf(GREEN "%21s " NONE, "UP"); 
+        printf(GREEN "%21s " NONE, "UP");
       } else {
-        printf(RED "%21s " NONE, "DOWN"); 
+        printf(RED "%21s " NONE, "DOWN");
       }
       i++;
       num++;
@@ -86,8 +99,8 @@ void InfoNodeDetail() {
     printf(RED "No Nodes" NONE "\n");
     return;
   }
-  printf(REVERSE "%21s" NONE" " REVERSE "%10s" NONE" " REVERSE "%10s" NONE" " 
-      REVERSE "%21s" NONE" " REVERSE "%10s" NONE" " 
+  printf(REVERSE "%21s" NONE" " REVERSE "%10s" NONE" " REVERSE "%10s" NONE" "
+      REVERSE "%21s" NONE" " REVERSE "%10s" NONE" "
       REVERSE "%30s" NONE"\n",
     "Node", "Status", "Epoch", "MetaNode", "Renewing", "Tables");
   for (size_t i = 0; i < nodes.size(); i++) {
@@ -103,7 +116,7 @@ void InfoNodeDetail() {
       if (!s.ok()) {
         std::cout << "Failed: " << s.ToString() << std::endl;
       }
-      printf("%10ld %15s:%5d ",state.epoch, state.cur_meta.ip.c_str(),
+      printf("%10ld %15s:%5d ", state.epoch, state.cur_meta.ip.c_str(),
           state.cur_meta.port);
       if (state.meta_renewing) {
         printf(RED "%10s ", "true");
@@ -150,14 +163,14 @@ void InfoMeta() {
 void PartitionDetail(const std::string& table, int32_t id,
     const std::string& ip, int32_t port) {
   char buf[1024];
-  snprintf(buf, 1024, "%s:%d-%s", ip.c_str(), port, table.c_str());
+  snprintf(buf, sizeof(buf), "%s:%d-%s", ip.c_str(), port, table.c_str());
   auto it = view_map.find(buf);
   if (it == view_map.end()) {
     std::map<int, libzp::PartitionView> view;
     libzp::Node node(ip, port);
     slash::Status s = cluster->InfoRepl(node, table, &view);
     if (!s.ok()) {
-      printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port,"[Maybe DOWN]");
+      printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port, "[Maybe DOWN]");
       return;
     }
     view_map.insert(std::map<std::string,
@@ -175,7 +188,7 @@ void PartitionDetail(const std::string& table, int32_t id,
   printf(BLUE " |" NONE);
 }
 
-void InfoTable(bool detail = false) {
+void InfoTable(const std::string& table, bool detail = false) {
   if (detail) {
     printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoTableDetail");
   } else {
@@ -194,6 +207,9 @@ void InfoTable(bool detail = false) {
   printf("\n");
   printf(L_PURPLE "Detail:\n" NONE);
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    if (table != "" && table != *iter) {
+      continue;
+    }
     s = cluster->Pull(*iter);
     std::unordered_map<std::string, libzp::Table*> tables = cluster->tables();
     auto it = tables.find(*iter);
@@ -209,9 +225,9 @@ void InfoTable(bool detail = false) {
     for (auto& par : partitions) {
       printf("%5d ", par.second.id());
       if (par.second.active()) {
-        printf("\e[0;32m%10s\e[0m ", "Yes");
+        printf(GREEN "%10s " NONE, "Yes");
       } else {
-        printf("\e[0;31m%10s\e[0m ", "No");
+        printf(RED "%10s " NONE, "No");
       }
       if (detail) {
         PartitionDetail(*iter, par.second.id(),
@@ -243,14 +259,14 @@ void InfoTable(bool detail = false) {
       for (i = 0; i < p_vec.size() - 1; i++) {
         p = p_vec.at(i);
         if (p->master() == node.first) {
-          printf("\e[0;35m%d*,\e[0m", p->id());
+          printf(BROWN "%d*" NONE ",", p->id());
         } else {
           printf("%d,", p->id());
         }
       }
       p = p_vec.at(i);
       if (p->master() == node.first) {
-        printf("\e[0;35m%d*\e[0m]\n", p->id());
+        printf(BROWN "%d*" NONE "]\n", p->id());
       } else {
         printf("%d]\n", p->id());
       }
@@ -258,7 +274,7 @@ void InfoTable(bool detail = false) {
   }
 }
 
-void InfoQuery() {
+void InfoQuery(const std::string& table) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoQuery");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
@@ -268,16 +284,20 @@ void InfoQuery() {
   printf(REVERSE "%35s" NONE" " REVERSE "%10s" NONE" " REVERSE "%15s" NONE"\n",
       "Table", "QPS", "TotalQuery");
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    if (table != "" && table != *iter) {
+      continue;
+    }
     int32_t qps = 0; int64_t total_query = 0;
     s = cluster->InfoQps(*iter, &qps, &total_query);
     if (!s.ok()) {
       printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
     }
-    printf("%35s %10d %15ld\n", (*iter).c_str(), qps, total_query);
+    printf(PURPLE "%35s" NONE " %10d %15ld\n",
+        (*iter).c_str(), qps, total_query);
   }
 }
 
-void InfoSpace() {
+void InfoSpace(const std::string& table) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoSpace");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
@@ -285,13 +305,17 @@ void InfoSpace() {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
   }
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    if (table != "" && table != *iter) {
+      continue;
+    }
     printf(PURPLE "%s" NONE"\n", (*iter).c_str());
     std::vector<std::pair<libzp::Node, libzp::SpaceInfo>> nodes;
     libzp::Status s = cluster->InfoSpace(*iter, &nodes);
     if (!s.ok()) {
       std::cout << "Failed: " << s.ToString() << std::endl;
     }
-    printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE" " REVERSE "%15s" NONE"\n",
+    printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE" "
+        REVERSE "%15s" NONE"\n",
       "Node", "Used", "Remain");
     for (auto it = nodes.begin(); it != nodes.end(); it++) {
       printf("%15s:%5d %15ld %15ld\n", it->first.ip.c_str(), it->first.port,
@@ -305,9 +329,13 @@ void Usage() {
           "Usage: zp_info [-h host -p port -i info]\n"
           "\t-h     -- zeppelin meta ip(OPTIONAL default: 127.0.0.1) \n"
           "\t-p     -- zeppelin meta port(OPTIONAL default: 9221) \n"
-          "\t-i     -- info field [node, nodedetail, meta, table, tabledetail, query, space, all, alldetail](REQUIRE)\n"
-          "  example: ./zp_info -i all\n"
-         );
+          "\t-i     -- info field (REQUIRE)\n"
+          "\t          INCLUDE [node, nodedetail, meta, table,"
+                               " tabledetail, query, space, all, alldetail]\n"
+          "\t-t     -- specific table(OPTIONAL default: all-table)\n"
+          "\t          NOTICE: -t is disabled when -i is"
+                       " [node, nodedetail, meta]\n"
+          "example: ./zp_info -i all\n");
 }
 
 int main(int argc, char* argv[]) {
@@ -319,21 +347,26 @@ int main(int argc, char* argv[]) {
   std::string ip = "127.0.0.1";
   int port = 9221;
   std::string info = "";
+  std::string table = "";
   char buf[1024];
   char c;
-  while (-1 != (c = getopt(argc, argv, "h:p:i:"))) {
+  while (-1 != (c = getopt(argc, argv, "h:p:i:t:"))) {
     switch (c) {
       case 'h':
-        snprintf(buf, 1024, "%s", optarg);
+        snprintf(buf, sizeof(buf), "%s", optarg);
         ip = std::string(buf);
         break;
       case 'p':
-        snprintf(buf, 1024, "%s", optarg);
+        snprintf(buf, sizeof(buf), "%s", optarg);
         port = std::atoi(buf);
         break;
       case 'i':
-        snprintf(buf, 1024, "%s", optarg);
+        snprintf(buf, sizeof(buf), "%s", optarg);
         info = buf;
+        break;
+      case 't':
+        snprintf(buf, sizeof(buf), "%s", optarg);
+        table = buf;
         break;
       default:
         Usage();
@@ -344,11 +377,12 @@ int main(int argc, char* argv[]) {
     Usage();
     return 0;
   }
+
   option.meta_addr.push_back(libzp::Node(ip, port));
   option.op_timeout = 5000;
-  // cluster handle cluster operation
   cluster = new libzp::Cluster(option);
   view_map.clear();
+
   if (info == "node") {
     InfoNode();
   } else if (info == "nodedetail") {
@@ -356,33 +390,33 @@ int main(int argc, char* argv[]) {
   } else if (info == "meta") {
     InfoMeta();
   } else if (info == "table") {
-    InfoTable(false);
+    InfoTable(table, false);
   } else if (info == "tabledetail") {
-    InfoTable(true);
+    InfoTable(table, true);
   } else if (info == "query") {
-    InfoQuery();
+    InfoQuery(table);
   } else if (info == "space") {
-    InfoSpace();
+    InfoSpace(table);
   } else if (info == "all") {
     InfoNode();
     printf("\n");
     InfoMeta();
     printf("\n");
-    InfoTable();
+    InfoTable(table, false);
     printf("\n");
-    InfoQuery();
+    InfoQuery(table);
     printf("\n");
-    InfoSpace();
+    InfoSpace(table);
   } else if (info == "alldetail") {
     InfoNodeDetail();
     printf("\n");
     InfoMeta();
     printf("\n");
-    InfoTable(true);
+    InfoTable(table, true);
     printf("\n");
-    InfoQuery();
+    InfoQuery(table);
     printf("\n");
-    InfoSpace();
+    InfoSpace(table);
   } else {
     Usage();
   }
