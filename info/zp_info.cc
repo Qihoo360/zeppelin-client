@@ -31,6 +31,7 @@
 #define CLRLINE              "\r\e[K" //or "\e[1K\r"
 
 libzp::Cluster* cluster;
+std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
 void InfoNode() {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoNode");
   std::vector<libzp::Node> nodes;
@@ -148,21 +149,30 @@ void InfoMeta() {
 
 void PartitionDetail(const std::string& table, int32_t id,
     const std::string& ip, int32_t port) {
-  std::map<int, libzp::PartitionView> view;
-  libzp::Node node(ip, port);
-  slash::Status s = cluster->InfoRepl(node, table, &view);
-  if (!s.ok()) {
-    printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port,"[Maybe DOWN]");
+  char buf[1024];
+  snprintf(buf, 1024, "%s:%d-%s", ip.c_str(), port, table.c_str());
+  auto it = view_map.find(buf);
+  if (it == view_map.end()) {
+    std::map<int, libzp::PartitionView> view;
+    libzp::Node node(ip, port);
+    slash::Status s = cluster->InfoRepl(node, table, &view);
+    if (!s.ok()) {
+      printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port,"[Maybe DOWN]");
+      return;
+    }
+    view_map.insert(std::map<std::string,
+        std::map<int, libzp::PartitionView> >::value_type(buf, view));
+
+    it = view_map.find(buf);
+  }
+  auto iter = it->second.find(id);
+  if (iter == it->second.end()) {
     return;
   }
-  auto iter = view.find(id);
-  if (iter == view.end()) {
-//    printf(RED "Failed: %s-%d Not Found" NONE "\n", table.c_str(), id);
-    return;
-  }
-  printf("%15s:%5d[%s, %s, %10d %11ld] ", ip.c_str(), port,
+  printf("%15s:%5d[%s, %s, %10d %11ld]", ip.c_str(), port,
       iter->second.role.c_str(), iter->second.repl_state.c_str(),
       iter->second.offset.filenum, iter->second.offset.offset);
+  printf(BLUE " |" NONE);
 }
 
 void InfoTable(bool detail = false) {
@@ -193,7 +203,7 @@ void InfoTable(bool detail = false) {
     }
     printf("\e[0;35m%s [%d]\e[0m\n", it->second->table_name().c_str(),
         it->second->partition_num());
-    printf("\e[7m%5s\e[0m \e[7m%10s\e[0m \e[7m%70s\e[0m \e[7m%140s\e[0m\n",
+    printf("\e[7m%-5s\e[0m \e[7m%-10s\e[0m \e[7m%-70s\e[0m \e[7m%-140s\e[0m\n",
         "Id", "Active", "Master", "Slaves");
     std::map<int, libzp::Partition> partitions = it->second->partitions();
     for (auto& par : partitions) {
@@ -213,10 +223,12 @@ void InfoTable(bool detail = false) {
               s.port);
         }
       } else {
-        printf("%64s:%5d ", par.second.master().ip.c_str(),
+        printf("%64s:%5d", par.second.master().ip.c_str(),
             par.second.master().port);
+        printf(BLUE " |" NONE);
         for (auto& s : par.second.slaves()) {
-          printf("%15s:%5d ", s.ip.c_str(), s.port);
+          printf("%15s:%5d", s.ip.c_str(), s.port);
+          printf(BLUE " |" NONE);
         }
       }
       printf("\n");
@@ -336,6 +348,7 @@ int main(int argc, char* argv[]) {
   option.op_timeout = 5000;
   // cluster handle cluster operation
   cluster = new libzp::Cluster(option);
+  view_map.clear();
   if (info == "node") {
     InfoNode();
   } else if (info == "nodedetail") {
