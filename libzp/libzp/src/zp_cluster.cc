@@ -1155,6 +1155,9 @@ Status Cluster::InfoRepl(const Node& node, const std::string& table,
   if (!context_->result.ok()) {
     return context_->result;
   }
+  if (context_->response->info_repl_size() <= 0) {
+    return Status::NotFound("there is no repl info");
+  }
   for (int i = 0; i < context_->response->info_repl(0).partition_state_size(); ++i) {
     client::PartitionState pstate = context_->response->info_repl(0).partition_state(i);
     view->insert(std::pair<int, PartitionView>(pstate.partition_id(),
