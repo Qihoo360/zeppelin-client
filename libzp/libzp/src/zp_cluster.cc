@@ -464,7 +464,7 @@ bool Cluster::Deliver(CmdContext* context) {
 
   if (context->result.ok()
         && (context->response->code() == client::StatusCode::kOk
-          || context_->response->code() == client::StatusCode::kNotFound)) {
+          || context->response->code() == client::StatusCode::kNotFound)) {
     return true; //succ
   }
   return false;
