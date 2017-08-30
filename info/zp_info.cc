@@ -43,6 +43,7 @@
 
 libzp::Cluster* cluster;
 std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
+uint32_t master_filenum = UINT32_MAX;
 void InfoNode() {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoNode");
   std::vector<libzp::Node> nodes;
@@ -161,7 +162,7 @@ void InfoMeta() {
 }
 
 void PartitionDetail(const std::string& table, int32_t id,
-    const std::string& ip, int32_t port) {
+    const std::string& ip, int32_t port, bool is_master) {
   char buf[1024];
   snprintf(buf, sizeof(buf), "%s:%d-%s", ip.c_str(), port, table.c_str());
   auto it = view_map.find(buf);
@@ -171,6 +172,9 @@ void PartitionDetail(const std::string& table, int32_t id,
     slash::Status s = cluster->InfoRepl(node, table, &view);
     if (!s.ok()) {
       printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port, "[Maybe DOWN]");
+      if (is_master) {
+        master_filenum = UINT32_MAX;
+      }
       return;
     }
     view_map.insert(std::map<std::string,
@@ -182,9 +186,22 @@ void PartitionDetail(const std::string& table, int32_t id,
   if (iter == it->second.end()) {
     return;
   }
-  printf("%15s:%5d[%s, %s, %10d %11ld]", ip.c_str(), port,
-      iter->second.role.c_str(), iter->second.repl_state.c_str(),
-      iter->second.offset.filenum, iter->second.offset.offset);
+  if (is_master) {
+    master_filenum = iter->second.offset.filenum;
+    printf("%15s:%5d[%s, %s, %10d %11ld]", ip.c_str(), port,
+        iter->second.role.c_str(), iter->second.repl_state.c_str(),
+        iter->second.offset.filenum, iter->second.offset.offset);
+  } else {
+    if (master_filenum != iter->second.offset.filenum) {
+      printf("%15s:%5d[%s, %s, " RED "%10d" NONE " %11ld]", ip.c_str(), port,
+          iter->second.role.c_str(), iter->second.repl_state.c_str(),
+          iter->second.offset.filenum, iter->second.offset.offset);
+    } else {
+      printf("%15s:%5d[%s, %s, %10d %11ld]", ip.c_str(), port,
+          iter->second.role.c_str(), iter->second.repl_state.c_str(),
+          iter->second.offset.filenum, iter->second.offset.offset);
+    }
+  }
   printf(BLUE " |" NONE);
 }
 
@@ -232,11 +249,11 @@ void InfoTable(const std::string& table, bool detail = false) {
       if (detail) {
         PartitionDetail(*iter, par.second.id(),
             par.second.master().ip,
-            par.second.master().port);
+            par.second.master().port, true);
         printf(" ");
         for (auto& s : par.second.slaves()) {
           PartitionDetail(*iter, par.second.id(), s.ip,
-              s.port);
+              s.port, false);
         }
       } else {
         printf("%64s:%5d", par.second.master().ip.c_str(),
