@@ -7,3 +7,14 @@ manager/zp_manager
 *.d
 *.out
 *.swp
+
+libzp/libzp/example/output/
+libzp/libzp/example/zp_async
+libzp/libzp/example/zp_create_table
+libzp/libzp/example/zp_get
+libzp/libzp/example/zp_mget
+libzp/libzp/example/zp_parallel
+libzp/libzp/example/zp_simple
+libzp/libzp/example/zp_timeout
+manager/history.txt
+tags

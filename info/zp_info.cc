@@ -10,10 +10,13 @@
 //
 #include <stdio.h>
 #include <unistd.h>
+#include <ctime>
 
 #include <vector>
+#include <chrono>
 
 #include "libzp/include/zp_cluster.h"
+#include "json/json.h"
 
 #define NONE                 "\e[0m"
 #define BLACK                "\e[0;30m"
@@ -137,17 +140,22 @@ void InfoNodeDetail() {
 }
 
 
-void InfoMeta() {
+void InfoMeta(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoMeta");
   std::vector<libzp::Node> slaves;
   libzp::Node master;
   slash::Status s = cluster->ListMeta(&master, &slaves);
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    json->AddStr("error", "true");
     return;
   }
+
+  json->AddInt("count", slaves.size() + 1);
+
   printf(L_PURPLE "Leader:\n" NONE);
   printf("  %s:%d\n", master.ip.c_str(), master.port);
+  json->AddStr("master", master.ip + ":" + std::to_string(master.port));
   printf(L_PURPLE "Followers:\n" NONE);
   for (auto iter = slaves.begin(); iter != slaves.end(); iter++) {
     printf("  %s:%d\n", iter->ip.c_str(), iter->port);
@@ -291,16 +299,18 @@ void InfoTable(const std::string& table, bool detail = false) {
   }
 }
 
-void InfoQuery(const std::string& table) {
+void InfoQuery(const std::string& table, mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoQuery");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    json->AddStr("error", "true");
   }
   printf(REVERSE "%35s" NONE" " REVERSE "%10s" NONE" " REVERSE "%15s" NONE"\n",
       "Table", "QPS", "TotalQuery");
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    mjson::Json tmp_json(mjson::JsonType::kSingle);
     if (table != "" && table != *iter) {
       continue;
     }
@@ -308,20 +318,27 @@ void InfoQuery(const std::string& table) {
     s = cluster->InfoQps(*iter, &qps, &total_query);
     if (!s.ok()) {
       printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+      tmp_json.AddStr("error", "true");
     }
     printf(PURPLE "%35s" NONE " %10d %15ld\n",
         (*iter).c_str(), qps, total_query);
+    tmp_json.AddInt("qps", qps);
+    tmp_json.AddInt("total_query", total_query);
+
+    json->AddJson(*iter, tmp_json);
   }
 }
 
-void InfoSpace(const std::string& table) {
+void InfoSpace(const std::string& table, mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoSpace");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    json->AddStr("error", "true");
   }
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
+    mjson::Json tmp_json_1(mjson::JsonType::kSingle);
     if (table != "" && table != *iter) {
       continue;
     }
@@ -330,14 +347,23 @@ void InfoSpace(const std::string& table) {
     libzp::Status s = cluster->InfoSpace(*iter, &nodes);
     if (!s.ok()) {
       std::cout << "Failed: " << s.ToString() << std::endl;
+      tmp_json_1.AddStr("error", "true");
     }
     printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE" "
         REVERSE "%15s" NONE"\n",
       "Node", "Used", "Remain");
     for (auto it = nodes.begin(); it != nodes.end(); it++) {
+      mjson::Json tmp_json_2(mjson::JsonType::kSingle);
       printf("%15s:%5d %15ld %15ld\n", it->first.ip.c_str(), it->first.port,
           it->second.used, it->second.remain);
+      tmp_json_2.AddInt("used", it->second.used);
+      tmp_json_2.AddInt("remain", it->second.remain);
+
+      tmp_json_1.AddJson(it->first.ip + ":" +
+                          std::to_string(it->first.port),
+                          tmp_json_2);
     }
+    json->AddJson(*iter, tmp_json_1);
   }
 }
 
@@ -397,6 +423,13 @@ int main(int argc, char* argv[]) {
 
   option.meta_addr.push_back(libzp::Node(ip, port));
   option.op_timeout = 5000;
+  char check_time[64];
+  std::time_t tt = std::chrono::system_clock::to_time_t(
+      std::chrono::system_clock::now());
+  ctime_r(&tt, check_time);
+  // remove last '\n' of check_time which was added by ctime_r
+  check_time[strlen(check_time) - 1] = '\0';
+
   cluster = new libzp::Cluster(option);
   view_map.clear();
 
@@ -405,35 +438,64 @@ int main(int argc, char* argv[]) {
   } else if (info == "nodedetail") {
     InfoNodeDetail();
   } else if (info == "meta") {
-    InfoMeta();
+    mjson::Json meta_json(mjson::JsonType::kSingle);
+    InfoMeta(&meta_json);
   } else if (info == "table") {
     InfoTable(table, false);
   } else if (info == "tabledetail") {
     InfoTable(table, true);
   } else if (info == "query") {
-    InfoQuery(table);
+    mjson::Json query_json(mjson::JsonType::kSingle);
+    InfoQuery(table, &query_json);
   } else if (info == "space") {
-    InfoSpace(table);
+    mjson::Json space_json(mjson::JsonType::kSingle);
+    InfoSpace(table, &space_json);
   } else if (info == "all") {
+    mjson::Json json(mjson::JsonType::kSingle);
+
     InfoNode();
     printf("\n");
-    InfoMeta();
+
+    mjson::Json meta_json(mjson::JsonType::kSingle);
+    InfoMeta(&meta_json);
     printf("\n");
+
     InfoTable(table, false);
     printf("\n");
-    InfoQuery(table);
+
+    mjson::Json query_json(mjson::JsonType::kSingle);
+    InfoQuery(table, &query_json);
     printf("\n");
-    InfoSpace(table);
+
+    mjson::Json space_json(mjson::JsonType::kSingle);
+    InfoSpace(table, &space_json);
+
+    json.AddStr("check_time", check_time);
+    json.AddJson("meta", meta_json);
+    json.AddJson("query", query_json);
+    json.AddJson("space", space_json);
+    // only dump json to file in "-i all" mode
+    std::string json_result = json.Encode();
+    FILE* file = fopen("./info_json_result", "w");
+    fwrite(json_result.data(), json_result.size(), 1, file);
+    fclose(file);
   } else if (info == "alldetail") {
     InfoNodeDetail();
     printf("\n");
-    InfoMeta();
+
+    mjson::Json meta_json(mjson::JsonType::kSingle);
+    InfoMeta(&meta_json);
     printf("\n");
+
     InfoTable(table, true);
     printf("\n");
-    InfoQuery(table);
+
+    mjson::Json query_json(mjson::JsonType::kSingle);
+    InfoQuery(table, &query_json);
     printf("\n");
-    InfoSpace(table);
+
+    mjson::Json space_json(mjson::JsonType::kSingle);
+    InfoSpace(table, &space_json);
   } else {
     Usage();
   }

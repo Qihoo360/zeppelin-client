@@ -48,7 +48,7 @@ endif
 SLASH_INCLUDE_DIR=$(SLASH_PATH)
 SLASH_LIBRARY=$(SLASH_PATH)/slash/lib/libslash$(DEBUG_SUFFIX).a
 
-CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I$(ZP_INCLUDE_DIR)
+CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I$(ZP_INCLUDE_DIR) -I..
 LDFLAGS+= $(ZP_LIBRARY) $(PINK_LIBRARY) $(SLASH_LIBRARY)
 
 AM_DEFAULT_VERBOSITY = 0
@@ -87,10 +87,13 @@ all: zp_checkup
 
 dbg: zp_checkup
 
-zp_checkup: zp_checkup.o
+zp_checkup: zp_checkup.o ../json/json.o
 	$(AM_LINK)
 
 zp_checkup.o: zp_checkup.cc
+	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@
+
+../json/json.o: ../json/json.cc
 	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:

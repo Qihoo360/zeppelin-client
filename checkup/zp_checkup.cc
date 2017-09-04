@@ -10,10 +10,13 @@
 //
 #include <stdio.h>
 #include <unistd.h>
+#include <ctime>
 
 #include <vector>
+#include <chrono>
 
 #include "libzp/include/zp_cluster.h"
+#include "json/json.h"
 
 #define NONE                 "\e[0m"
 #define BLACK                "\e[0;30m"
@@ -45,7 +48,7 @@ libzp::Cluster* cluster;
 std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
 bool health = true;
 
-void CheckupMeta() {
+void CheckupMeta(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupMeta");
   std::vector<libzp::Node> slaves;
   libzp::Node master;
@@ -53,6 +56,7 @@ void CheckupMeta() {
   if (!s.ok()) {
     printf(RED "CheckupMeta, ListMeta Failed: %s" NONE "\n",
         s.ToString().c_str());
+    json->AddStr("error", "true");
     health = false;
     return;
   }
@@ -67,9 +71,10 @@ void CheckupMeta() {
   } else {
     printf("\n");
   }
+  json->AddStr("result", "passed");
 }
 
-void CheckupNode() {
+void CheckupNode(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupNode");
   std::vector<libzp::Node> nodes;
   std::vector<std::string> status;
@@ -77,6 +82,7 @@ void CheckupNode() {
   if (!s.ok()) {
     printf(RED "CheckupNode, ListNode Failed: %s" NONE "\n",
         s.ToString().c_str());
+    json->AddStr("error", "true");
     health = false;
     return;
   }
@@ -86,35 +92,45 @@ void CheckupNode() {
       alive_nodes_num++;
     }
   }
+
+  json->AddInt("count", nodes.size());
+  json->AddInt("up", alive_nodes_num);
+  json->AddInt("down", nodes.size() - alive_nodes_num);
+
   printf("Nodes Count: %lu, Up: %lu, Down: ",
       nodes.size(), alive_nodes_num);
   if (alive_nodes_num == nodes.size()) {
     printf("0\n" GREEN " ...... PASSED\n" NONE);
+    json->AddStr("result", "passed");
   } else {
     health = false;
     printf(BROWN "%lu\n" NONE RED " ...... FAILED\n" NONE,
         nodes.size() - alive_nodes_num);
+    json->AddStr("result", "failed");
   }
 }
 
-void CheckupEpoch() {
+void CheckupEpoch(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupEpoch");
   std::vector<std::string> tables;
   slash::Status s = cluster->ListTable(&tables);
   if (!s.ok()) {
     printf(RED "CheckupEpoch, ListTable Failed: %s" NONE "\n",
         s.ToString().c_str());
+    json->AddStr("error", "true");
     health = false;
     return;
   }
   if (tables.empty()) {
     printf(RED "CheckupEpoch, No Table" NONE "\n");
+    json->AddStr("error", "true");
     return;
   }
   s = cluster->Pull(tables[0]);
   if (!s.ok()) {
     printf(RED "CheckupEpoch, Pull Failed: %s" NONE "\n",
           s.ToString().c_str());
+    json->AddStr("error", "true");
     return;
   }
   int meta_epoch = cluster->epoch();
@@ -125,6 +141,7 @@ void CheckupEpoch() {
   if (!s.ok()) {
     printf(RED "CheckupEpoch, ListNode Failed: %s" NONE "\n",
         s.ToString().c_str());
+    json->AddStr("error", "true");
     return;
   }
 
@@ -135,6 +152,7 @@ void CheckupEpoch() {
     if (!s.ok()) {
       printf(RED "CheckupEpoch, InfoServer Failed: %s" NONE "\n",
           s.ToString().c_str());
+      // just treat it as dismatch, we do not add 'error'->'true' to json
       dismatch_epoch_num++;
       continue;
     }
@@ -144,12 +162,16 @@ void CheckupEpoch() {
   }
 
   printf("CurrentMetaEpoch: %d, DismatchNodesNum: ", meta_epoch);
+  json->AddInt("epoch", meta_epoch);
+  json->AddInt("dismatch_num", dismatch_epoch_num);
   if (dismatch_epoch_num) {
     health = false;
     printf(BROWN "%d\n" NONE RED " ...... FAILED" NONE "\n",
         dismatch_epoch_num);
+    json->AddStr("result", "failed");
   } else {
     printf("0\n" GREEN "...... PASSED" NONE "\n");
+    json->AddStr("result", "passed");
   }
 }
 
@@ -172,7 +194,7 @@ void UpdateViewIfNeeded(const std::string& table,
 }
 
 
-void CheckupTable() {
+void CheckupTable(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupTable");
   /*
    * Get the table list
@@ -182,13 +204,16 @@ void CheckupTable() {
   if (!s.ok()) {
     printf(RED "CheckupTable, ListTable Failed: %s" NONE "\n",
         s.ToString().c_str());
+    json->AddStr("error", "true");
     return;
   }
   if (tables.empty()) {
     printf(RED "CheckupTable, No Table" NONE "\n");
+    json->AddStr("error", "true");
     return;
   }
   printf("Table Count: %lu\n", tables.size());
+  json->AddInt("count", tables.size());
 
   // Pull every table to get its repl & offset info
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
@@ -196,6 +221,7 @@ void CheckupTable() {
     if (!s.ok()) {
       printf(RED "CheckupTable, Pull Failed: %s" NONE "\n",
             s.ToString().c_str());
+      json->AddStr("error", "true");
       return;
     }
   }
@@ -222,6 +248,8 @@ void CheckupTable() {
     std::vector<int> lack_alive_repl_num;
     // save partitions which offset is dismatched between its master & slaves
     std::vector<int> dismatch_offset_num;
+
+    mjson::Json tmp_json(mjson::JsonType::kSingle);
 
     for (auto& p : partitions) {
       /*
@@ -341,13 +369,17 @@ void CheckupTable() {
     if (dismatch_repl_num.empty() && lack_alive_repl_num.empty() &&
           dismatch_offset_num.empty()) {
       printf(GREEN "...... PASSED\n" NONE);
+      tmp_json.AddStr("result", "passed");
+      json->AddJson(*iter, tmp_json);
       continue;
     }
 
     health = false;
     printf(RED "...... FAILED\n" NONE);
+    tmp_json.AddStr("result", "failed");
 
     printf("--PartitionCount: %lu\n", partitions.size());
+    tmp_json.AddInt("p-count", partitions.size());
     printf("----repl-inconsistent: ");
     if (dismatch_repl_num.empty()) {
       printf("0\n");
@@ -362,6 +394,7 @@ void CheckupTable() {
       }
       printf("]\n");
     }
+    tmp_json.AddInt("inconsistent", dismatch_repl_num.size());
     printf("----repl-incomplete: ");
     if (lack_alive_repl_num.empty()) {
       printf("0\n");
@@ -376,6 +409,7 @@ void CheckupTable() {
       }
       printf("]\n");
     }
+    tmp_json.AddInt("incomplete", lack_alive_repl_num.size());
     printf("----repl-lagging: ");
     if (dismatch_offset_num.empty()) {
       printf("0\n");
@@ -390,15 +424,20 @@ void CheckupTable() {
       }
       printf("]\n");
     }
+    tmp_json.AddInt("lagging", dismatch_offset_num.size());
+
+    json->AddJson(*iter, tmp_json);
   }
 }
 
-void CheckupConclusion() {
+void CheckupConclusion(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupConclusion");
   if (health) {
+    json->AddStr("healthy", "true");
     printf(GREEN REVERSE "zeppelin HEALTHY\n" NONE);
   } else {
     printf(RED REVERSE "zeppelin UNHEALTHY\n" NONE);
+    json->AddStr("healthy", "false");
   }
 }
 
@@ -433,13 +472,44 @@ int main(int argc, char* argv[]) {
   libzp::Options option;
   option.meta_addr.push_back(libzp::Node(ip, port));
   option.op_timeout = 5000;
+
+  char check_time[64];
+  std::time_t tt = std::chrono::system_clock::to_time_t(
+      std::chrono::system_clock::now());
+  ctime_r(&tt, check_time);
+  // remove last '\n' of check_time which was added by ctime_r
+  check_time[strlen(check_time) - 1] = '\0';
+
   cluster = new libzp::Cluster(option);
   view_map.clear();
-  CheckupMeta();
-  CheckupNode();
-  CheckupEpoch();
-  CheckupTable();
-  CheckupConclusion();
+
+  mjson::Json json(mjson::JsonType::kSingle);
+
+  mjson::Json meta_json(mjson::JsonType::kSingle);
+  CheckupMeta(&meta_json);
+
+  mjson::Json node_json(mjson::JsonType::kSingle);
+  CheckupNode(&node_json);
+
+  mjson::Json epoch_json(mjson::JsonType::kSingle);
+  CheckupEpoch(&epoch_json);
+
+  mjson::Json table_json(mjson::JsonType::kSingle);
+  CheckupTable(&table_json);
+
+  mjson::Json conclusion_json(mjson::JsonType::kSingle);
+  CheckupConclusion(&conclusion_json);
+
+  json.AddStr("check_time", check_time);
+  json.AddJson("conclusion", conclusion_json);
+  json.AddJson("meta", meta_json);
+  json.AddJson("node", node_json);
+  json.AddJson("epoch", epoch_json);
+  json.AddJson("table", table_json);
+  std::string json_result = json.Encode();
+  FILE* file = fopen("./checkup_json_result", "w");
+  fwrite(json_result.data(), json_result.size(), 1, file);
+  fclose(file);
 
   return 0;
 }
