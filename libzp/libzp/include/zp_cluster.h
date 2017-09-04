@@ -69,7 +69,7 @@ public:
       zp_completion_t complietion, void* data);
 
   // meta cmd
-  int64_t Epoch() { return epoch_; }
+  int64_t epoch() { return epoch_; }
   Status CreateTable(const std::string& table_name, int partition_num);
   Status DropTable(const std::string& table_name);
   Status Pull(const std::string& table);

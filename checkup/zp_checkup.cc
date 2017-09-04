@@ -307,9 +307,11 @@ void CheckupTable() {
 
         // compare slaves
         bool slave_match = false;
+        bool error_happend = false;
         for (auto s_iter = p_from_view_iter->second.slaves.begin();
             s_iter != p_from_view_iter->second.slaves.end(); s_iter++) {
           slave_match = false;
+          error_happend = false;
           for (auto& s : p.second.slaves()) {
 //            printf("%s:%d --- %s:%d\n",
 //              s_iter->ip.c_str(), s_iter->port, s.ip.c_str(), s.port);
@@ -321,12 +323,17 @@ void CheckupTable() {
           }
           if (!slave_match) {
             dismatch_repl_num.push_back(p.second.id());
+            error_happend = true;
             break;
           }
           if (master_filenum != p_from_view_iter->second.offset.filenum) {
             dismatch_offset_num.push_back(p.second.id());
+            error_happend = true;
             break;
           }
+        }
+        if (error_happend) {
+          break;
         }
       }
     }
