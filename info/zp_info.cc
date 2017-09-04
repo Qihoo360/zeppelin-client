@@ -423,12 +423,12 @@ int main(int argc, char* argv[]) {
 
   option.meta_addr.push_back(libzp::Node(ip, port));
   option.op_timeout = 5000;
-  char check_time[64];
+  char info_time[64];
   std::time_t tt = std::chrono::system_clock::to_time_t(
       std::chrono::system_clock::now());
-  ctime_r(&tt, check_time);
-  // remove last '\n' of check_time which was added by ctime_r
-  check_time[strlen(check_time) - 1] = '\0';
+  ctime_r(&tt, info_time);
+  // remove last '\n' of info_time which was added by ctime_r
+  info_time[strlen(info_time) - 1] = '\0';
 
   cluster = new libzp::Cluster(option);
   view_map.clear();
@@ -470,7 +470,7 @@ int main(int argc, char* argv[]) {
     mjson::Json space_json(mjson::JsonType::kSingle);
     InfoSpace(table, &space_json);
 
-    json.AddStr("check_time", check_time);
+    json.AddStr("info_time", info_time);
     json.AddJson("meta", meta_json);
     json.AddJson("query", query_json);
     json.AddJson("space", space_json);
