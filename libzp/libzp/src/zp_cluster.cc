@@ -1083,6 +1083,9 @@ Status Cluster::GetDataMaster(const std::string& table,
     if (!part) {
       return Status::Incomplete("no partitions yet");
     }
+	if (part->master().port == 0 || part->master().ip == ""){ 
+      return Status::Incomplete("no master yet");
+    }
     *master = part->master();
     return Status::OK();
   } else {
@@ -1098,6 +1101,9 @@ Status Cluster::GetDataMasterById(const std::string& table,
     const Partition* part = it->second->GetPartitionById(partition_id);
     if (!part) {
       return Status::Incomplete("no partitions yet");
+    }
+	if (part->master().port == 0 || part->master().ip == ""){ 
+      return Status::Incomplete("no master yet");
     }
     *master = part->master();
     return Status::OK();
