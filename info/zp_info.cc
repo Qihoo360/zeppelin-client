@@ -306,11 +306,14 @@ void InfoQuery(const std::string& table, mjson::Json* json) {
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
     json->AddStr("error", "true");
+    return;
   }
   printf(REVERSE "%35s" NONE" " REVERSE "%10s" NONE" " REVERSE "%15s" NONE"\n",
       "Table", "QPS", "TotalQuery");
+  mjson::Json query_json(mjson::JsonType::kArray);
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
     mjson::Json tmp_json(mjson::JsonType::kSingle);
+    tmp_json.AddStr("name", *iter);
     if (table != "" && table != *iter) {
       continue;
     }
@@ -325,8 +328,9 @@ void InfoQuery(const std::string& table, mjson::Json* json) {
     tmp_json.AddInt("qps", qps);
     tmp_json.AddInt("total_query", total_query);
 
-    json->AddJson(*iter, tmp_json);
+    query_json.PushJson(tmp_json);
   }
+  json->AddJson("detail", query_json);
 }
 
 void InfoSpace(const std::string& table, mjson::Json* json) {
@@ -336,12 +340,16 @@ void InfoSpace(const std::string& table, mjson::Json* json) {
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
     json->AddStr("error", "true");
+    return;
   }
+  mjson::Json table_json(mjson::JsonType::kArray);
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
-    mjson::Json tmp_json_1(mjson::JsonType::kSingle);
     if (table != "" && table != *iter) {
       continue;
     }
+    mjson::Json tmp_json_1(mjson::JsonType::kSingle);
+    tmp_json_1.AddStr("name", *iter);
+
     printf(PURPLE "%s" NONE"\n", (*iter).c_str());
     std::vector<std::pair<libzp::Node, libzp::SpaceInfo>> nodes;
     libzp::Status s = cluster->InfoSpace(*iter, &nodes);
@@ -352,19 +360,22 @@ void InfoSpace(const std::string& table, mjson::Json* json) {
     printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE" "
         REVERSE "%15s" NONE"\n",
       "Node", "Used", "Remain");
+
+    mjson::Json node_json(mjson::JsonType::kArray);
     for (auto it = nodes.begin(); it != nodes.end(); it++) {
       mjson::Json tmp_json_2(mjson::JsonType::kSingle);
       printf("%15s:%5d %15ld %15ld\n", it->first.ip.c_str(), it->first.port,
           it->second.used, it->second.remain);
+      tmp_json_2.AddStr("node", it->first.ip + ":" +
+                          std::to_string(it->first.port));
       tmp_json_2.AddInt("used", it->second.used);
       tmp_json_2.AddInt("remain", it->second.remain);
-
-      tmp_json_1.AddJson(it->first.ip + ":" +
-                          std::to_string(it->first.port),
-                          tmp_json_2);
+      node_json.PushJson(tmp_json_2);
     }
-    json->AddJson(*iter, tmp_json_1);
+    tmp_json_1.AddJson("detail", node_json);
+    table_json.PushJson(tmp_json_1);
   }
+  json->AddJson("detail", table_json);
 }
 
 void Usage() {

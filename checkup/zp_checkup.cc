@@ -231,6 +231,7 @@ void CheckupTable(mjson::Json* json) {
    */
   std::unordered_map<std::string, libzp::Table*> tables_info =
     cluster->tables();
+  mjson::Json table_json(mjson::JsonType::kArray);
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
     printf(PURPLE " %s: " NONE, (*iter).c_str());
 
@@ -250,6 +251,7 @@ void CheckupTable(mjson::Json* json) {
     std::vector<int> dismatch_offset_num;
 
     mjson::Json tmp_json(mjson::JsonType::kSingle);
+    tmp_json.AddStr("name", *iter);
 
     for (auto& p : partitions) {
       /*
@@ -370,7 +372,7 @@ void CheckupTable(mjson::Json* json) {
           dismatch_offset_num.empty()) {
       printf(GREEN "...... PASSED\n" NONE);
       tmp_json.AddStr("result", "passed");
-      json->AddJson(*iter, tmp_json);
+      table_json.PushJson(tmp_json);
       continue;
     }
 
@@ -426,8 +428,9 @@ void CheckupTable(mjson::Json* json) {
     }
     tmp_json.AddInt("lagging", dismatch_offset_num.size());
 
-    json->AddJson(*iter, tmp_json);
+    table_json.PushJson(tmp_json);
   }
+  json->AddJson("detail", table_json);
 }
 
 void CheckupConclusion(mjson::Json* json) {
