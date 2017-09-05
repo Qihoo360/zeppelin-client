@@ -508,8 +508,10 @@ int main(int argc, char* argv[]) {
   json.AddJson("table", table_json);
   std::string json_result = json.Encode();
   FILE* file = fopen("./checkup_json_result", "w");
-  fwrite(json_result.data(), json_result.size(), 1, file);
-  fclose(file);
+  if (file != nullptr) {
+    fwrite(json_result.data(), json_result.size(), 1, file);
+    fclose(file);
+  }
 
   return 0;
 }

@@ -477,8 +477,10 @@ int main(int argc, char* argv[]) {
     // only dump json to file in "-i all" mode
     std::string json_result = json.Encode();
     FILE* file = fopen("./info_json_result", "w");
-    fwrite(json_result.data(), json_result.size(), 1, file);
-    fclose(file);
+    if (file != nullptr) {
+      fwrite(json_result.data(), json_result.size(), 1, file);
+      fclose(file);
+    }
   } else if (info == "alldetail") {
     InfoNodeDetail();
     printf("\n");
