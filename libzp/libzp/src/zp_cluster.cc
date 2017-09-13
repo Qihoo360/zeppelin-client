@@ -912,6 +912,16 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
            r.ip().c_str(), r.port());
   }
 
+  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+                    CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  }
+
   return s;
 }
 
@@ -1022,6 +1032,16 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     auto r = diff.right();
     printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
            r.ip().c_str(), r.port());
+  }
+
+  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+                    CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
   }
 
   return s;
