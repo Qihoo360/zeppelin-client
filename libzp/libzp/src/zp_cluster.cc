@@ -821,6 +821,18 @@ static void MigrateOnePartition(
     auto iter = vec.begin();
     while (iter != vec.end()) {
       int p_id = (*iter)->id();
+      bool next_p = false;
+      std::vector<const Partition*>& dst_par = (*new_nodes_loads)[dst_node];
+      for (auto p : dst_par) {
+        if (p->id() == p_id) {
+          next_p = true;
+        }
+      }
+      if (next_p) {
+        iter++;
+        continue;
+      }
+
       if (src_node.first.ip != dst_node.ip &&
           PartitionOnSameHost(*nodes_loads, *new_nodes_loads,
                               dst_node.ip, p_id)) {
