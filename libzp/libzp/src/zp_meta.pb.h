@@ -55,7 +55,6 @@ class MetaCmd_AddSlave;
 class MetaCmd_RemoveSlave;
 class MetaCmd_DropTable;
 class MetaCmd_Migrate;
-class MetaCmd_CancelMigrate;
 class MetaCmdResponse;
 class MetaCmdResponse_Ping;
 class MetaCmdResponse_Pull;
@@ -132,6 +131,25 @@ inline bool PState_Parse(
     const ::std::string& name, PState* value) {
   return ::google::protobuf::internal::ParseNamedEnum<PState>(
     PState_descriptor(), name, value);
+}
+enum NodeState {
+  UP = 0,
+  DOWN = 1
+};
+bool NodeState_IsValid(int value);
+const NodeState NodeState_MIN = UP;
+const NodeState NodeState_MAX = DOWN;
+const int NodeState_ARRAYSIZE = NodeState_MAX + 1;
+
+const ::google::protobuf::EnumDescriptor* NodeState_descriptor();
+inline const ::std::string& NodeState_Name(NodeState value) {
+  return ::google::protobuf::internal::NameOfEnum(
+    NodeState_descriptor(), value);
+}
+inline bool NodeState_Parse(
+    const ::std::string& name, NodeState* value) {
+  return ::google::protobuf::internal::ParseNamedEnum<NodeState>(
+    NodeState_descriptor(), name, value);
 }
 // ===================================================================
 
@@ -295,12 +313,12 @@ class NodeStatus : public ::google::protobuf::Message {
   inline ::ZPMeta::Node* release_node();
   inline void set_allocated_node(::ZPMeta::Node* node);
 
-  // required int32 status = 2;
+  // required .ZPMeta.NodeState status = 2;
   inline bool has_status() const;
   inline void clear_status();
   static const int kStatusFieldNumber = 2;
-  inline ::google::protobuf::int32 status() const;
-  inline void set_status(::google::protobuf::int32 value);
+  inline ::ZPMeta::NodeState status() const;
+  inline void set_status(::ZPMeta::NodeState value);
 
   // @@protoc_insertion_point(class_scope:ZPMeta.NodeStatus)
  private:
@@ -312,7 +330,7 @@ class NodeStatus : public ::google::protobuf::Message {
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
   ::ZPMeta::Node* node_;
-  ::google::protobuf::int32 status_;
+  int status_;
 
   mutable int _cached_size_;
   ::google::protobuf::uint32 _has_bits_[(2 + 31) / 32];
@@ -2099,95 +2117,6 @@ class MetaCmd_Migrate : public ::google::protobuf::Message {
 };
 // -------------------------------------------------------------------
 
-class MetaCmd_CancelMigrate : public ::google::protobuf::Message {
- public:
-  MetaCmd_CancelMigrate();
-  virtual ~MetaCmd_CancelMigrate();
-
-  MetaCmd_CancelMigrate(const MetaCmd_CancelMigrate& from);
-
-  inline MetaCmd_CancelMigrate& operator=(const MetaCmd_CancelMigrate& from) {
-    CopyFrom(from);
-    return *this;
-  }
-
-  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const {
-    return _unknown_fields_;
-  }
-
-  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields() {
-    return &_unknown_fields_;
-  }
-
-  static const ::google::protobuf::Descriptor* descriptor();
-  static const MetaCmd_CancelMigrate& default_instance();
-
-  void Swap(MetaCmd_CancelMigrate* other);
-
-  // implements Message ----------------------------------------------
-
-  MetaCmd_CancelMigrate* New() const;
-  void CopyFrom(const ::google::protobuf::Message& from);
-  void MergeFrom(const ::google::protobuf::Message& from);
-  void CopyFrom(const MetaCmd_CancelMigrate& from);
-  void MergeFrom(const MetaCmd_CancelMigrate& from);
-  void Clear();
-  bool IsInitialized() const;
-
-  int ByteSize() const;
-  bool MergePartialFromCodedStream(
-      ::google::protobuf::io::CodedInputStream* input);
-  void SerializeWithCachedSizes(
-      ::google::protobuf::io::CodedOutputStream* output) const;
-  ::google::protobuf::uint8* SerializeWithCachedSizesToArray(::google::protobuf::uint8* output) const;
-  int GetCachedSize() const { return _cached_size_; }
-  private:
-  void SharedCtor();
-  void SharedDtor();
-  void SetCachedSize(int size) const;
-  public:
-
-  ::google::protobuf::Metadata GetMetadata() const;
-
-  // nested types ----------------------------------------------------
-
-  // accessors -------------------------------------------------------
-
-  // repeated string table = 1;
-  inline int table_size() const;
-  inline void clear_table();
-  static const int kTableFieldNumber = 1;
-  inline const ::std::string& table(int index) const;
-  inline ::std::string* mutable_table(int index);
-  inline void set_table(int index, const ::std::string& value);
-  inline void set_table(int index, const char* value);
-  inline void set_table(int index, const char* value, size_t size);
-  inline ::std::string* add_table();
-  inline void add_table(const ::std::string& value);
-  inline void add_table(const char* value);
-  inline void add_table(const char* value, size_t size);
-  inline const ::google::protobuf::RepeatedPtrField< ::std::string>& table() const;
-  inline ::google::protobuf::RepeatedPtrField< ::std::string>* mutable_table();
-
-  // @@protoc_insertion_point(class_scope:ZPMeta.MetaCmd.CancelMigrate)
- private:
-
-  ::google::protobuf::UnknownFieldSet _unknown_fields_;
-
-  ::google::protobuf::RepeatedPtrField< ::std::string> table_;
-
-  mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(1 + 31) / 32];
-
-  friend void  protobuf_AddDesc_zp_5fmeta_2eproto();
-  friend void protobuf_AssignDesc_zp_5fmeta_2eproto();
-  friend void protobuf_ShutdownFile_zp_5fmeta_2eproto();
-
-  void InitAsDefaultInstance();
-  static MetaCmd_CancelMigrate* default_instance_;
-};
-// -------------------------------------------------------------------
-
 class MetaCmd : public ::google::protobuf::Message {
  public:
   MetaCmd();
@@ -2248,7 +2177,6 @@ class MetaCmd : public ::google::protobuf::Message {
   typedef MetaCmd_RemoveSlave RemoveSlave;
   typedef MetaCmd_DropTable DropTable;
   typedef MetaCmd_Migrate Migrate;
-  typedef MetaCmd_CancelMigrate CancelMigrate;
 
   // accessors -------------------------------------------------------
 
@@ -2331,15 +2259,6 @@ class MetaCmd : public ::google::protobuf::Message {
   inline ::ZPMeta::MetaCmd_Migrate* release_migrate();
   inline void set_allocated_migrate(::ZPMeta::MetaCmd_Migrate* migrate);
 
-  // optional .ZPMeta.MetaCmd.CancelMigrate cancel_migrate = 10;
-  inline bool has_cancel_migrate() const;
-  inline void clear_cancel_migrate();
-  static const int kCancelMigrateFieldNumber = 10;
-  inline const ::ZPMeta::MetaCmd_CancelMigrate& cancel_migrate() const;
-  inline ::ZPMeta::MetaCmd_CancelMigrate* mutable_cancel_migrate();
-  inline ::ZPMeta::MetaCmd_CancelMigrate* release_cancel_migrate();
-  inline void set_allocated_cancel_migrate(::ZPMeta::MetaCmd_CancelMigrate* cancel_migrate);
-
   // @@protoc_insertion_point(class_scope:ZPMeta.MetaCmd)
  private:
   inline void set_has_type();
@@ -2360,8 +2279,6 @@ class MetaCmd : public ::google::protobuf::Message {
   inline void clear_has_drop_table();
   inline void set_has_migrate();
   inline void clear_has_migrate();
-  inline void set_has_cancel_migrate();
-  inline void clear_has_cancel_migrate();
 
   ::google::protobuf::UnknownFieldSet _unknown_fields_;
 
@@ -2373,11 +2290,10 @@ class MetaCmd : public ::google::protobuf::Message {
   ::ZPMeta::MetaCmd_RemoveSlave* remove_slave_;
   ::ZPMeta::MetaCmd_DropTable* drop_table_;
   ::ZPMeta::MetaCmd_Migrate* migrate_;
-  ::ZPMeta::MetaCmd_CancelMigrate* cancel_migrate_;
   int type_;
 
   mutable int _cached_size_;
-  ::google::protobuf::uint32 _has_bits_[(10 + 31) / 32];
+  ::google::protobuf::uint32 _has_bits_[(9 + 31) / 32];
 
   friend void  protobuf_AddDesc_zp_5fmeta_2eproto();
   friend void protobuf_AssignDesc_zp_5fmeta_2eproto();
@@ -3251,7 +3167,7 @@ inline void NodeStatus::set_allocated_node(::ZPMeta::Node* node) {
   }
 }
 
-// required int32 status = 2;
+// required .ZPMeta.NodeState status = 2;
 inline bool NodeStatus::has_status() const {
   return (_has_bits_[0] & 0x00000002u) != 0;
 }
@@ -3265,10 +3181,11 @@ inline void NodeStatus::clear_status() {
   status_ = 0;
   clear_has_status();
 }
-inline ::google::protobuf::int32 NodeStatus::status() const {
-  return status_;
+inline ::ZPMeta::NodeState NodeStatus::status() const {
+  return static_cast< ::ZPMeta::NodeState >(status_);
 }
-inline void NodeStatus::set_status(::google::protobuf::int32 value) {
+inline void NodeStatus::set_status(::ZPMeta::NodeState value) {
+  assert(::ZPMeta::NodeState_IsValid(value));
   set_has_status();
   status_ = value;
 }
@@ -4764,54 +4681,6 @@ MetaCmd_Migrate::mutable_diff() {
 
 // -------------------------------------------------------------------
 
-// MetaCmd_CancelMigrate
-
-// repeated string table = 1;
-inline int MetaCmd_CancelMigrate::table_size() const {
-  return table_.size();
-}
-inline void MetaCmd_CancelMigrate::clear_table() {
-  table_.Clear();
-}
-inline const ::std::string& MetaCmd_CancelMigrate::table(int index) const {
-  return table_.Get(index);
-}
-inline ::std::string* MetaCmd_CancelMigrate::mutable_table(int index) {
-  return table_.Mutable(index);
-}
-inline void MetaCmd_CancelMigrate::set_table(int index, const ::std::string& value) {
-  table_.Mutable(index)->assign(value);
-}
-inline void MetaCmd_CancelMigrate::set_table(int index, const char* value) {
-  table_.Mutable(index)->assign(value);
-}
-inline void MetaCmd_CancelMigrate::set_table(int index, const char* value, size_t size) {
-  table_.Mutable(index)->assign(
-    reinterpret_cast<const char*>(value), size);
-}
-inline ::std::string* MetaCmd_CancelMigrate::add_table() {
-  return table_.Add();
-}
-inline void MetaCmd_CancelMigrate::add_table(const ::std::string& value) {
-  table_.Add()->assign(value);
-}
-inline void MetaCmd_CancelMigrate::add_table(const char* value) {
-  table_.Add()->assign(value);
-}
-inline void MetaCmd_CancelMigrate::add_table(const char* value, size_t size) {
-  table_.Add()->assign(reinterpret_cast<const char*>(value), size);
-}
-inline const ::google::protobuf::RepeatedPtrField< ::std::string>&
-MetaCmd_CancelMigrate::table() const {
-  return table_;
-}
-inline ::google::protobuf::RepeatedPtrField< ::std::string>*
-MetaCmd_CancelMigrate::mutable_table() {
-  return &table_;
-}
-
-// -------------------------------------------------------------------
-
 // MetaCmd
 
 // required .ZPMeta.Type type = 1;
@@ -5138,44 +5007,6 @@ inline void MetaCmd::set_allocated_migrate(::ZPMeta::MetaCmd_Migrate* migrate) {
     set_has_migrate();
   } else {
     clear_has_migrate();
-  }
-}
-
-// optional .ZPMeta.MetaCmd.CancelMigrate cancel_migrate = 10;
-inline bool MetaCmd::has_cancel_migrate() const {
-  return (_has_bits_[0] & 0x00000200u) != 0;
-}
-inline void MetaCmd::set_has_cancel_migrate() {
-  _has_bits_[0] |= 0x00000200u;
-}
-inline void MetaCmd::clear_has_cancel_migrate() {
-  _has_bits_[0] &= ~0x00000200u;
-}
-inline void MetaCmd::clear_cancel_migrate() {
-  if (cancel_migrate_ != NULL) cancel_migrate_->::ZPMeta::MetaCmd_CancelMigrate::Clear();
-  clear_has_cancel_migrate();
-}
-inline const ::ZPMeta::MetaCmd_CancelMigrate& MetaCmd::cancel_migrate() const {
-  return cancel_migrate_ != NULL ? *cancel_migrate_ : *default_instance_->cancel_migrate_;
-}
-inline ::ZPMeta::MetaCmd_CancelMigrate* MetaCmd::mutable_cancel_migrate() {
-  set_has_cancel_migrate();
-  if (cancel_migrate_ == NULL) cancel_migrate_ = new ::ZPMeta::MetaCmd_CancelMigrate;
-  return cancel_migrate_;
-}
-inline ::ZPMeta::MetaCmd_CancelMigrate* MetaCmd::release_cancel_migrate() {
-  clear_has_cancel_migrate();
-  ::ZPMeta::MetaCmd_CancelMigrate* temp = cancel_migrate_;
-  cancel_migrate_ = NULL;
-  return temp;
-}
-inline void MetaCmd::set_allocated_cancel_migrate(::ZPMeta::MetaCmd_CancelMigrate* cancel_migrate) {
-  delete cancel_migrate_;
-  cancel_migrate_ = cancel_migrate;
-  if (cancel_migrate) {
-    set_has_cancel_migrate();
-  } else {
-    clear_has_cancel_migrate();
   }
 }
 
@@ -5884,6 +5715,10 @@ inline const EnumDescriptor* GetEnumDescriptor< ::ZPMeta::Type>() {
 template <>
 inline const EnumDescriptor* GetEnumDescriptor< ::ZPMeta::PState>() {
   return ::ZPMeta::PState_descriptor();
+}
+template <>
+inline const EnumDescriptor* GetEnumDescriptor< ::ZPMeta::NodeState>() {
+  return ::ZPMeta::NodeState_descriptor();
 }
 
 }  // namespace google

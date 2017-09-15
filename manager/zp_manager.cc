@@ -295,6 +295,13 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
 
       s = cluster->Shrink(table_name, deleting);
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "CANCELMIGRATE", 13)) {
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      s = cluster->CancelMigrate();
+      std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "GET ", 4)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -365,19 +372,29 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "METASTATUS", 10)) {
-
       if (line_args.size() != 1) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
-      std::string meta_status;
-      s = cluster->MetaStatus(&meta_status);
+      int32_t version;
+      std::string consistency_stautus;
+      int64_t begin_time;
+      int32_t complete_proportion;
+      s = cluster->MetaStatus(&version, &consistency_stautus,
+                              &begin_time, &complete_proportion);
       if (!s.ok()) {
         std::cout << "Failed: " << s.ToString() << std::endl;
         continue;
       }
+      std::cout << "Version: " << version << std::endl;
       std::cout << std::string(140, '=') << std::endl;
-      std::cout << meta_status << std::endl;
+      std::cout << consistency_stautus << std::endl;
+      std::cout << std::string(140, '=') << std::endl;
+      if (begin_time != 0) {
+        std::cout << "Migrate Status:" << std::endl;
+        std::cout << "begin_time: " << begin_time << std::endl;
+        std::cout << "complete_proportion: " << complete_proportion << std::endl;
+      }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "LISTNODE", 8)) {
       if (line_args.size() != 1) {

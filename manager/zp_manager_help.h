@@ -66,6 +66,11 @@ CommandHelp commandHelp[] = {
     2,
     "shrink table's capacity"},
 
+  { "CANCELMIGRATE",
+    "",
+    0,
+    "cancel zeppelin migrate"},
+
   { "LISTTABLE",
     "",
     0,

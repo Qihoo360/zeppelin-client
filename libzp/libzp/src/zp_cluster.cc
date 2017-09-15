@@ -1059,6 +1059,23 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   return s;
 }
 
+Status Cluster::CancelMigrate() {
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::CANCELMIGRATE);
+
+  Status s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+                           CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  }
+
+  return s;
+}
+
 Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::LISTMETA);
@@ -1085,7 +1102,18 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   return Status::OK();
 }
 
-Status Cluster::MetaStatus(std::string* meta_status) {
+Status Cluster::MetaStatus(std::string* consistency_stautus) {
+  int32_t version;
+  int64_t begin_time;
+  int32_t complete_proportion;
+  return MetaStatus(&version, consistency_stautus,
+                    &begin_time, &complete_proportion);
+}
+
+Status Cluster::MetaStatus(int32_t* version,
+                           std::string* consistency_stautus,
+                           int64_t* begin_time,
+                           int32_t* complete_proportion) {
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::METASTATUS);
 
@@ -1098,8 +1126,15 @@ Status Cluster::MetaStatus(std::string* meta_status) {
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }
-  // Server will return OK all the time.
-  *meta_status = meta_res_->msg();
+
+  const ZPMeta::MetaCmdResponse_MetaStatus& mstatus = meta_res_->meta_status();
+  *version = mstatus.version();
+  *consistency_stautus = mstatus.consistency_stautus();
+
+  const ZPMeta::MigrateStatus& migrate_status = mstatus.migrate_status();
+  *begin_time = migrate_status.begin_time();
+  *complete_proportion = migrate_status.complete_proportion();
+
   return Status::OK();
 }
 

@@ -82,11 +82,14 @@ public:
       const Node& ip_port);
   Status Expand(const std::string& table, const std::vector<Node>& ip_ports);
   Status Shrink(const std::string& table, const std::vector<Node>& ip_ports);
+  Status CancelMigrate();
 
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);
   Status ListMeta(Node* master, std::vector<Node>* nodes);
   Status MetaStatus(std::string* meta_status);
+  Status MetaStatus(int32_t* version, std::string* consistency_stautus,
+                    int64_t* begin_time, int32_t* complete_proportion);
   Status ListNode(std::vector<Node>* nodes,
       std::vector<std::string>* status);
 
