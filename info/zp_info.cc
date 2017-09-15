@@ -383,32 +383,34 @@ void Usage() {
           "Usage: zp_info [-h host -p port -i info]\n"
           "\t-h     -- zeppelin meta ip(OPTIONAL default: 127.0.0.1) \n"
           "\t-p     -- zeppelin meta port(OPTIONAL default: 9221) \n"
-          "\t-i     -- info field (REQUIRE)\n"
+          "\t-i     -- info field (OPTIONAL default: all)\n"
           "\t          INCLUDE [node, nodedetail, meta, table,"
                                " tabledetail, query, space, all, alldetail]\n"
           "\t-t     -- specific table(OPTIONAL default: all-table)\n"
+          "\t-j     -- json output path(OPTIONAL default: ./info_json_result)\n"
           "\t          NOTICE: -t is disabled when -i is"
                        " [node, nodedetail, meta]\n"
-          "example: ./zp_info -i all\n");
+          "example: ./zp_info\n");
 }
 
 int main(int argc, char* argv[]) {
-  if (argc == 1) {
-    Usage();
-    return 0;
-  }
   libzp::Options option;
   std::string ip = "127.0.0.1";
   int port = 9221;
-  std::string info = "";
+  std::string info = "all";
   std::string table = "";
+  std::string json_path = "./info_json_result";
   char buf[1024];
   char c;
-  while (-1 != (c = getopt(argc, argv, "h:p:i:t:"))) {
+  while (-1 != (c = getopt(argc, argv, "h:p:i:t:j:"))) {
     switch (c) {
       case 'h':
         snprintf(buf, sizeof(buf), "%s", optarg);
         ip = std::string(buf);
+        if (ip == "") {
+          Usage();
+          return 0;
+        }
         break;
       case 'p':
         snprintf(buf, sizeof(buf), "%s", optarg);
@@ -422,14 +424,14 @@ int main(int argc, char* argv[]) {
         snprintf(buf, sizeof(buf), "%s", optarg);
         table = buf;
         break;
+      case 'j':
+        snprintf(buf, sizeof(buf), "%s", optarg);
+        json_path = buf;
+        break;
       default:
         Usage();
         return 0;
     }
-  }
-  if (info == "") {
-    Usage();
-    return 0;
   }
 
   option.meta_addr.push_back(libzp::Node(ip, port));
@@ -487,7 +489,7 @@ int main(int argc, char* argv[]) {
     json.AddJson("space", space_json);
     // only dump json to file in "-i all" mode
     std::string json_result = json.Encode();
-    FILE* file = fopen("./info_json_result", "w");
+    FILE* file = fopen(json_path.c_str(), "w");
     if (file != nullptr) {
       fwrite(json_result.data(), json_result.size(), 1, file);
       fclose(file);

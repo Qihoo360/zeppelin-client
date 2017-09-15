@@ -446,30 +446,42 @@ void CheckupConclusion(mjson::Json* json) {
 
 void Usage() {
   fprintf(stderr,
-          "Usage: zp_chekup [host port]\n"
-          "\thost     -- zeppelin meta ip(OPTIONAL default: 127.0.0.1) \n"
-          "\tport     -- zeppelin meta port(OPTIONAL default: 9221) \n"
-          "\t-h       -- show this help"
+          "Usage: zp_chekup [-h host -p port -j json_output_path]\n"
+          "\t-h     -- zeppelin meta ip(OPTIONAL default: 127.0.0.1) \n"
+          "\t-p     -- zeppelin meta port(OPTIONAL default: 9221) \n"
+          "\t-j     -- json output path"
+                       "(OPTIONAL default: ./checkup_json_result)\n"
           "example: ./zp_checkup\n");
 }
 
 int main(int argc, char* argv[]) {
-  if (argc > 3) {
-    Usage();
-    return 0;
-  }
-
   std::string ip = "127.0.0.1";
   int port = 9221;
-  if (argc > 1) {
-    ip = argv[1];
-    if (ip == "-h") {
-      Usage();
-      return 0;
+  std::string json_path = "./checkup_json_result";
+  char buf[1024];
+  char c;
+  while (-1 != (c = getopt(argc, argv, "h:p:j:"))) {
+    switch (c) {
+      case 'h':
+        snprintf(buf, sizeof(buf), "%s", optarg);
+        ip = std::string(buf);
+        if (ip == "") {
+          Usage();
+          return 0;
+        }
+        break;
+      case 'p':
+        snprintf(buf, sizeof(buf), "%s", optarg);
+        port = std::atoi(buf);
+        break;
+      case 'j':
+        snprintf(buf, sizeof(buf), "%s", optarg);
+        json_path = buf;
+        break;
+      default:
+        Usage();
+        return 0;
     }
-  }
-  if (argc == 3) {
-    port = std::atoi(argv[2]);
   }
 
   libzp::Options option;
@@ -510,7 +522,7 @@ int main(int argc, char* argv[]) {
   json.AddJson("epoch", epoch_json);
   json.AddJson("table", table_json);
   std::string json_result = json.Encode();
-  FILE* file = fopen("./checkup_json_result", "w");
+  FILE* file = fopen(json_path.c_str(), "w");
   if (file != nullptr) {
     fwrite(json_result.data(), json_result.size(), 1, file);
     fclose(file);
