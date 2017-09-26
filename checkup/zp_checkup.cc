@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <ctime>
 
+#include <fstream>
 #include <vector>
 #include <chrono>
 
@@ -446,11 +447,15 @@ void CheckupConclusion(mjson::Json* json) {
 
 void Usage() {
   fprintf(stderr,
-          "Usage: zp_chekup [-h host -p port -j json_output_path]\n"
+          "Usage: zp_checkup [-h host -p port -j json_output_path "
+                    "-c cluster_conf_file_path]\n"
           "\t-h     -- zeppelin meta ip(OPTIONAL default: 127.0.0.1) \n"
           "\t-p     -- zeppelin meta port(OPTIONAL default: 9221) \n"
           "\t-j     -- json output path"
                        "(OPTIONAL default: ./checkup_json_result)\n"
+          "\t-c     -- zeppelin cluster conf file path"
+                       "(OPTIONAL, default: null)\n"
+          "\t          NOTICE: if -c was set, it will mask -h & -p)\n"
           "example: ./zp_checkup\n");
 }
 
@@ -458,9 +463,10 @@ int main(int argc, char* argv[]) {
   std::string ip = "127.0.0.1";
   int port = 9221;
   std::string json_path = "./checkup_json_result";
+  std::string conf_path = "";
   char buf[1024];
   char c;
-  while (-1 != (c = getopt(argc, argv, "h:p:j:"))) {
+  while (-1 != (c = getopt(argc, argv, "h:p:j:c:"))) {
     switch (c) {
       case 'h':
         snprintf(buf, sizeof(buf), "%s", optarg);
@@ -478,6 +484,10 @@ int main(int argc, char* argv[]) {
         snprintf(buf, sizeof(buf), "%s", optarg);
         json_path = buf;
         break;
+      case 'c':
+        snprintf(buf, sizeof(buf), "%s", optarg);
+        conf_path = buf;
+        break;
       default:
         Usage();
         return 0;
@@ -485,7 +495,59 @@ int main(int argc, char* argv[]) {
   }
 
   libzp::Options option;
-  option.meta_addr.push_back(libzp::Node(ip, port));
+  if (conf_path != "") {
+    std::ifstream in(conf_path);
+    if (!in.is_open()) {
+      printf("Open conf file failed\n");
+      return false;
+    }
+    char buf[1024];
+    std::string arg;
+    while (!in.eof()) {
+      in.getline(buf, sizeof(buf));
+      arg = std::string(buf);
+      if (arg.find("meta_addr") == std::string::npos) {
+        continue;
+      }
+      std::string::size_type pos = arg.find_first_of(':');
+      if (pos != std::string::npos) {
+        arg = arg.substr(pos + 1);
+
+        pos = arg.find_last_of(' ');
+        if (pos != std::string::npos) {
+          arg = arg.substr(pos + 1);
+        }
+      }
+      break;
+    }
+    printf("Load Meta Addrs: %s\n", arg.c_str());
+    std::string ip;
+    int port;
+    while (true) {
+      std::string::size_type pos = arg.find(",");
+      if (pos == std::string::npos) {
+        std::string ip_port = arg;
+        std::string::size_type t_pos = ip_port.find('/');
+        if (t_pos != std::string::npos) {
+          ip = ip_port.substr(0, t_pos);
+          port = atoi(ip_port.substr(t_pos + 1).data());
+          option.meta_addr.push_back(libzp::Node(ip, port));
+        }
+        break;
+      }
+      std::string ip_port = arg.substr(0, pos);
+      std::string::size_type t_pos = ip_port.find('/');
+      if (t_pos != std::string::npos) {
+        ip = ip_port.substr(0, t_pos);
+        port = atoi(ip_port.substr(t_pos + 1).data());
+        option.meta_addr.push_back(libzp::Node(ip, port));
+      }
+      arg = arg.substr(pos + 1);
+    }
+  } else {
+    option.meta_addr.push_back(libzp::Node(ip, port));
+  }
+
   option.op_timeout = 5000;
 
   char check_time[64];
