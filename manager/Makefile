@@ -48,6 +48,16 @@ endif
 SLASH_INCLUDE_DIR=$(SLASH_PATH)
 SLASH_LIBRARY=$(SLASH_PATH)/slash/lib/libslash$(DEBUG_SUFFIX).a
 
+ifeq ($(MAKECMDGOALS),rocksdb_to_zp)
+ifndef ROCKSDB_PATH
+  $(error Error: missing rocksdb path!)
+endif
+ROCKSDB_INCLUDE_DIR=$(ROCKSDB_PATH)/include
+ROCKSDB_LIBRARY=$(ROCKSDB_PATH)/librocksdb$(DEBUG_SUFFIX).a
+LDFLAGS += -lz -lbz2 -lsnappy
+endif
+# ----------------------------------------------
+
 CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I$(ZP_INCLUDE_DIR)
 LDFLAGS+= $(ZP_LIBRARY) $(PINK_LIBRARY) $(SLASH_LIBRARY)
 
@@ -57,16 +67,10 @@ AM_V_CC = $(am__v_CC_$(V))
 am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
 am__v_CC_0 = @echo "  CC     " $@;
 am__v_CC_1 =
-AM_V_CXX = $(am__v_CXX_$(V))
-am__v_CXX_ = $(am__v_CXX_$(AM_DEFAULT_VERBOSITY))
-am__v_CXX_0 = @echo "  CXX     " $@;
-am__v_CXX_1 =
 AM_V_LD = $(am__v_LD_$(V))
 am__v_LD_ = $(am__v_LD_$(AM_DEFAULT_VERBOSITY))
 am__v_LD_0 = @echo "  LD      " $@;
 am__v_LD_1 =
-
-AM_LINK = $(AM_V_LD)$(CXX) $^ -o $@ $(LDFLAGS)
 
 # This (the first rule) must depend on "all".
 default: all
@@ -83,20 +87,35 @@ CFLAGS += $(WARNING_FLAGS) $(OPT)
 
 .PHONY: clean dbg all
 
-all: zp_manager
+all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
 
-dbg: zp_manager
+dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
 
-zp_manager: zp_manager.o linenoise.o
-	$(AM_LINK)
+zp_benchmark: zp_benchmark.cc
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-zp_manager.o: zp_manager.cc zp_manager_help.h linenoise.h
-	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@
+zp_checkup: zp_checkup.cc utils/json.cc utils/json.h
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-linenoise.o: linenoise.c linenoise.h
+zp_expansion: zp_expansion.cc
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
+
+zp_info: zp_info.cc utils/json.cc utils/json.h
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
+
+zp_manager: zp_manager.cc utils/linenoise.o
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
+
+utils/linenoise.o: utils/linenoise.c utils/linenoise.h
 	$(AM_V_CC)$(CC) $(CFLAGS) -c $< -o $@
 
+zp_parade: zp_parade.cc
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
+
+rocksdb_to_zp: rocksdb_to_zp.cc
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) -I$(ROCKSDB_INCLUDE_DIR) $(LDFLAGS) $(ROCKSDB_LIBRARY)
+
 clean:
-	rm -f zp_manager
-	find . -name "*.[oda]*" ! -path "./third/*" -exec rm -f {} \;
+	rm -f zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp
+	find . -name "*.[oda]*" ! -exec rm -f {} \;
 	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;

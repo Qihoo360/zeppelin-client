@@ -1,3 +1,5 @@
+### zp_manager
+
 zeppelin的管理端命令行工具zp_manager，提供对集群的数据访问，建表，迁移，切主，状态查询等功能。
 复杂功能如扩容，缩容，迁移，由基本命令setmaster, addslave, removeslave 组合完成
 
@@ -156,3 +158,14 @@ partition:2
   offset:77016777
 ```
 
+### zp_benchmark
+
+Zeppelin Performance Test Tool 
+
+### zp_expansion
+
+Zeppelin Migration or Expansion Tool
+
+### zp_parade
+
+Execute Zeppelin Client Operation One by One
