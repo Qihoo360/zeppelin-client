@@ -6,6 +6,8 @@
 #include <unordered_set>
 #include <tuple>
 #include <deque>
+#include <memory>
+#include <queue>
 #include <string>
 #include <algorithm>
 
@@ -759,115 +761,137 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   }
 }
 
-static int NodeLoad(
-    const std::map<Node, std::vector<const Partition*>>& nodes_loads,
+namespace {
+
+struct NodeWithLoad {
+  Node node;
+  std::vector<const Partition*> partitions;
+};
+
+int NodeLoad(
+    const std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>& nodes_map,
     const Node& n)  {
-  int load = 0;
-  auto iter = nodes_loads.find(n);
-  if (iter != nodes_loads.end()) {
-    load = iter->second.size();
+  auto iter = nodes_map.find(n.ip);
+  if (iter != nodes_map.end()) {
+    for (auto& nwl : iter->second) {
+      if (nwl->node == n) {
+        return nwl->partitions.size();
+      }
+    }
   }
-  return load;
+  return 0;
 }
 
-static bool PartitionOnSameHost(
-    const std::map<Node, std::vector<const Partition*>>& nodes_loads,
-    const std::string& candidate_ip, int p_id) {
+std::shared_ptr<NodeWithLoad> FindNodeWithLoad(
+    const std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>& nodes_map,
+    const Node& node) {
+  assert(nodes_map.find(node.ip) != nodes_map.end());
+  for (auto nwl : nodes_map.at(node.ip)) {
+    if (nwl->node == node) {
+      return nwl;
+    }
+  }
+  return nullptr;
+}
+
+int ParCountOnHost(
+    const std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>& nodes_map,
+    const Node& src_node, int par_id) {
+  assert(nodes_map.find(src_node.ip) != nodes_map.end());
+  const std::vector<std::shared_ptr<NodeWithLoad>>& n_vec = nodes_map.at(src_node.ip);
   int count = 0;
-  for (auto& item : nodes_loads) {
-    if (item.first.ip == candidate_ip) {
-      for (auto p : item.second) {
-        if (p->id() == p_id) {
-          ++count;
-        }
+  for (auto& nwl : n_vec) {
+    for (auto p : nwl->partitions) {
+      if (p->id() == par_id) {
+        count++;
       }
     }
   }
-  return count > 1;
+  return count;
 }
 
-static bool PartitionOnSameHost(
-    const std::map<Node, std::vector<const Partition*>>& nodes_loads1,
-    const std::map<Node, std::vector<const Partition*>>& nodes_loads2,
-    const std::string& candidate_ip, int p_id) {
-  std::map<Node, std::vector<const Partition*>> nodes_loads(
-      nodes_loads1.begin(), nodes_loads1.end());
-  nodes_loads.insert(nodes_loads2.begin(), nodes_loads2.end());
-  return PartitionOnSameHost(nodes_loads, candidate_ip, p_id);
-}
-
-static void MigrateOnePartition(
-    const std::string& table, const Node& dst_node, double average,
-    ZPMeta::MetaCmd_Migrate* migrate_cmd,
-    std::map<Node, std::vector<const Partition*>>* new_nodes_loads,
-    std::map<Node, std::vector<const Partition*>>* nodes_loads) {
-
-  // Sort by partition load, descending order
-  std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes(
-      nodes_loads->begin(), nodes_loads->end());
-  auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
-                       const std::pair<Node, std::vector<const Partition*>>& rhs) {
-    return lhs.second.size() > rhs.second.size();
-  };
-  std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
-  int bottom_of_load = static_cast<int>(std::floor(average));
-  int limit_of_load = static_cast<int>(std::ceil(average));
-
-  // item -> std::pair<Node, std::vector<const Partition*>>
-  // node -> destination node
-
-  for (auto& src_node : sorted_nodes) {
-    std::vector<const Partition*>& vec = (*nodes_loads)[src_node.first];
-    auto iter = vec.begin();
-    while (iter != vec.end()) {
-      int p_id = (*iter)->id();
-      bool next_p = false;
-      std::vector<const Partition*>& dst_par = (*new_nodes_loads)[dst_node];
-      for (auto p : dst_par) {
-        if (p->id() == p_id) {
-          next_p = true;
-        }
-      }
-      if (next_p) {
-        iter++;
-        continue;
-      }
-
-      if (src_node.first.ip != dst_node.ip &&
-          PartitionOnSameHost(*nodes_loads, *new_nodes_loads,
-                              dst_node.ip, p_id)) {
-        iter++;
-        continue;
-      }
-      if (NodeLoad(*nodes_loads, src_node.first) <= bottom_of_load) {
-        // Next source node
-        break;
-      }
-      if (NodeLoad(*new_nodes_loads, dst_node) >= limit_of_load) {
-        return;
-      }
-
-      (*new_nodes_loads)[dst_node].push_back(*iter);
-      iter = vec.erase(iter);
-
-      // Build cmd proto
-      auto cmd_unit = migrate_cmd->add_diff();
-      cmd_unit->set_table(table);
-      cmd_unit->set_partition(p_id);
-      auto l = cmd_unit->mutable_left();
-      l->set_ip(src_node.first.ip);
-      l->set_port(src_node.first.port);
-      auto r = cmd_unit->mutable_right();
-      r->set_ip(dst_node.ip);
-      r->set_port(dst_node.port);
+bool ParExistOnNode(
+    const std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>& nodes_map,
+    const Node& node, int par_id) {
+  const auto nwl = FindNodeWithLoad(nodes_map, node);
+  for (const auto p : nwl->partitions) {
+    if (p->id() == par_id) {
+      return true;
     }
   }
+  return false;
 }
 
-Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_nodes) {
+const Partition* SelectOnePartition(
+    const std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>& nodes_map,
+    const Node& src_node,
+    const Node& dst_node) {
+  const auto nwl = FindNodeWithLoad(nodes_map, src_node);
+  if (nodes_map.size() == 1) {
+    assert(nwl->partitions.size() > 0);
+    for (const auto p : nwl->partitions) {
+      if (ParExistOnNode(nodes_map, dst_node, p->id())) {
+        continue;
+      }
+      return p;
+    }
+  } else if (nodes_map.size() == 2) {
+    for (const auto p : nwl->partitions) {
+      if (ParExistOnNode(nodes_map, dst_node, p->id())) {
+        continue;
+      }
+      int load = ParCountOnHost(nodes_map, dst_node, p->id());
+      if (load == 2) {
+        continue;
+      }
+      return p;
+    }
+  } else {
+    for (const auto p : nwl->partitions) {
+      if (ParExistOnNode(nodes_map, dst_node, p->id())) {
+        continue;
+      }
+      int load = ParCountOnHost(nodes_map, dst_node, p->id());
+      if (load == 1) {
+        continue;
+      }
+      return p;
+    }
+  }
+  return nullptr;
+}
+
+bool IsValidDstNode(
+    const std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>& nodes_map,
+    const Node& dst_node,
+    int par_id) {
+  if (ParExistOnNode(nodes_map, dst_node, par_id)) {
+    return false;
+  }
+  if (nodes_map.size() == 1) {
+    return true;
+  } else if (nodes_map.size() == 2) {
+    int load = ParCountOnHost(nodes_map, dst_node, par_id);
+    if (load <= 1) {
+      return true;
+    }
+  } else {
+    int load = ParCountOnHost(nodes_map, dst_node, par_id);
+    if (load == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+}
+
+Status Cluster::Expand(
+    const std::string& table,
+    const std::vector<Node>& new_nodes) {
   Status s;
   if (new_nodes.empty()) {
-    return s; // OK
+    return s;  // OK
   }
   s = PullInternal(table, CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
@@ -877,45 +901,128 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
     return Status::InvalidArgument("table not fount");
   }
 
+  auto cmp = [](std::shared_ptr<NodeWithLoad> left,
+                std::shared_ptr<NodeWithLoad> right) {
+    return left->partitions.size() < right->partitions.size();
+  };
+  std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>
+    nodes_map;  // new nodes and origin nodes
+  std::priority_queue<std::shared_ptr<NodeWithLoad>,
+                      std::vector<std::shared_ptr<NodeWithLoad>>,
+                      decltype(cmp)> src_nodes_queue(cmp);
+
   // Get origin and new nodes loads
   Table* table_ptr = tables_[table];
   std::map<Node, std::vector<const Partition*>> nodes_loads;
-  std::map<Node, std::vector<const Partition*>> new_nodes_loads;
   table_ptr->GetNodesLoads(&nodes_loads);
   for (auto& nn : new_nodes) {
-    new_nodes_loads.insert(std::make_pair(nn, std::vector<const Partition*>{}));
+    if (nodes_loads.find(nn) != nodes_loads.end()) {
+      continue;  // Exist node
+    }
+    std::shared_ptr<NodeWithLoad>
+      item(new NodeWithLoad{nn, std::vector<const Partition*>{}});
+    if (nodes_map.find(nn.ip) != nodes_map.end()) {
+      nodes_map[nn.ip].push_back(item);
+    } else {
+      nodes_map.insert(
+        std::make_pair(nn.ip, std::vector<std::shared_ptr<NodeWithLoad>>{item}));
+    }
   }
 
   // Calculate average load and restriction
   int total_load = 0;
   for (auto& n : nodes_loads) {
-    total_load += NodeLoad(nodes_loads, n.first);
+    total_load += n.second.size();
+    std::shared_ptr<NodeWithLoad> nwl(new NodeWithLoad{n.first, n.second});
+    if (nodes_map.find(n.first.ip) != nodes_map.end()) {
+      nodes_map[n.first.ip].push_back(nwl);
+    } else {
+      nodes_map.insert(std::make_pair(
+        n.first.ip, std::vector<std::shared_ptr<NodeWithLoad>>{nwl}));
+    }
+    src_nodes_queue.push(nwl);
   }
   double average = static_cast<double>(total_load) /
-    (nodes_loads.size() + new_nodes_loads.size());
-  int limit_of_load = static_cast<int>(std::ceil(average));
+    (nodes_loads.size() + new_nodes.size());
+  int ceil_of_load = static_cast<int>(std::ceil(average));
+  int floor_of_load = static_cast<int>(std::floor(average));
 
+  // Debug: dump nodes_map
+  for (auto& host : nodes_map) {
+    printf("Host: %s\n", host.first.c_str());
+    for (auto& node_with_load : host.second) {
+      printf("\tNode: %s --- ", node_with_load->node.ToString().c_str());
+      if (nodes_loads.find(node_with_load->node) == nodes_loads.end()) {
+        printf("{}\n");
+        continue;
+      }
+      printf("{");
+      size_t i = 0;
+      for (; i < node_with_load->partitions.size() - 1; i++) {
+        printf("%d, ", node_with_load->partitions[i]->id());
+      }
+      printf("%d}\n", node_with_load->partitions[i]->id());
+    }
+  }
+
+  // Init protobuf
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
   ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
   migrate_cmd->set_origin_epoch(epoch_);
 
-  // Select node to move
-  for (auto& node : new_nodes) {
-    int count = 0;
-    for (;;) {
-      count++;
-      MigrateOnePartition(table, node, average, migrate_cmd,
-                          &new_nodes_loads, &nodes_loads);
-      if (NodeLoad(new_nodes_loads, node) >= limit_of_load) {
-        break;
-      } else if (count > 3) {
+  for (auto& dst_node : new_nodes) {
+    std::vector<std::shared_ptr<NodeWithLoad>> nodes_buffer;
+    while (!src_nodes_queue.empty()) {
+      auto nwl = src_nodes_queue.top();
+      src_nodes_queue.pop();
+      const Node& src_node = nwl->node;
+      int load1 = NodeLoad(nodes_map, dst_node);
+      int load2 = NodeLoad(nodes_map, src_node);
+      if (load1 >= ceil_of_load) {
+        src_nodes_queue.push(nwl);
         break;
       }
+      if (load2 <= floor_of_load) {
+        continue;
+      }
+      const Partition* p =
+        SelectOnePartition(nodes_map, src_node, dst_node);
+      if (p != nullptr) {
+        // Build cmd proto
+        auto cmd_unit = migrate_cmd->add_diff();
+        cmd_unit->set_table(table);
+        cmd_unit->set_partition(p->id());
+        auto l = cmd_unit->mutable_left();
+        l->set_ip(src_node.ip);
+        l->set_port(src_node.port);
+        auto r = cmd_unit->mutable_right();
+        r->set_ip(dst_node.ip);
+        r->set_port(dst_node.port);
+
+        auto iter = nwl->partitions.begin();
+        while (iter != nwl->partitions.end()) {
+          if ((*iter)->id() == p->id()) {
+            nwl->partitions.erase(iter);
+            break;
+          }
+          iter++;
+        }
+        auto nwl1 = FindNodeWithLoad(nodes_map, dst_node);
+        nwl1->partitions.push_back(p);
+
+        src_nodes_queue.push(nwl);
+      } else {
+        nodes_buffer.push_back(nwl);
+      }
+    }
+    for (auto nb : nodes_buffer) {
+      src_nodes_queue.push(nb);
     }
   }
 
-  // Debug
+  // Dump migrate result
+  printf("Move numbers: %d\n", migrate_cmd->diff_size());
   for (int i = 0; i < migrate_cmd->diff_size(); i++) {
     auto diff = migrate_cmd->diff(i);
     auto l = diff.left();
@@ -924,6 +1031,14 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
            r.ip().c_str(), r.port());
   }
 
+  printf("Continue? (Y/N)\n");
+  char confirm = getchar(); getchar();  // ignore \n
+  printf("char: %c\n", confirm);
+  if (std::tolower(confirm) != 'y') {
+    return s;
+  }
+
+#if 0
   s = SubmitMetaCmd(*meta_cmd_, meta_res_,
                     CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
@@ -933,59 +1048,9 @@ Status Cluster::Expand(const std::string& table, const std::vector<Node>& new_no
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }
+#endif
 
   return s;
-}
-
-static void MigratePartitionsOnNode(
-      const std::string& table, const Node& node, double average,
-      const std::vector<const Partition*>& p_vec,
-      ZPMeta::MetaCmd_Migrate* migrate_cmd,
-      std::map<Node, std::vector<const Partition*>>* nodes_loads) {
-  int limit_of_load = static_cast<int>(std::ceil(average));
-
-  // Sort by partition load, ascending order
-  std::vector<std::pair<Node, std::vector<const Partition*>>> sorted_nodes(
-      nodes_loads->begin(), nodes_loads->end());
-  auto comparator = [](const std::pair<Node, std::vector<const Partition*>>& lhs,
-                       const std::pair<Node, std::vector<const Partition*>>& rhs) {
-    return lhs.second.size() < rhs.second.size();
-  };
-  std::sort(sorted_nodes.begin(), sorted_nodes.end(), comparator);
-
-  bool avoid_same_ip = true;
-  size_t pos = 0;
-  while (pos != p_vec.size()) {
-    bool pos_moved = false;
-    for (auto info : sorted_nodes) {
-      if (avoid_same_ip &&
-          PartitionOnSameHost(*nodes_loads, info.first.ip, p_vec[pos]->id())) {
-        continue;
-      } else if (NodeLoad(*nodes_loads, info.first) >= limit_of_load) {
-        continue;
-      }
-
-      // Build cmd proto
-      auto cmd_unit = migrate_cmd->add_diff();
-      cmd_unit->set_table(table);
-      cmd_unit->set_partition(p_vec[pos]->id());
-      auto l = cmd_unit->mutable_left();
-      l->set_ip(node.ip);
-      l->set_port(node.port);
-      auto r = cmd_unit->mutable_right();
-      r->set_ip(info.first.ip);
-      r->set_port(info.first.port);
-
-      pos_moved = true;
-      (*nodes_loads)[info.first].push_back(p_vec[pos]);
-      break;
-    }
-    if (!pos_moved) {
-      avoid_same_ip = false;
-    } else {
-      pos++;
-    }
-  }
 }
 
 Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleting) {
@@ -1000,6 +1065,16 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   if (tables_.find(table) == tables_.end()) {
     return Status::InvalidArgument("table not fount");
   }
+
+  auto cmp = [](std::shared_ptr<NodeWithLoad> left,
+                std::shared_ptr<NodeWithLoad> right) {
+    return left->partitions.size() > right->partitions.size();
+  };
+  std::map<std::string, std::vector<std::shared_ptr<NodeWithLoad>>>
+    nodes_map;  // new nodes and origin nodes
+  std::priority_queue<std::shared_ptr<NodeWithLoad>,
+                      std::vector<std::shared_ptr<NodeWithLoad>>,
+                      decltype(cmp)> dst_nodes_queue(cmp);
 
   // Get origin and new nodes loads
   Table* table_ptr = tables_[table];
@@ -1018,26 +1093,75 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   }
 
   // Calculate average load and restriction
-  int total_load = 0;
   for (auto& n : nodes_loads) {
-    total_load += NodeLoad(nodes_loads, n.first);
+    std::shared_ptr<NodeWithLoad> nwl(new NodeWithLoad{n.first, n.second});
+    if (nodes_map.find(n.first.ip) != nodes_map.end()) {
+      nodes_map[n.first.ip].push_back(nwl);
+    } else {
+      nodes_map.insert(std::make_pair(
+        n.first.ip, std::vector<std::shared_ptr<NodeWithLoad>>{nwl}));
+    }
+    dst_nodes_queue.push(nwl);
   }
-  for (auto& n : nodes_tobe_deleted) {
-    total_load += NodeLoad(nodes_tobe_deleted, n.first);
+
+  // Debug: dump nodes_map
+  for (auto& host : nodes_map) {
+    printf("Host: %s\n", host.first.c_str());
+    for (auto& node_with_load : host.second) {
+      printf("\tNode: %s --- ", node_with_load->node.ToString().c_str());
+      if (nodes_loads.find(node_with_load->node) == nodes_loads.end()) {
+        printf("{}\n");
+        continue;
+      }
+      printf("{");
+      size_t i = 0;
+      for (; i < node_with_load->partitions.size() - 1; i++) {
+        printf("%d, ", node_with_load->partitions[i]->id());
+      }
+      printf("%d}\n", node_with_load->partitions[i]->id());
+    }
   }
-  double average = static_cast<double>(total_load) / nodes_loads.size();
 
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
   ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
   migrate_cmd->set_origin_epoch(epoch_);
 
-  for (auto& dn : deleting) {
-    auto& p_vec = nodes_tobe_deleted[dn];
-    MigratePartitionsOnNode(table, dn, average, p_vec, migrate_cmd, &nodes_loads);
+  for (auto& n : nodes_tobe_deleted) {
+    const Node& src_node = n.first;
+    for (auto p : n.second) {
+      std::vector<std::shared_ptr<NodeWithLoad>> nodes_buffer;
+      while (true) {
+        auto nwl = dst_nodes_queue.top();
+        const Node& dst_node = nwl->node;
+        dst_nodes_queue.pop();
+        if (IsValidDstNode(nodes_map, dst_node, p->id())) {
+          // Build cmd proto
+          auto cmd_unit = migrate_cmd->add_diff();
+          cmd_unit->set_table(table);
+          cmd_unit->set_partition(p->id());
+          auto l = cmd_unit->mutable_left();
+          l->set_ip(src_node.ip);
+          l->set_port(src_node.port);
+          auto r = cmd_unit->mutable_right();
+          r->set_ip(dst_node.ip);
+          r->set_port(dst_node.port);
+
+          nwl->partitions.push_back(p);
+
+          dst_nodes_queue.push(nwl);
+          break;
+        } else {
+          nodes_buffer.push_back(nwl);
+        }
+      }
+      for (auto nb : nodes_buffer) {
+        dst_nodes_queue.push(nb);
+      }
+    }
   }
 
-  // Debug
+  // Dump migrate result
   for (int i = 0; i < migrate_cmd->diff_size(); i++) {
     auto diff = migrate_cmd->diff(i);
     auto l = diff.left();
@@ -1046,6 +1170,13 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
            r.ip().c_str(), r.port());
   }
 
+  printf("Continue? (Y/N)\n");
+  char confirm = getchar(); getchar();  // ignore \n
+  if (std::tolower(confirm) != 'y') {
+    return s;
+  }
+
+#if 0
   s = SubmitMetaCmd(*meta_cmd_, meta_res_,
                     CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
@@ -1055,6 +1186,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }
+#endif
 
   return s;
 }

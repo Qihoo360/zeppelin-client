@@ -59,7 +59,7 @@ endif
 # ----------------------------------------------
 
 CXXFLAGS+= -I$(PINK_INCLUDE_DIR) -I$(SLASH_INCLUDE_DIR) -I$(ZP_INCLUDE_DIR)
-LDFLAGS+= $(ZP_LIBRARY) $(PINK_LIBRARY) $(SLASH_LIBRARY)
+DEP_LIBS = $(ZP_LIBRARY) $(PINK_LIBRARY) $(SLASH_LIBRARY)
 
 AM_DEFAULT_VERBOSITY = 0
 
@@ -91,29 +91,29 @@ all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
 
 dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
 
-zp_benchmark: zp_benchmark.cc
+zp_benchmark: zp_benchmark.cc $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-zp_checkup: zp_checkup.cc utils/json.cc utils/json.h
+zp_checkup: zp_checkup.cc utils/json.cc utils/json.h $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-zp_expansion: zp_expansion.cc
+zp_expansion: zp_expansion.cc $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-zp_info: zp_info.cc utils/json.cc utils/json.h
+zp_info: zp_info.cc utils/json.cc utils/json.h $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-zp_manager: zp_manager.cc utils/linenoise.o
+zp_manager: zp_manager.cc utils/linenoise.o $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
 utils/linenoise.o: utils/linenoise.c utils/linenoise.h
 	$(AM_V_CC)$(CC) $(CFLAGS) -c $< -o $@
 
-zp_parade: zp_parade.cc
+zp_parade: zp_parade.cc $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-rocksdb_to_zp: rocksdb_to_zp.cc
-	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) -I$(ROCKSDB_INCLUDE_DIR) $(LDFLAGS) $(ROCKSDB_LIBRARY)
+rocksdb_to_zp: rocksdb_to_zp.cc $(DEP_LIBS) $(ROCKSDB_LIBRARY)
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) -I$(ROCKSDB_INCLUDE_DIR) $(LDFLAGS)
 
 clean:
 	rm -f zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp
