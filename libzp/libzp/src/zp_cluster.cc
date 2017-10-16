@@ -1038,7 +1038,6 @@ Status Cluster::Expand(
     return s;
   }
 
-#if 0
   s = SubmitMetaCmd(*meta_cmd_, meta_res_,
                     CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
@@ -1048,7 +1047,6 @@ Status Cluster::Expand(
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }
-#endif
 
   return s;
 }
@@ -1176,7 +1174,6 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     return s;
   }
 
-#if 0
   s = SubmitMetaCmd(*meta_cmd_, meta_res_,
                     CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
@@ -1186,7 +1183,6 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }
-#endif
 
   return s;
 }
