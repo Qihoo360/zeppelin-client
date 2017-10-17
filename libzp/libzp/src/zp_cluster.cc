@@ -1035,7 +1035,72 @@ Status Cluster::Expand(
   char confirm = getchar(); getchar();  // ignore \n
   printf("char: %c\n", confirm);
   if (std::tolower(confirm) != 'y') {
+    return Status::Incomplete("Abort");
+  }
+
+  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+                    CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
     return s;
+  }
+
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  }
+
+  return s;
+}
+
+Status Cluster::Migrate(const std::string& table,
+    const Node& src_node, int partition_id, const Node& dst_node) {
+  Status s = PullInternal(table, CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+  if (tables_.find(table) == tables_.end()) {
+    return Status::InvalidArgument("table not fount");
+  }
+
+  Table* table_ptr = tables_[table];
+  std::map<Node, std::vector<const Partition*>> nodes_loads;
+  table_ptr->GetNodesLoads(&nodes_loads);
+
+  if (nodes_loads.find(src_node) == nodes_loads.end() ||
+      nodes_loads.find(dst_node) == nodes_loads.end()) {
+    return Status::Corruption("Invalid node");
+  }
+  for (const auto p : nodes_loads[dst_node]) {
+    if (p->id() == partition_id) {
+      return Status::Corruption("Invalid Move");
+    }
+  }
+
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
+  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  migrate_cmd->set_origin_epoch(epoch_);
+
+  // Build cmd proto
+  auto cmd_unit = migrate_cmd->add_diff();
+  cmd_unit->set_table(table);
+  cmd_unit->set_partition(partition_id);
+  auto l = cmd_unit->mutable_left();
+  l->set_ip(src_node.ip);
+  l->set_port(src_node.port);
+  auto r = cmd_unit->mutable_right();
+  r->set_ip(dst_node.ip);
+  r->set_port(dst_node.port);
+
+  auto diff = migrate_cmd->diff(0);
+  printf("Move %s:%d - %d => %s:%d\n",
+         diff.left().ip().c_str(), diff.left().port(),
+         diff.partition(),
+         diff.right().ip().c_str(), diff.right().port());
+
+  printf("Continue? (Y/N)\n");
+  char confirm = getchar(); getchar();  // ignore \n
+  if (std::tolower(confirm) != 'y') {
+    return Status::Incomplete("Abort");
   }
 
   s = SubmitMetaCmd(*meta_cmd_, meta_res_,
@@ -1171,7 +1236,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   printf("Continue? (Y/N)\n");
   char confirm = getchar(); getchar();  // ignore \n
   if (std::tolower(confirm) != 'y') {
-    return s;
+    return Status::Incomplete("Abort");
   }
 
   s = SubmitMetaCmd(*meta_cmd_, meta_res_,

@@ -81,6 +81,8 @@ public:
   Status RemoveSlave(const std::string& table, const int partition,
       const Node& ip_port);
   Status Expand(const std::string& table, const std::vector<Node>& ip_ports);
+  Status Migrate(const std::string& table,
+                 const Node& src_node, int partition_id, const Node& dst_node);
   Status Shrink(const std::string& table, const std::vector<Node>& ip_ports);
   Status CancelMigrate();
 

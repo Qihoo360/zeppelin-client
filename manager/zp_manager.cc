@@ -68,6 +68,11 @@ CommandHelp commandHelp[] = {
     2,
     "expand table's capacity"},
 
+  { "MIGRATE",
+    "table source(ip:port) partition_id destination(ip:port)",
+    4,
+    "change table's distribution"},
+
   { "SHRINK",
     "table ip:port [ip:port ...]",
     2,
@@ -409,6 +414,25 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       }
 
       s = cluster->Expand(table_name, new_nodes);
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "MIGRATE ", 8)) {
+      if (line_args.size() < 5) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      int partition_id = atoi(line_args[3].c_str());
+      libzp::Node src_node, dst_node;
+      if (!slash::ParseIpPortString(line_args[2], src_node.ip, src_node.port)) {
+        printf("unknow source ip:port format, %s\n", line_args[2].c_str());
+        continue;
+      }
+      if (!slash::ParseIpPortString(line_args[4], dst_node.ip, dst_node.port)) {
+        printf("unknow destination ip:port format, %s\n", line_args[4].c_str());
+        continue;
+      }
+
+      s = cluster->Migrate(table_name, src_node, partition_id, dst_node);
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "SHRINK ", 7)) {
       if (line_args.size() < 3) {
