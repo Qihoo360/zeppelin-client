@@ -11,12 +11,22 @@ using slash::Status;
 struct Node {
   Node(const std::string& other_ip, int other_port)
     : ip(other_ip),
-    port(other_port) {}
-  Node()
-    : port(0) {}
+      port(other_port) {
+  }
+  Node(const char* other_ip, int other_port)
+    : ip(other_ip),
+      port(other_port) {
+  }
+  Node() : port(0) {}
 
   std::string ip;
   int port;
+
+  std::string ToString() const {
+    char buf[100];
+    sprintf(buf, "%s:%d", ip.c_str(), port);
+    return std::string(buf);
+  }
 
   bool operator < (const Node& other) const {
     return (slash::IpPortString(ip, port) <
@@ -25,6 +35,10 @@ struct Node {
 
   bool operator == (const Node& other) const {
     return (ip == other.ip && port == other.port);
+  }
+
+  bool operator != (const Node& other) const {
+    return (ip != other.ip || port != other.port);
   }
 
   friend std::ostream& operator<< (std::ostream& stream, const Node& node) {

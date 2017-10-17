@@ -1,1 +1,4 @@
 src/build_version.cc
+tags
+*.out
+*.d

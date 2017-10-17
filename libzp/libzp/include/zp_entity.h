@@ -38,6 +38,9 @@ public:
   std::vector<Node> slaves() const {
     return slaves_;
   }
+  bool active() const {
+    return active_;
+  }
 
   void SetMaster(const Node& new_master);
 
@@ -53,8 +56,14 @@ class Table {
   Table();
   explicit Table(const ZPMeta::Table& table_info);
   virtual ~Table();
+  std::string table_name() {
+    return table_name_;
+  }
   int partition_num() {
     return partition_num_;
+  }
+  std::map<int, Partition> partitions() {
+    return partitions_;
   }
 
   const Partition* GetPartition(const std::string& key) const;
@@ -63,6 +72,7 @@ class Table {
   Status UpdatePartitionMasterById(int partition_id, const Node& target);
   void GetAllMasters(std::set<Node>* nodes) const;
   void GetAllNodes(std::set<Node>* nodes) const;
+  void GetNodesLoads(std::map<Node, std::vector<const Partition*>>* loads) const;
   void DebugDump(int partition_id = -1) const;
 
  private:

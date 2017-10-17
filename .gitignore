@@ -1,5 +1,22 @@
-libzp/libzp/lib/
+libzp/libzp/lib
+libzp/libzp/example/output
+libzp/libzp/example/zp_async
+libzp/libzp/example/zp_create_table
+libzp/libzp/example/zp_get
+libzp/libzp/example/zp_mget
+libzp/libzp/example/zp_parallel
+libzp/libzp/example/zp_simple
+libzp/libzp/example/zp_timeout
+
+manager/zp_benchmark
+manager/zp_checkup
+manager/zp_expansion
+manager/zp_info
+manager/zp_parade
+manager/golang/manager
 manager/zp_manager
+
+tags
 
 *.o
 *.d

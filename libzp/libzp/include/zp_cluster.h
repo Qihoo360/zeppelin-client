@@ -69,6 +69,7 @@ public:
       zp_completion_t complietion, void* data);
 
   // meta cmd
+  int64_t epoch() { return epoch_; }
   Status CreateTable(const std::string& table_name, int partition_num);
   Status DropTable(const std::string& table_name);
   Status Pull(const std::string& table);
@@ -79,11 +80,18 @@ public:
       const Node& ip_port);
   Status RemoveSlave(const std::string& table, const int partition,
       const Node& ip_port);
+  Status Expand(const std::string& table, const std::vector<Node>& ip_ports);
+  Status Migrate(const std::string& table,
+                 const Node& src_node, int partition_id, const Node& dst_node);
+  Status Shrink(const std::string& table, const std::vector<Node>& ip_ports);
+  Status CancelMigrate();
 
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);
   Status ListMeta(Node* master, std::vector<Node>* nodes);
   Status MetaStatus(std::string* meta_status);
+  Status MetaStatus(int32_t* version, std::string* consistency_stautus,
+                    int64_t* begin_time, int32_t* complete_proportion);
   Status ListNode(std::vector<Node>* nodes,
       std::vector<std::string>* status);
 
@@ -97,6 +105,8 @@ public:
   // local cmd
   Status DebugDumpPartition(const std::string& table, int partition_id = -1);
   int LocateKey(const std::string& table, const std::string& key);
+
+  std::unordered_map<std::string, Table*> tables();
 
  private:
   

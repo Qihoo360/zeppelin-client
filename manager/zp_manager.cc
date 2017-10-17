@@ -6,9 +6,153 @@
 #include <iostream>
 #include <algorithm>
 
+#include "slash/include/slash_string.h"
 #include "libzp/include/zp_cluster.h"
-#include "linenoise.h"
-#include "zp_manager_help.h"
+#include "utils/linenoise.h"
+
+struct CommandHelp {
+  std::string name;
+  std::string params;
+  int params_num;
+  std::string summary;
+};
+
+CommandHelp commandHelp[] = {
+  { "SET",
+    "table key value [ttl]",
+    3,
+    "set key"},
+
+  { "GET",
+    "table key",
+    2,
+    "get key's value"},
+  
+  { "MGET",
+    "table key [key ...]",
+    2,
+    "Get the values of all the given keys"},
+
+  { "DELETE",
+    "table key",
+    2,
+    "delete key"},
+
+  { "CREATE",
+    "table partition",
+    2,
+    "create table"},
+
+  { "PULL",
+    "table",
+    1,
+    "pull table info"},
+
+  { "SETMASTER",
+    "table partition ip port",
+    4,
+    "set a partition's master"},
+
+  { "ADDSLAVE",
+    "table partition ip port",
+    4,
+    "add master for partition"},
+
+  { "REMOVESLAVE",
+    "table partition ip port",
+    4,
+    "remove master for partition"},
+
+  { "EXPAND",
+    "table ip:port [ip:port ...]",
+    2,
+    "expand table's capacity"},
+
+  { "MIGRATE",
+    "table source(ip:port) partition_id destination(ip:port)",
+    4,
+    "change table's distribution"},
+
+  { "SHRINK",
+    "table ip:port [ip:port ...]",
+    2,
+    "shrink table's capacity"},
+
+  { "CANCELMIGRATE",
+    "",
+    0,
+    "cancel zeppelin migrate"},
+
+  { "LISTTABLE",
+    "",
+    0,
+    "list all tables"},
+
+  { "DROPTABLE",
+    "table",
+    1,
+    "drop one table"},
+
+  { "FLUSHTABLE",
+    "table",
+    1,
+    "clean one table"},
+
+  { "LISTNODE",
+    "",
+    0,
+    "list all data nodes"},
+
+  { "LISTMETA",
+    "",
+    0,
+    "list all meta nodes"},
+
+  { "METASTATUS",
+    "",
+    0,
+    "list meta internal details"},
+
+  { "QPS",
+    "table",
+    1,
+    "get qps for a table"},
+
+  { "REPLSTATE",
+    "table ip port",
+    3,
+    "check replication state"},
+  
+  { "NODESTATE",
+    "ip port",
+    2,
+    "check node server state"},
+
+  { "SPACE",
+    "table",
+    1,
+    "get space info for a table"},
+
+  { "DUMP",
+    "table",
+    1,
+    "get space info for a table"},
+
+  { "LOCATE",
+    "table key",
+    2,
+    "locate a key, find corresponding nodes"},
+
+  { "HELP",
+    "",
+    0,
+    "list all commands"},
+
+  { "EXIT",
+    "",
+    0,
+    "exit the zp_manager"}
+};
 
 void SplitByBlank(const std::string& old_line,
     std::vector<std::string>& line_args) {
@@ -58,29 +202,27 @@ static void cliInitHelp(void) {
 
 // completion example
 void completion(const char *buf, linenoiseCompletions *lc) {
-  size_t match_len = 0;
-  std::string tmp;
-
   for (size_t i = 0; i < commandEntries.size(); i++) {
-    match_len = strlen(buf);
+    size_t match_len = strlen(buf);
     if (strncasecmp(buf, commandEntries[i].name.c_str(), match_len) == 0) {
-      tmp = std::string();
-      tmp = commandEntries[i].name;
+      std::string tmp = commandEntries[i].name;
       linenoiseAddCompletion(lc, tmp.c_str());
     }
   }
 }
 
-// hints example
-char *hints(const char *buf, int *color, int *bold) {
+// hints callback
+char hint_buf[100] = {0};
+char *hints_callback(const char *buf, int *color, int *bold) {
   std::string buf_str = std::string(buf);
   std::vector<std::string> buf_args;
   SplitByBlank(buf_str, buf_args);
   size_t buf_len = strlen(buf);
   if (buf_len == 0) {
-    return NULL;
+    return nullptr;
   }
   int endspace = buf_len && isspace(buf[buf_len-1]);
+  char* hint = nullptr;
   for (size_t i = 0; i < commandEntries.size(); i++) {
     size_t match_len = std::max(strlen(commandEntries[i].name.c_str()),
         strlen(buf_args[0].c_str()));
@@ -88,22 +230,26 @@ char *hints(const char *buf, int *color, int *bold) {
           commandEntries[i].name.c_str(), match_len) == 0) {
       *color = 90;
       *bold = 0;
-      char* hint = const_cast<char *>(commandEntries[i].params.c_str());
+      hint = hint_buf;
+      snprintf(hint, 100, "%s", commandEntries[i].params.c_str());
       int to_move = buf_args.size() - 1;
       while (strlen(hint) && to_move > 0) {
+        if (hint[0] == '[') break;
         if (hint[0] == ' ') {
           to_move--;
         }
         hint = hint + 1;
       }
       if (!endspace) {
-        std::string new_hint = std::string(" ") + std::string(hint);
-        hint = const_cast<char *>(new_hint.c_str());
+        char buf[100];
+        snprintf(buf, 100, " %s", hint);
+        strncpy(hint_buf, buf, 100);
+        hint = hint_buf;
       }
-      return strlen(hint)? hint:NULL;
+      return strlen(hint) ? hint : nullptr;
     }
   }
-  return NULL;
+  return hint;
 }
 
 const int64_t KB = 1024;
@@ -132,15 +278,17 @@ static std::string to_human(int64_t bytes) {
 
 const char* history_file = "/tmp/zp_manager_history.txt";
 
-void StartRepl(libzp::Cluster* cluster) {
+void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
   char *line;
   linenoiseSetMultiLine(1);
   linenoiseSetCompletionCallback(completion);
-  linenoiseSetHintsCallback(hints);
+  linenoiseSetHintsCallback(hints_callback);
   linenoiseHistoryLoad(history_file); /* Load the history at startup */
 
   libzp::Status s;
-  while ((line = linenoise("zp >> ")) != NULL) {
+  char prompt[100];
+  snprintf(prompt, 100, "Zeppelin(%s:%d)>> ", ip, port);
+  while ((line = linenoise(prompt)) != nullptr) {
     linenoiseHistoryAdd(line); /* Add to the history. */
     linenoiseHistorySave(history_file); /* Save the history on disk. */
     /* Do something with the string. */
@@ -202,7 +350,7 @@ void StartRepl(libzp::Cluster* cluster) {
       std::string value = line_args[3];
       int ttl = -1;
       if (line_args.size() == 5) {
-        char* end = NULL;
+        char* end = nullptr;
         ttl = std::strtol(line_args[4].c_str(), &end, 10);
         if (*end != 0) {
           std::cout << "ttl must be a integer" << std::endl;
@@ -244,6 +392,78 @@ void StartRepl(libzp::Cluster* cluster) {
       libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
       s = cluster->RemoveSlave(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "EXPAND ", 7)) {
+      if (line_args.size() < 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::vector<libzp::Node> new_nodes;
+      for (size_t i = 2; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        new_nodes.push_back(libzp::Node(ip, port));
+      }
+      printf("Adding new nodes to [%s]:\n", table_name.c_str());
+      for (auto& node : new_nodes) {
+        printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+      }
+
+      s = cluster->Expand(table_name, new_nodes);
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "MIGRATE ", 8)) {
+      if (line_args.size() < 5) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      int partition_id = atoi(line_args[3].c_str());
+      libzp::Node src_node, dst_node;
+      if (!slash::ParseIpPortString(line_args[2], src_node.ip, src_node.port)) {
+        printf("unknow source ip:port format, %s\n", line_args[2].c_str());
+        continue;
+      }
+      if (!slash::ParseIpPortString(line_args[4], dst_node.ip, dst_node.port)) {
+        printf("unknow destination ip:port format, %s\n", line_args[4].c_str());
+        continue;
+      }
+
+      s = cluster->Migrate(table_name, src_node, partition_id, dst_node);
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "SHRINK ", 7)) {
+      if (line_args.size() < 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::vector<libzp::Node> deleting;
+      for (size_t i = 2; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        deleting.push_back(libzp::Node(ip, port));
+      }
+      printf("Deleting nodes of [%s]:\n", table_name.c_str());
+      for (auto& node : deleting) {
+        printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+      }
+
+      s = cluster->Shrink(table_name, deleting);
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "CANCELMIGRATE", 13)) {
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      s = cluster->CancelMigrate();
+      std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "GET ", 4)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -258,7 +478,7 @@ void StartRepl(libzp::Cluster* cluster) {
       } else {
         std::cout << s.ToString() << std::endl;
       }
-    } else if ((!strncasecmp(line, "Mget ", 5))) {
+    } else if ((!strncasecmp(line, "MGET ", 5))) {
       if (line_args.size() < 3) {
         std::cout << "arg num wrong" << std::endl;
         continue;
@@ -314,19 +534,29 @@ void StartRepl(libzp::Cluster* cluster) {
       }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "METASTATUS", 10)) {
-
       if (line_args.size() != 1) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
-      std::string meta_status;
-      s = cluster->MetaStatus(&meta_status);
+      int32_t version;
+      std::string consistency_stautus;
+      int64_t begin_time;
+      int32_t complete_proportion;
+      s = cluster->MetaStatus(&version, &consistency_stautus,
+                              &begin_time, &complete_proportion);
       if (!s.ok()) {
         std::cout << "Failed: " << s.ToString() << std::endl;
         continue;
       }
+      std::cout << "Version: " << version << std::endl;
       std::cout << std::string(140, '=') << std::endl;
-      std::cout << meta_status << std::endl;
+      std::cout << consistency_stautus << std::endl;
+      std::cout << std::string(140, '=') << std::endl;
+      if (begin_time != 0) {
+        std::cout << "Migrate Status:" << std::endl;
+        std::cout << "begin_time: " << begin_time << std::endl;
+        std::cout << "complete_proportion: " << complete_proportion << std::endl;
+      }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "LISTNODE", 8)) {
       if (line_args.size() != 1) {
@@ -413,17 +643,25 @@ void StartRepl(libzp::Cluster* cluster) {
         std::cout << "Failed: " << s.ToString() << std::endl;
       }
       for (auto& p : partitions) {
-        std::cout << "partition:" << p.first << std::endl;
-        std::cout << " -role:" << p.second.role << std::endl;
-        std::cout << " -repl_state:" << p.second.repl_state << std::endl;
-        std::cout << " -master:" << p.second.master.ip <<
-          ":" << p.second.master.port << std::endl;
-        std::cout << " -slaves:" << std::endl;
+        // std::cout << "partition:" << p.first << "\t";
+        // std::cout << " role:" << p.second.role << "\t";
+        // std::cout << " repl_state:" << p.second.repl_state << "\t";
+        // std::cout << " master:" << p.second.master.ip <<
+        //   ":" << p.second.master.port << std::endl;
+        // std::cout << " -slaves: ";
+        // for (auto& pss : p.second.slaves) {
+        //   std::cout << "  -slave:" << pss.ip << ":" << pss.port << " ";
+        // }
+        // std::cout << " -boffset:" << p.second.offset << std::endl;
+        printf("partition: %d, role: %s, repl_state: %s, boffset: %u_%lu\n",
+               p.first, p.second.role.c_str(), p.second.repl_state.c_str(),
+               p.second.offset.filenum, p.second.offset.offset);
+        printf("  --- master: %s:%d\t", p.second.master.ip.c_str(), p.second.master.port);
         for (auto& pss : p.second.slaves) {
-          std::cout << "  -slave:" << pss.ip << ":" << pss.port << std::endl;
-          continue;
+          printf("slave: %s:%d\t", pss.ip.c_str(), pss.port);
         }
-        std::cout << " -boffset:" << p.second.offset << std::endl;
+        printf("\n");
+
         if (p.second.fallback_time != 0) {
           std::cout << " -Notice! has binlog fallback" << std::endl;
           std::cout << "  -time:"
@@ -482,12 +720,18 @@ void StartRepl(libzp::Cluster* cluster) {
       // Exit manager
       free(line);
       break;
+    } else if (!strncasecmp(line, "HELP", 4)) {
+      for (auto& entry : commandEntries) {
+        std::cout << entry.name << ": " << entry.params << std::endl;
+        std::cout << " --- " << entry.info << std::endl;
+        std::cout << std::endl;
+      }
     } else {
       printf("Unrecognized command: %s\n", line);
     }
     free(line);
   }
-  std::cout << "out of loop" << std::endl;
+  std::cout << "Bye!" << std::endl;
 }
 
 void usage() {
@@ -500,15 +744,16 @@ int main(int argc, char* argv[]) {
     usage();
     return -1;
   }
-  std::cout << "start" << std::endl;
+
   libzp::Options option;
-  libzp::Node node(argv[1], atoi(argv[2]));
-  option.meta_addr.push_back(node);
+  const char* ip = argv[1];
+  int port = std::atoi(argv[2]);
+  option.meta_addr.push_back(libzp::Node(ip, port));
+  option.op_timeout = 5000;
 
   // cluster handle cluster operation
-  std::cout << "create cluster" << std::endl;
   libzp::Cluster* cluster = new libzp::Cluster(option);
 
   cliInitHelp();
-  StartRepl(cluster);
+  StartRepl(cluster, ip, port);
 }
