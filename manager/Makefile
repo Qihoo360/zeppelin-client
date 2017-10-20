@@ -63,6 +63,10 @@ DEP_LIBS = $(ZP_LIBRARY) $(PINK_LIBRARY) $(SLASH_LIBRARY)
 
 AM_DEFAULT_VERBOSITY = 0
 
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
+am__v_at_1 =
 AM_V_CC = $(am__v_CC_$(V))
 am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
 am__v_CC_0 = @echo "  CC     " $@;
@@ -85,11 +89,16 @@ endif
 CXXFLAGS += $(WARNING_FLAGS) $(OPT) -Wreorder -Wswitch -Wsign-promo -Woverloaded-virtual -Wnon-virtual-dtor -Wno-missing-field-initializers
 CFLAGS += $(WARNING_FLAGS) $(OPT)
 
-.PHONY: clean dbg all
+.PHONY: clean distclean dbg all deps
 
 all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
 
 dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
+
+$(DEP_LIBS):
+	$(AM_V_at)make -C $(SLASH_PATH)/slash DEBUG_LEVEL=$(DEBUG_LEVEL)
+	$(AM_V_at)make -C $(PINK_PATH)/pink DEBUG_LEVEL=$(DEBUG_LEVEL) SLASH_PATH=$(SLASH_PATH)
+	$(AM_V_at)make -C $(ZP_PATH)/libzp DEBUG_LEVEL=$(DEBUG_LEVEL) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
 zp_benchmark: zp_benchmark.cc $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
@@ -119,3 +128,8 @@ clean:
 	rm -f zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp
 	find . -name "*.[oda]*" ! -exec rm -f {} \;
 	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+
+distclean: clean
+	$(AM_V_at)make -C $(SLASH_PATH)/slash clean
+	$(AM_V_at)make -C $(PINK_PATH)/pink clean
+	$(AM_V_at)make -C $(ZP_PATH)/libzp clean
