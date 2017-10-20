@@ -1204,6 +1204,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   }
 
   // Debug: dump nodes_map
+#if 0
   for (auto& host : nodes_map) {
     printf("Host: %s\n", host.first.c_str());
     for (auto& node_with_load : host.second) {
@@ -1220,6 +1221,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
       printf("%d}\n", node_with_load->partitions[i]->id());
     }
   }
+#endif
 
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
@@ -1230,7 +1232,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     const Node& src_node = n.first;
     for (auto p : n.second) {
       std::vector<std::shared_ptr<NodeWithLoad>> nodes_buffer;
-      while (true) {
+      while (true && !dst_nodes_queue.empty()) {
         auto nwl = dst_nodes_queue.top();
         const Node& dst_node = nwl->node;
         dst_nodes_queue.pop();
@@ -1267,6 +1269,9 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     auto r = diff.right();
     printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
            r.ip().c_str(), r.port());
+  }
+  if (migrate_cmd->diff_size() == 0) {
+    return Status::Corruption("There is no reasonable way");
   }
 
   printf("Continue? (Y/N)\n");
