@@ -63,6 +63,11 @@ CommandHelp commandHelp[] = {
     4,
     "remove master for partition"},
 
+  { "REMOVENODES",
+    "ip:port [ip:port ...]",
+    1,
+    "remove nodes from cluster"},
+
   { "EXPAND",
     "table ip:port [ip:port ...]",
     2,
@@ -392,6 +397,25 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
       s = cluster->RemoveSlave(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "REMOVENODES ", 12)) {
+      if (line_args.size() < 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+
+      std::vector<libzp::Node> nodes;
+      for (size_t i = 1; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        nodes.push_back(libzp::Node(ip, port));
+      }
+
+      s = cluster->RemoveNodes(nodes);
+      std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "EXPAND ", 7)) {
       if (line_args.size() < 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -517,21 +541,30 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
-      std::vector<libzp::Node> slaves;
-      libzp::Node master;
-      s = cluster->ListMeta(&master, &slaves);
+
+      std::vector<libzp::Node> followers;
+      libzp::Node leader;
+      s = cluster->ListMeta(&leader, &followers);
       if (!s.ok()) {
         std::cout << "Failed: " << s.ToString() << std::endl;
         continue;
       }
-      std::cout << "master" << ":" << master.ip
-        << " " << master.port << std::endl;
-      std::cout << "slave" << ":" << std::endl;
-      std::vector<libzp::Node>::iterator iter = slaves.begin();
-      while (iter != slaves.end()) {
-        std::cout << iter->ip << ":" << iter->port << std::endl;
-        iter++;
+
+      std::map<libzp::Node, std::string> meta_status;
+      meta_status[leader] = "Unknow";
+      for (auto& follower : followers) {
+        meta_status[follower] = "Unknow";
       }
+      cluster->MetaStatus(&meta_status);
+
+      printf("Leader:\n --- %s:%d, status: %s\n",
+             leader.ip.c_str(), leader.port, meta_status[leader].c_str());
+      printf("Followers:\n");
+      for (auto& follower : followers) {
+        printf(" --- %s:%d, status: %s\n",
+               follower.ip.c_str(), follower.port, meta_status[follower].c_str());
+      }
+
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "METASTATUS", 10)) {
       if (line_args.size() != 1) {
@@ -548,7 +581,8 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         std::cout << "Failed: " << s.ToString() << std::endl;
         continue;
       }
-      std::cout << "Version: " << version << std::endl;
+      std::cout << "Epoch: " << version << std::endl;
+      std::cout << "Consistency status: " << std::endl;
       std::cout << std::string(140, '=') << std::endl;
       std::cout << consistency_stautus << std::endl;
       std::cout << std::string(140, '=') << std::endl;
@@ -643,16 +677,6 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         std::cout << "Failed: " << s.ToString() << std::endl;
       }
       for (auto& p : partitions) {
-        // std::cout << "partition:" << p.first << "\t";
-        // std::cout << " role:" << p.second.role << "\t";
-        // std::cout << " repl_state:" << p.second.repl_state << "\t";
-        // std::cout << " master:" << p.second.master.ip <<
-        //   ":" << p.second.master.port << std::endl;
-        // std::cout << " -slaves: ";
-        // for (auto& pss : p.second.slaves) {
-        //   std::cout << "  -slave:" << pss.ip << ":" << pss.port << " ";
-        // }
-        // std::cout << " -boffset:" << p.second.offset << std::endl;
         printf("partition: %d, role: %s, repl_state: %s, boffset: %u_%lu\n",
                p.first, p.second.role.c_str(), p.second.repl_state.c_str(),
                p.second.offset.filenum, p.second.offset.offset);

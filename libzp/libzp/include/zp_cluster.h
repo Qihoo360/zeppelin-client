@@ -80,6 +80,7 @@ public:
       const Node& ip_port);
   Status RemoveSlave(const std::string& table, const int partition,
       const Node& ip_port);
+  Status RemoveNodes(const std::vector<libzp::Node>& nodes);
   Status Expand(const std::string& table, const std::vector<Node>& ip_ports);
   Status Migrate(const std::string& table,
                  const Node& src_node, int partition_id, const Node& dst_node);
@@ -89,6 +90,7 @@ public:
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);
   Status ListMeta(Node* master, std::vector<Node>* nodes);
+  Status MetaStatus(std::map<Node, std::string>* meta_status);
   Status MetaStatus(std::string* meta_status);
   Status MetaStatus(int32_t* version, std::string* consistency_stautus,
                     int64_t* begin_time, int32_t* complete_proportion);

@@ -10,6 +10,7 @@
 #include <queue>
 #include <string>
 #include <algorithm>
+#include <sstream>
 
 #include "slash/include/slash_string.h"
 #include "slash/include/env.h"
@@ -761,6 +762,43 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   }
 }
 
+Status Cluster::RemoveNodes(const std::vector<libzp::Node>& nodes) {
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::REMOVENODES);
+  ZPMeta::MetaCmd_RemoveNodes* remove_nodes_cmd =
+    meta_cmd_->mutable_remove_nodes();
+
+  for (const auto& n : nodes) {
+    ZPMeta::Node* node = remove_nodes_cmd->add_nodes();
+    node->set_ip(n.ip);
+    node->set_port(n.port);
+  }
+
+  printf("Remove nodes:\n");
+  for (int i = 0; i < remove_nodes_cmd->nodes_size(); i++) {
+    auto node = remove_nodes_cmd->nodes(i);
+    printf(" --- %s:%d\n", node.ip().c_str(), node.port());
+  }
+
+  printf("Continue? (Y/N)\n");
+  char confirm = getchar(); getchar();  // ignore \n
+  printf("char: %c\n", confirm);
+  if (std::tolower(confirm) != 'y') {
+    return Status::Incomplete("Abort");
+  }
+
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
+  if (!ret.ok()) {
+    return ret;
+  }
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  } else {
+    return Status::OK();
+  }
+}
+
 namespace {
 
 struct NodeWithLoad {
@@ -1293,6 +1331,44 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
     nodes->push_back(slave_node);
   }
   return Status::OK();
+}
+
+Status Cluster::MetaStatus(std::map<Node, std::string>* meta_status) {
+  int32_t version;
+  int64_t begin_time;
+  int32_t complete_proportion;
+  std::string consistency_stautus;
+  Status ret = MetaStatus(&version, &consistency_stautus,
+                          &begin_time, &complete_proportion);
+  if (!ret.ok()) {
+    return ret;
+  }
+
+  std::istringstream input(consistency_stautus);
+  for (std::string line; std::getline(input, line); ) {
+    if (line.find(":") == std::string::npos) {
+      continue;  // Skip header
+    }
+    std::string ip;
+    int port;
+    std::istringstream line_s(line);
+    for (std::string word; std::getline(line_s, word, ' '); ) {
+      if (word.find(":") != std::string::npos) {
+        if (slash::ParseIpPortString(word, ip, port)) {
+          Node n(ip, port - 100);
+          (*meta_status)[n] = "Up";
+        }
+      }
+    }
+  }
+
+  for (auto& item : *meta_status) {
+    if (item.second != "Up") {
+      item.second = "Down";  // Change 'Unknow' to 'Down'
+    }
+  }
+
+  return ret;
 }
 
 Status Cluster::MetaStatus(std::string* consistency_stautus) {
