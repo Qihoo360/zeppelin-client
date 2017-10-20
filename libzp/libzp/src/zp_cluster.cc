@@ -782,7 +782,6 @@ Status Cluster::RemoveNodes(const std::vector<libzp::Node>& nodes) {
 
   printf("Continue? (Y/N)\n");
   char confirm = getchar(); getchar();  // ignore \n
-  printf("char: %c\n", confirm);
   if (std::tolower(confirm) != 'y') {
     return Status::Incomplete("Abort");
   }
@@ -1071,7 +1070,6 @@ Status Cluster::Expand(
 
   printf("Continue? (Y/N)\n");
   char confirm = getchar(); getchar();  // ignore \n
-  printf("char: %c\n", confirm);
   if (std::tolower(confirm) != 'y') {
     return Status::Incomplete("Abort");
   }
