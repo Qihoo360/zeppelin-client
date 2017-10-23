@@ -10,6 +10,7 @@
 #include <queue>
 #include <string>
 #include <algorithm>
+#include <sstream>
 
 #include "slash/include/slash_string.h"
 #include "slash/include/env.h"
@@ -761,6 +762,42 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   }
 }
 
+Status Cluster::RemoveNodes(const std::vector<libzp::Node>& nodes) {
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::REMOVENODES);
+  ZPMeta::MetaCmd_RemoveNodes* remove_nodes_cmd =
+    meta_cmd_->mutable_remove_nodes();
+
+  for (const auto& n : nodes) {
+    ZPMeta::Node* node = remove_nodes_cmd->add_nodes();
+    node->set_ip(n.ip);
+    node->set_port(n.port);
+  }
+
+  printf("Remove nodes:\n");
+  for (int i = 0; i < remove_nodes_cmd->nodes_size(); i++) {
+    auto node = remove_nodes_cmd->nodes(i);
+    printf(" --- %s:%d\n", node.ip().c_str(), node.port());
+  }
+
+  printf("Continue? (Y/N)\n");
+  char confirm = getchar(); getchar();  // ignore \n
+  if (std::tolower(confirm) != 'y') {
+    return Status::Incomplete("Abort");
+  }
+
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
+  if (!ret.ok()) {
+    return ret;
+  }
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  } else {
+    return Status::OK();
+  }
+}
+
 namespace {
 
 struct NodeWithLoad {
@@ -1033,7 +1070,6 @@ Status Cluster::Expand(
 
   printf("Continue? (Y/N)\n");
   char confirm = getchar(); getchar();  // ignore \n
-  printf("char: %c\n", confirm);
   if (std::tolower(confirm) != 'y') {
     return Status::Incomplete("Abort");
   }
@@ -1168,6 +1204,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   }
 
   // Debug: dump nodes_map
+#if 0
   for (auto& host : nodes_map) {
     printf("Host: %s\n", host.first.c_str());
     for (auto& node_with_load : host.second) {
@@ -1184,6 +1221,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
       printf("%d}\n", node_with_load->partitions[i]->id());
     }
   }
+#endif
 
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
@@ -1194,7 +1232,7 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     const Node& src_node = n.first;
     for (auto p : n.second) {
       std::vector<std::shared_ptr<NodeWithLoad>> nodes_buffer;
-      while (true) {
+      while (true && !dst_nodes_queue.empty()) {
         auto nwl = dst_nodes_queue.top();
         const Node& dst_node = nwl->node;
         dst_nodes_queue.pop();
@@ -1231,6 +1269,9 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     auto r = diff.right();
     printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
            r.ip().c_str(), r.port());
+  }
+  if (migrate_cmd->diff_size() == 0) {
+    return Status::Corruption("There is no reasonable way");
   }
 
   printf("Continue? (Y/N)\n");
@@ -1293,6 +1334,44 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
     nodes->push_back(slave_node);
   }
   return Status::OK();
+}
+
+Status Cluster::MetaStatus(std::map<Node, std::string>* meta_status) {
+  int32_t version;
+  int64_t begin_time;
+  int32_t complete_proportion;
+  std::string consistency_stautus;
+  Status ret = MetaStatus(&version, &consistency_stautus,
+                          &begin_time, &complete_proportion);
+  if (!ret.ok()) {
+    return ret;
+  }
+
+  std::istringstream input(consistency_stautus);
+  for (std::string line; std::getline(input, line); ) {
+    if (line.find(":") == std::string::npos) {
+      continue;  // Skip header
+    }
+    std::string ip;
+    int port;
+    std::istringstream line_s(line);
+    for (std::string word; std::getline(line_s, word, ' '); ) {
+      if (word.find(":") != std::string::npos) {
+        if (slash::ParseIpPortString(word, ip, port)) {
+          Node n(ip, port - 100);
+          (*meta_status)[n] = "Up";
+        }
+      }
+    }
+  }
+
+  for (auto& item : *meta_status) {
+    if (item.second != "Up") {
+      item.second = "Down";  // Change 'Unknow' to 'Down'
+    }
+  }
+
+  return ret;
 }
 
 Status Cluster::MetaStatus(std::string* consistency_stautus) {
