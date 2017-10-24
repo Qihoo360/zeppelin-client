@@ -223,7 +223,7 @@ char *hints_callback(const char *buf, int *color, int *bold) {
   std::vector<std::string> buf_args;
   SplitByBlank(buf_str, buf_args);
   size_t buf_len = strlen(buf);
-  if (buf_len == 0) {
+  if (buf_len == 0 || buf_args.empty()) {
     return nullptr;
   }
   int endspace = buf_len && isspace(buf[buf_len-1]);
