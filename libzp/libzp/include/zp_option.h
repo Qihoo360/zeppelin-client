@@ -17,6 +17,9 @@ struct Node {
     : ip(other_ip),
       port(other_port) {
   }
+  Node(const std::string& ip_port) {
+    slash::ParseIpPortString(ip_port, ip, port);
+  }
   Node() : port(0) {}
 
   std::string ip;

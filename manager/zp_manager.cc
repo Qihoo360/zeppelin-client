@@ -9,6 +9,7 @@
 #include "slash/include/slash_string.h"
 #include "libzp/include/zp_cluster.h"
 #include "utils/linenoise.h"
+#include "utils/distribution.h"
 
 struct CommandHelp {
   std::string name;
@@ -41,6 +42,11 @@ CommandHelp commandHelp[] = {
   { "CREATE",
     "table partition",
     2,
+    "create table"},
+
+  { "CREATEBYFILE",
+    "table distribution_file [partition_per_node]",
+    3,
     "create table"},
 
   { "PULL",
@@ -312,6 +318,42 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       std::cout << s.ToString() << std::endl;
       std::cout << "repull table "<< table_name << std::endl;
       s = cluster->Pull(table_name);
+
+    } else if (!strncasecmp(line, "CREATEBYFILE ", 13)) {
+      if (line_args.size() != 3 && line_args.size() != 4) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      int partition_per_node =
+        line_args.size() == 4 ? std::atoi(line_args[3].c_str()) : 3;
+      if (!distribution::Load(line_args[2])) {
+        std::cout << "Cannot load file " << line_args[1] << std::endl;
+        continue;
+      }
+      for (int times = 0; times < partition_per_node; times++) {
+        distribution::Distribution();
+      }
+      distribution::Checkup();
+
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        std::cout << "Abort" << std::endl;
+        continue;
+      }
+
+      std::vector<std::vector<libzp::Node>> distribution;
+      for (auto& par : distribution::result) {
+        std::vector<libzp::Node> libzp_par;
+        for (auto& node : par) {
+          libzp_par.push_back(libzp::Node(node.host));
+        }
+        distribution.push_back(libzp_par);
+      }
+
+      s = cluster->CreateTable(table_name, distribution);
+      std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "PULL ", 5)) {
       if (line_args.size() != 2) {

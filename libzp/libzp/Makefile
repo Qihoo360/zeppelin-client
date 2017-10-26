@@ -1,6 +1,7 @@
 CLEAN_FILES = # deliberately empty, so we can append below.
 CXX = g++
-CXXFLAGS= -g -std=c++11 -fno-builtin-memcmp -msse -msse4.2 -pipe -fPIC
+PROTOC = protoc
+CXXFLAGS = -g -std=c++11 -fno-builtin-memcmp -msse -msse4.2 -pipe -fPIC
 PROFILING_FLAGS = -pg
 ARFLAGS = rs
 OPT=
@@ -26,18 +27,20 @@ endif
 #-----------------------------------------------
 
 SRC_DIR=src
+PROTOS = $(wildcard $(SRC_DIR)/*.proto)
+PROTO_GENS = $(PROTOS:.proto=.pb.cc) $(PROTOS:.proto=.pb.h)
+CLEAN_FILES += $(PROTO_GENS)
+PROTO_OBJS = $(PROTOS:.proto=.pb.o)
 VERSION_CC=$(SRC_DIR)/build_version.cc
 LIB_SOURCES :=  $(VERSION_CC) \
 				$(filter-out $(VERSION_CC), $(wildcard $(SRC_DIR)/*.cc))
 
 ifndef PINK_PATH
-  $(warning Warning: missing pink path, using default)
   PINK_PATH=$(CURDIR)/../../third/pink
 endif
 PINK_INCLUDE_DIR=$(PINK_PATH)
 
 ifndef SLASH_PATH
-  $(warning Warning: missing slash path, using default)
   SLASH_PATH=$(CURDIR)/../../third/slash
 endif
 SLASH_INCLUDE_DIR=$(SLASH_PATH)
@@ -119,31 +122,29 @@ LIBRARY = $(LIBOUTPUT)/${LIBNAME}.a
 all: $(LIBRARY)
 
 example:
-	@make -C example ZP_PATH=$(CURDIR)/.. SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
+	$(AM_V_at)make -C example ZP_PATH=$(CURDIR)/.. SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
 static_lib: $(LIBRARY)
 
 dbg: $(LIBRARY)
 
-$(LIBRARY): $(LIBOBJECTS)
+proto: $(PROTO_GENS)
+
+$(LIBRARY): $(PROTO_OBJS) $(LIBOBJECTS)
 	$(AM_V_AR)rm -f $@
-	$(AM_V_at)$(AR) $(ARFLAGS) $@ $(LIBOBJECTS)
+	$(AM_V_at)$(AR) $(ARFLAGS) $@ $^
 
 clean:
-	rm -f $(LIBRARY)
-	rm -rf $(CLEAN_FILES)
-	rm -rf $(LIBOUTPUT)
-	find . -name "*.[oda]*" ! -path "./third/*" -exec rm -f {} \;
-	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+	$(AM_V_at)echo "Cleaning..."
+	$(AM_V_at)rm -f $(LIBRARY)
+	$(AM_V_at)rm -rf $(CLEAN_FILES)
+	$(AM_V_at)rm -rf $(LIBOUTPUT)
+	$(AM_V_at)find . -name "*.[oda]" ! -path "./third/*" -exec rm -f {} \;
+	$(AM_V_at)find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
+
+%.pb.cc %.pb.h: %.proto
+	$(AM_V_GEN)
+	$(AM_V_at)$(PROTOC) -I$(dir $@) --cpp_out=$(dir $@) $<
 
 %.o: %.cc
 	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@
-
-%.d: %.cc
-	@set -e; rm -f $@; $(CXX) -MM $(CXXFLAGS) $< > $@.$$$$; \
-	sed 's,\($(notdir $*)\)\.o[ :]*,$(SRC_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
-	rm -f $@.$$$$
-
-ifneq ($(MAKECMDGOALS),clean)
-  -include $(LIBOBJECTS:.o=.d)
-endif

@@ -605,27 +605,42 @@ Status Cluster::FlushTable(const std::string& table_name) {
 
 Status Cluster::CreateTable(const std::string& table_name,
     const int partition_num) {
-  if (partition_num == 0) {
-    return Status::InvalidArgument("partition count should not be zero");
-  }
-  meta_cmd_->Clear();
-  meta_cmd_->set_type(ZPMeta::Type::INIT);
-  ZPMeta::MetaCmd_Init* init = meta_cmd_->mutable_init();
-  init->set_name(table_name);
-  init->set_num(partition_num);
+  // if (partition_num == 0) {
+  //   return Status::InvalidArgument("partition count should not be zero");
+  // }
+  // meta_cmd_->Clear();
+  // meta_cmd_->set_type(ZPMeta::Type::INIT);
+  // ZPMeta::MetaCmd_Init* init = meta_cmd_->mutable_init();
+  // init->set_name(table_name);
+  // init->set_num(partition_num);
 
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
-      CalcDeadline(options_.op_timeout));
+  // slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+  //     CalcDeadline(options_.op_timeout));
 
-  if (!ret.ok()) {
-    return ret;
-  }
+  // if (!ret.ok()) {
+  //   return ret;
+  // }
 
-  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
-    return Status::Corruption(meta_res_->msg());
-  } else {
-    return Status::OK();
+  // if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+  //   return Status::Corruption(meta_res_->msg());
+  // } else {
+  //   return Status::OK();
+  // }
+  return Status::OK();
+}
+
+Status Cluster::CreateTable(const std::string& table_name,
+    const std::vector<std::vector<Node>>& distribution) {
+  int i = 0;
+  for (auto& par : distribution) {
+    std::cout << i << ", ";
+    for (auto& node : par) {
+      std::cout << node << " ";
+    }
+    i++;
+    std::cout << std::endl;
   }
+  return Status::OK();
 }
 
 Status Cluster::DropTable(const std::string& table_name) {

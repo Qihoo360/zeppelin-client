@@ -1,0 +1,198 @@
+package client;
+
+enum Type {
+  SYNC = 0;
+  SET = 1;
+  GET = 2;
+  DEL = 3;
+  INFOSTATS = 4;
+  INFOCAPACITY = 5;
+  INFOREPL= 6;
+  MGET = 7;
+  INFOSERVER = 8;
+  FLUSHDB = 9;
+}
+
+enum SyncType {
+  CMD = 0;
+  SKIP = 1;
+  LEASE = 2;
+}
+
+enum StatusCode {
+  kOk = 0;
+  kNotFound = 1;
+  kWait = 2;
+  kError = 3;
+  kFallback = 4;
+  kMove = 5;
+}
+
+message Node {
+  required string ip = 1;
+  required int32 port = 2;
+}
+
+message SyncOffset {
+  required int32 filenum = 1;
+  required int64 offset = 2;
+  optional int32 partition = 3;
+}
+
+message KeyExpire {
+  optional int32 base = 1;
+  required int32 ttl = 2;
+}
+
+message SlaveFallback {
+  required int64 time = 1;
+  required SyncOffset before = 2;
+  required SyncOffset after = 3;
+}
+
+message PartitionState {
+  required int32 partition_id = 1; 
+  required string role = 2;
+  required string repl_state = 3;
+  required Node master = 4;
+  repeated Node slaves = 5;
+  required SyncOffset sync_offset = 6;
+  optional SlaveFallback fallback = 7;
+}
+
+message CmdRequest {
+  required Type type = 1;
+
+  // Sync
+  message Sync {
+    required Node node = 1;
+    required string table_name = 2;
+    required SyncOffset sync_offset = 3;
+    required int64 epoch = 4;
+  }
+  optional Sync sync = 2; 
+
+  message Set {
+    required string table_name = 1;
+    required string key = 2;
+    required bytes value = 3;
+    optional string uuid = 4;
+    optional KeyExpire expire  = 5;
+  }
+  optional Set set = 3;
+
+  message Get {
+    required string table_name = 1;
+    required string key = 2;
+    optional string uuid = 3;
+  }
+  optional Get get = 4;
+
+  // Delete
+  message Del {
+    required string table_name = 1;
+    required string key = 2;
+    optional string uuid = 3;
+  }
+  optional Del del = 5;
+
+  message Info {
+    optional string table_name = 1; 
+  }
+  optional Info info = 6;
+
+  message Mget {
+    required string table_name = 1;
+    repeated string keys = 2;
+  }
+  optional Mget mget = 7;
+
+  message FlushDB {
+    required string table_name = 1;
+    required int32 partition_id = 2;
+  }
+  optional FlushDB flushdb = 8;
+
+}
+
+message CmdResponse {
+  required Type type = 1;
+  required StatusCode code = 2;
+  optional string msg = 3;
+
+  message Sync {
+    required string table_name = 1;
+    required SyncOffset sync_offset = 2;
+  }
+  optional Sync sync = 4;
+
+  message Get {
+    optional bytes value = 1;
+  }
+  optional Get get = 5;
+  
+  optional Node redirect = 6;
+  
+  // InfoStats
+  message InfoStats {
+    required string table_name = 1;
+    required int64 total_querys = 2;
+    required int32 qps = 3;
+  }
+  repeated InfoStats info_stats = 7;
+
+  // InfoCapacity
+  message InfoCapacity {
+    required string table_name = 1;
+    required int64 used = 2;
+    required int64 remain = 3;
+  }
+  repeated InfoCapacity info_capacity = 8;
+
+  // InfoRepl
+  message InfoRepl {
+    required string table_name = 1;
+    required int64 partition_cnt = 2;
+    repeated PartitionState partition_state = 3;
+  }
+  repeated InfoRepl info_repl = 9;
+
+  // Mget
+  message Mget {
+    required string key = 1;
+    required bytes value = 2; 
+  }
+  repeated Mget mget = 10;
+
+  // InfoServer
+  message InfoServer {
+    required int64 epoch = 1;
+    repeated string table_names = 2;
+    required Node cur_meta = 3;
+    required bool meta_renewing = 4; 
+  }
+  optional InfoServer info_server = 11;
+
+}
+
+message BinlogSkip {
+  required string table_name = 1; 
+  required int32 partition_id = 2; 
+  required int64 gap = 3;
+}
+
+message SyncLease {
+  required string table_name = 1; 
+  required int32 partition_id = 2; 
+  required int64 lease = 3; // s
+}
+
+message SyncRequest {
+  required SyncType sync_type = 1;
+  required int64 epoch = 2;
+  required Node from = 3;
+  optional SyncOffset sync_offset = 4;
+  optional CmdRequest request = 5;
+  optional BinlogSkip binlog_skip = 6;
+  optional SyncLease sync_lease = 7;
+}

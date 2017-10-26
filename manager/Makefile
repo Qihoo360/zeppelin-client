@@ -28,21 +28,18 @@ endif
 
 # ----------------Dependences-------------------
 ifndef ZP_PATH 
-  $(warning Warning: missing zp path, using default)
   ZP_PATH = $(CURDIR)/../libzp
 endif
 ZP_INCLUDE_DIR=$(ZP_PATH)
 ZP_LIBRARY=$(ZP_PATH)/libzp/lib/libzp$(DEBUG_SUFFIX).a
 
 ifndef PINK_PATH
-  $(warning Warning: missing pink path, using default)
   PINK_PATH=$(CURDIR)/../third/pink
 endif
 PINK_INCLUDE_DIR=$(PINK_PATH)
 PINK_LIBRARY=$(PINK_PATH)/pink/lib/libpink$(DEBUG_SUFFIX).a
 
 ifndef SLASH_PATH
-  $(warning Warning: missing slash path, using default)
 	SLASH_PATH=$(CURDIR)/../third/slash
 endif
 SLASH_INCLUDE_DIR=$(SLASH_PATH)
@@ -112,11 +109,14 @@ zp_expansion: zp_expansion.cc $(DEP_LIBS)
 zp_info: zp_info.cc utils/json.cc utils/json.h $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
-zp_manager: zp_manager.cc utils/linenoise.o $(DEP_LIBS)
+zp_manager: zp_manager.cc utils/linenoise.o utils/distribution.o $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
 utils/linenoise.o: utils/linenoise.c utils/linenoise.h
 	$(AM_V_CC)$(CC) $(CFLAGS) -c $< -o $@
+
+utils/distribution.o: utils/distribution.cc
+	$(AM_V_CC)$(CXX) $(CXXFLAGS) -c $< -o $@
 
 zp_parade: zp_parade.cc $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)

@@ -18,7 +18,12 @@ manager/zp_manager
 
 tags
 
+# Intermediate file
+libzp/libzp/src/client.pb.cc
+libzp/libzp/src/client.pb.h
+libzp/libzp/src/zp_meta.pb.cc
+libzp/libzp/src/zp_meta.pb.h
 *.o
-*.d
+*.d.*
 *.out
 *.swp
