@@ -476,6 +476,11 @@ void Checkup() {
   std::cout << "+++++++++++++++++++++++++++++++++++++" << std::endl;
 }
 
+void Cleanup() {
+  result.clear();
+  cabinets.clear();
+}
+
 void Display() {
   std::ofstream out("./distribution_result");
   if (!out.is_open()) {

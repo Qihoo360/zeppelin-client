@@ -70,7 +70,6 @@ public:
 
   // meta cmd
   int64_t epoch() { return epoch_; }
-  Status CreateTable(const std::string& table_name, int partition_num);
   Status CreateTable(const std::string& table_name,
                      const std::vector<std::vector<Node>>& distribution);
   Status DropTable(const std::string& table_name);

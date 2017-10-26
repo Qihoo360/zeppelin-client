@@ -1,6 +1,8 @@
 /*
  * "Copyright [2016] qihoo"
  */
+#include <cstring>
+#include <cstdio>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -22,12 +24,12 @@ CommandHelp commandHelp[] = {
   { "SET",
     "table key value [ttl]",
     3,
-    "set key"},
+    "Set key"},
 
   { "GET",
     "table key",
     2,
-    "get key's value"},
+    "Get key's value"},
   
   { "MGET",
     "table key [key ...]",
@@ -37,132 +39,127 @@ CommandHelp commandHelp[] = {
   { "DELETE",
     "table key",
     2,
-    "delete key"},
+    "Delete key"},
 
-  { "CREATE",
-    "table partition",
-    2,
-    "create table"},
-
-  { "CREATEBYFILE",
-    "table distribution_file [partition_per_node]",
+  { "CREATETABLE",
+    "table host_list_file [partition_per_node]",
     3,
-    "create table"},
+    "Create table, 3 partition per node as default"},
 
   { "PULL",
     "table",
     1,
-    "pull table info"},
+    "Pull table info"},
 
   { "SETMASTER",
     "table partition ip port",
     4,
-    "set a partition's master"},
+    "Set a partition's master"},
 
   { "ADDSLAVE",
     "table partition ip port",
     4,
-    "add master for partition"},
+    "Add master for partition"},
 
   { "REMOVESLAVE",
     "table partition ip port",
     4,
-    "remove master for partition"},
+    "Remove master for partition"},
 
   { "REMOVENODES",
     "ip:port [ip:port ...]",
     1,
-    "remove nodes from cluster"},
+    "Remove nodes from cluster"},
 
   { "EXPAND",
     "table ip:port [ip:port ...]",
     2,
-    "expand table's capacity"},
+    "Expand table's capacity"},
 
   { "MIGRATE",
     "table source(ip:port) partition_id destination(ip:port)",
     4,
-    "change table's distribution"},
+    "Change table's distribution"},
 
   { "SHRINK",
     "table ip:port [ip:port ...]",
     2,
-    "shrink table's capacity"},
+    "Shrink table's capacity"},
 
   { "CANCELMIGRATE",
     "",
     0,
-    "cancel zeppelin migrate"},
+    "Cancel zeppelin migrate"},
 
   { "LISTTABLE",
     "",
     0,
-    "list all tables"},
+    "List all tables"},
 
   { "DROPTABLE",
     "table",
     1,
-    "drop one table"},
+    "Drop one table"},
 
   { "FLUSHTABLE",
     "table",
     1,
-    "clean one table"},
+    "Clean one table"},
 
   { "LISTNODE",
     "",
     0,
-    "list all data nodes"},
+    "List all data nodes"},
 
   { "LISTMETA",
     "",
     0,
-    "list all meta nodes"},
+    "List all meta nodes"},
 
   { "METASTATUS",
     "",
     0,
-    "list meta internal details"},
+    "List meta internal details"},
 
   { "QPS",
     "table",
     1,
-    "get qps for a table"},
+    "Get qps for a table"},
 
   { "REPLSTATE",
     "table ip port",
     3,
-    "check replication state"},
+    "Check replication state"},
   
   { "NODESTATE",
     "ip port",
     2,
-    "check node server state"},
+    "Check node server state"},
 
   { "SPACE",
     "table",
     1,
-    "get space info for a table"},
+    "Get space info for a table"},
 
   { "DUMP",
     "table",
     1,
-    "get space info for a table"},
+    "Get space info for a table"},
 
   { "LOCATE",
     "table key",
     2,
-    "locate a key, find corresponding nodes"},
+    "Locate a key, find corresponding nodes"},
 
   { "HELP",
     "",
     0,
-    "list all commands"},
+    "List all commands"},
 
   { "EXIT",
     "",
     0,
-    "exit the zp_manager"}
+    "Exit the zp_manager"}
 };
 
 void SplitByBlank(const std::string& old_line,
@@ -307,19 +304,7 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
     std::vector<std::string> line_args;
     SplitByBlank(info, line_args);
     
-    if (!strncasecmp(line, "CREATE ", 7)) {
-      if (line_args.size() != 3) {
-        std::cout << "arg num wrong" << std::endl;
-        continue;
-      }
-      std::string table_name = line_args[1];
-      int partition_num = atoi(line_args[2].c_str());
-      s = cluster->CreateTable(table_name, partition_num);
-      std::cout << s.ToString() << std::endl;
-      std::cout << "repull table "<< table_name << std::endl;
-      s = cluster->Pull(table_name);
-
-    } else if (!strncasecmp(line, "CREATEBYFILE ", 13)) {
+    if (!strncasecmp(line, "CREATETABLE ", 12)) {
       if (line_args.size() != 3 && line_args.size() != 4) {
         std::cout << "arg num wrong" << std::endl;
         continue;
@@ -336,13 +321,6 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       }
       distribution::Checkup();
 
-      printf("Continue? (Y/N)\n");
-      char confirm = getchar(); getchar();  // ignore \n
-      if (std::tolower(confirm) != 'y') {
-        std::cout << "Abort" << std::endl;
-        continue;
-      }
-
       std::vector<std::vector<libzp::Node>> distribution;
       for (auto& par : distribution::result) {
         std::vector<libzp::Node> libzp_par;
@@ -351,10 +329,39 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         }
         distribution.push_back(libzp_par);
       }
+      distribution::Cleanup();
+
+      char buf[16];
+      while (true) {
+        printf("Continue? (Y/N/dump)\n");
+        fgets(buf, sizeof(buf), stdin);
+        if (std::strcmp(buf, "dump\n") == 0) {
+          // Dump
+          printf("Table name: %s\n", table_name.c_str());
+          for (size_t i = 0; i < distribution.size(); i++) {
+            const std::vector<libzp::Node>& partition = distribution[i];
+            printf("Partition id: %lu ", i);
+            for (size_t j = 0; j < partition.size(); j++) {
+              const libzp::Node& node = partition[j];
+              if (j == 0) {
+                printf("master: %s:%d ", node.ip.c_str(), node.port);
+              } else {
+                printf("slave%lu: %s:%d ", j, node.ip.c_str(), node.port);
+              }
+            }
+            printf("\n");
+          }
+        } else if (std::tolower(buf[0]) == 'y' ||
+                   std::tolower(buf[0]) == 'n') {
+          break;
+        }
+      }
+      if (std::tolower(buf[0]) == 'n') {
+        continue;
+      }
 
       s = cluster->CreateTable(table_name, distribution);
       std::cout << s.ToString() << std::endl;
-
     } else if (!strncasecmp(line, "PULL ", 5)) {
       if (line_args.size() != 2) {
         std::cout << "arg num wrong" << std::endl;

@@ -31,6 +31,7 @@ bool Load(const std::string& file);
 void Distribution();
 void Display();
 void Checkup();
+void Cleanup();
 
 }  // namespace distribution
 
