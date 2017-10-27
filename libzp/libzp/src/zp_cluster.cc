@@ -787,7 +787,33 @@ Status Cluster::RemoveSlave(const std::string& table_name,
   }
 }
 
-Status Cluster::RemoveNodes(const std::vector<libzp::Node>& nodes) {
+Status Cluster::RemoveNodes(const std::vector<Node>& nodes) {
+  // Check node load before send remove command to meta
+  std::vector<std::string> tables;
+  Status s = ListTable(&tables);
+  if (!s.ok()) {
+    return s;
+  }
+  for (auto& table : tables) {
+    s = Pull(table);
+    if (!s.ok()) {
+      return s;
+    }
+    Table* table_ptr = tables_[table];
+    if (table_ptr == nullptr) {
+      return Status::Corruption("Can not find table_ptr");
+    }
+    std::map<Node, std::vector<const Partition*>> nodes_loads;
+    table_ptr->GetNodesLoads(&nodes_loads);
+    for (auto& node : nodes) {
+      auto node_iter = nodes_loads.find(node);
+      if (node_iter != nodes_loads.end() &&
+          !node_iter->second.empty()) {
+        return Status::Corruption("Can not remove nonempty node: " + node.ToString());
+      }
+    }
+  }
+
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::REMOVENODES);
   ZPMeta::MetaCmd_RemoveNodes* remove_nodes_cmd =

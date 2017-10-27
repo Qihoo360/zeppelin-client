@@ -52,18 +52,18 @@ CommandHelp commandHelp[] = {
     "Pull table info"},
 
   { "SETMASTER",
-    "table partition ip port",
-    4,
+    "table partition ip:port",
+    3,
     "Set a partition's master"},
 
   { "ADDSLAVE",
-    "table partition ip port",
-    4,
+    "table partition ip:port",
+    3,
     "Add master for partition"},
 
   { "REMOVESLAVE",
-    "table partition ip port",
-    4,
+    "table partition ip:port",
+    3,
     "Remove master for partition"},
 
   { "REMOVENODES",
@@ -127,13 +127,13 @@ CommandHelp commandHelp[] = {
     "Get qps for a table"},
 
   { "REPLSTATE",
-    "table ip port",
-    3,
+    "table ip:port",
+    2,
     "Check replication state"},
   
   { "NODESTATE",
-    "ip port",
-    2,
+    "ip:port",
+    1,
     "Check node server state"},
 
   { "SPACE",
@@ -415,35 +415,44 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "SETMASTER ", 10)) {
-      if (line_args.size() != 5) {
+      if (line_args.size() != 4) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
       std::string table_name = line_args[1];
       int partition = atoi(line_args[2].c_str());
-      libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[3], ip, port);
+      libzp::Node node(ip, port);
       s = cluster->SetMaster(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "ADDSLAVE ", 9)) {
-      if (line_args.size() != 5) {
+      if (line_args.size() != 4) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
       std::string table_name = line_args[1];
       int partition = atoi(line_args[2].c_str());
-      libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[3], ip, port);
+      libzp::Node node(ip, port);
       s = cluster->AddSlave(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "REMOVESLAVE ", 12)) {
-      if (line_args.size() != 5) {
+      if (line_args.size() != 4) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
       std::string table_name = line_args[1];
       int partition = atoi(line_args[2].c_str());
-      libzp::Node node(line_args[3], atoi(line_args[4].c_str()));
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[3], ip, port);
+      libzp::Node node(ip, port);
       s = cluster->RemoveSlave(table_name, partition, node);
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "REMOVENODES ", 12)) {
@@ -712,13 +721,14 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       std::cout << "total query:" << total_query << std::endl;
 
     } else if (!strncasecmp(line, "REPLSTATE", 9)) {
-      if (line_args.size() != 4) {
+      if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
       std::string table_name = line_args[1];
-      std::string ip = line_args[2];
-      int port = atoi(line_args[3].c_str());
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[2], ip, port);
       libzp::Node node(ip, port);
       std::map<int, libzp::PartitionView> partitions;
       libzp::Status s = cluster->InfoRepl(node, table_name, &partitions);
@@ -766,12 +776,13 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         printf("  remain: %ld bytes(%s)\n", remain, to_human(remain).c_str());
       }
     } else if (!strncasecmp(line, "NODESTATE", 9)) {
-      if (line_args.size() != 3) {
+      if (line_args.size() != 2) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
-      std::string ip = line_args[1];
-      int port = atoi(line_args[2].c_str());
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[1], ip, port);
       libzp::Node node(ip, port);
       libzp::ServerState state;
       libzp::Status s = cluster->InfoServer(node, &state);

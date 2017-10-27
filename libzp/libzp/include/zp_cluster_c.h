@@ -86,10 +86,11 @@ extern void zp_partition_view_destroy(zp_partition_view_t* var);
 extern void zp_server_state_destroy(zp_server_state_t* var);
 
 // Zeppelin cluster interface
-extern zp_status_t* zp_create_table(
-    const zp_cluster_t* cluster,
-    const char* table_name,
-    int partition_num);
+
+// extern zp_status_t* zp_create_table(
+//     const zp_cluster_t* cluster,
+//     const char* table_name,
+//     int partition_num);
 
 extern zp_status_t* zp_drop_table(
     const zp_cluster_t* cluster,
