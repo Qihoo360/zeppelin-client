@@ -7,7 +7,7 @@ os:
 
 addons:
   apt:
-    packages: ['libprotobuf-dev', 'libgoogle-glog-dev']
+    packages: ['libprotobuf-dev', 'libgoogle-glog-dev', 'protobuf-compiler']
 
 compiler:
   - gcc
@@ -16,6 +16,6 @@ language: cpp
 
 script:
   - make -C third/slash/slash
-  - make -C third/pink/pink
+  - make -C third/pink/pink SLASH_PATH=../../slash
   - make -C libzp/libzp
   - make -C manager
