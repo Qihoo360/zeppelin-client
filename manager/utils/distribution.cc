@@ -2,7 +2,12 @@
 // This source code is licensed under the BSD-style license found in the
 // LICENSE file in the root directory of this source tree. An additional grant
 // of patent rights can be found in the PATENTS file in the same directory.
-
+//
+//  Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
+//  This source code is licensed under the BSD-style license found in the
+//  LICENSE file in the root directory of this source tree. An additional grant
+//  of patent rights can be found in the PATENTS file in the same directory.
+//
 #include "distribution.h"
 
 namespace distribution {
@@ -10,7 +15,7 @@ namespace distribution {
 std::vector<std::deque<Host> > cabinets;
 std::vector<std::vector<Host> > result;
 
-const int kMaxRetry = 10;
+const int kMaxRetry = 100;
 
 bool Load(const std::string& file) {
   std::ifstream in(file);
@@ -63,20 +68,18 @@ bool Load(const std::string& file) {
     hosts_map.clear();
   }
 
-#if 0
-  std::cout << "Loading from file..." << std::endl;
-  std::cout << "Raw info" << std::endl;
-  std::cout << "-------------------------------------" << std::endl;
-  for (auto& c : cabs) {
-    for (auto& h : c) {
-      for (auto& n : h.second) {
-        std::cout << n.host << " " << n.cab_id << " " << n.host_id << std::endl;
-      }
-    }
-    std::cout << "++++++++++++++++++++" << std::endl;
-  }
-  std::cout << "-------------------------------------" << std::endl;
-#endif
+//  std::cout << "Loading from file..." << std::endl;
+//  std::cout << "Raw info" << std::endl;
+//  std::cout << "-------------------------------------" << std::endl;
+//  for (auto& c : cabs) {
+//    for (auto& h : c) {
+//      for (auto& n : h.second) {
+//        std::cout << n.host << " " << n.cab_id << " " << n.host_id << std::endl;
+//      }
+//    }
+//    std::cout << "++++++++++++++++++++" << std::endl;
+//  }
+//  std::cout << "-------------------------------------" << std::endl;
 
   for (auto& c : cabs) {
     std::deque<Host> host;
@@ -99,14 +102,14 @@ bool Load(const std::string& file) {
   }
 
 //  std::cout << "Sorted info" << std::endl;
-//  std::cout << "-------------------------------------" << endl;
+//  std::cout << "-------------------------------------" << std::endl;
 //  for (auto& c : cabinets) {
 //    for (auto& n : c) {
 //      std::cout << n.host << " " << n.cab_id << " " << n.host_id << std::endl;
 //    }
 //    std::cout << "++++++++++++++++++++" << std::endl;
 //  }
-//  std::cout << "-------------------------------------" << endl;
+//  std::cout << "-------------------------------------" << std::endl;
   return true;
 }
 
@@ -307,6 +310,22 @@ void Distribution() {
           }
           retry_times++;
         }
+        // After random picking, we still have replicaset on the same host,
+        // so we need to continue to pick randomly, making replicaset
+        // on same host but different nodes
+        if (retry_times == kMaxRetry) {
+          retry_times = 0;
+          while (retry_times < kMaxRetry) {
+            next_node_idx = std::rand() % cabinets[next_cab_idx].size();
+            if (cabinets[next_cab_idx][next_node_idx].host !=
+                cab[idx[0]][0].host &&
+                cabinets[next_cab_idx][next_node_idx].host !=
+                cab[idx[0]][1].host) {
+              break;
+            }
+            retry_times++;
+          }
+        }
         partition.push_back(cabinets[next_cab_idx][next_node_idx]);
 //        std::cout << cabinets[next_cab_idx][next_node_idx].host << std::endl;
       }
@@ -358,6 +377,19 @@ void Distribution() {
           }
           retry_times++;
         }
+        // After random picking, we still have replicaset on the same host,
+        // so we need to continue to pick randomly, making replicaset
+        // on same host but different nodes
+        if (retry_times == kMaxRetry) {
+          retry_times = 0;
+          while (retry_times < kMaxRetry) {
+            next_node_idx = std::rand() % cabinets[idx[0]].size();
+            if (cabinets[next_cab_idx][next_node_idx].host != partition[0].host) {
+              break;
+            }
+            retry_times++;
+          }
+        }
         partition.push_back(cabinets[next_cab_idx][next_node_idx]);
 //        std::cout << cabinets[next_cab_idx][next_node_idx].host << " ";
       } else {
@@ -374,6 +406,21 @@ void Distribution() {
           }
           retry_times++;
         }
+        // After random picking, we still have replicaset on the same host,
+        // so we need to continue to pick randomly, making replicaset
+        // on same host but different nodes
+        if (retry_times == kMaxRetry) {
+          retry_times = 0;
+          while (retry_times < kMaxRetry) {
+            next_node_idx = std::rand() % cabinets[next_cab_idx].size();
+            if (cabinets[next_cab_idx][next_node_idx].host !=
+                partition[0].host) {
+              idx_2_host_id = cabinets[next_cab_idx][next_node_idx].host_id;
+              break;
+            }
+            retry_times++;
+          }
+        }
         partition.push_back(cabinets[next_cab_idx][next_node_idx]);
 //        std::cout << cabinets[next_cab_idx][next_node_idx].host << " ";
 
@@ -386,6 +433,23 @@ void Distribution() {
             break;
           }
           retry_times++;
+        }
+        // After random picking, we still have replicaset on the same host,
+        // so we need to continue to pick randomly, making replicaset
+        // on same host but different nodes
+        if (retry_times == kMaxRetry) {
+          retry_times = 0;
+          while (retry_times < kMaxRetry) {
+            next_node_idx = std::rand() % cabinets[next_cab_idx].size();
+            if (cabinets[next_cab_idx][next_node_idx].host !=
+                partition[0].host &&
+                cabinets[next_cab_idx][next_node_idx].host !=
+                partition[1].host) {
+              idx_2_host_id = cabinets[next_cab_idx][next_node_idx].host_id;
+              break;
+            }
+            retry_times++;
+          }
         }
         partition.push_back(cabinets[next_cab_idx][next_node_idx]);
 //        std::cout << cabinets[next_cab_idx][next_node_idx].host << " ";
@@ -481,6 +545,7 @@ void Cleanup() {
   cabinets.clear();
 }
 
+#if 0
 void Display() {
   std::ofstream out("./distribution_result");
   if (!out.is_open()) {
@@ -504,7 +569,6 @@ void Display() {
     "./distribution_result" << std::endl;
 }
 
-#if 0
 void Usage() {
   std::cout << "Usage: ./distribution path_to_cluster_file "
     "[partitions_per_node = 3]" << std::endl;
@@ -538,4 +602,4 @@ int main(int argc, char** argv) {
 }
 #endif
 
-}  // namespace utils
+}  // namespace distribution

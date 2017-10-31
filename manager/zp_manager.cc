@@ -338,16 +338,21 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         if (std::strcmp(buf, "dump\n") == 0) {
           // Dump
           printf("Table name: %s\n", table_name.c_str());
+          size_t master_index = 0;
           for (size_t i = 0; i < distribution.size(); i++) {
             const std::vector<libzp::Node>& partition = distribution[i];
+            master_index = (master_index + 1) % partition.size();
             printf("Partition id: %lu ", i);
+
+            const libzp::Node& master_node = partition[master_index];
+            printf("master: %s:%d ", master_node.ip.c_str(), master_node.port);
+
             for (size_t j = 0; j < partition.size(); j++) {
-              const libzp::Node& node = partition[j];
-              if (j == 0) {
-                printf("master: %s:%d ", node.ip.c_str(), node.port);
-              } else {
-                printf("slave%lu: %s:%d ", j, node.ip.c_str(), node.port);
+              if (j == master_index) {
+                continue;
               }
+              const libzp::Node& node = partition[j];
+              printf("slave%lu: %s:%d ", j, node.ip.c_str(), node.port);
             }
             printf("\n");
           }
@@ -369,9 +374,11 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       }
       std::string table_name = line_args[1];
       s = cluster->Pull(table_name);
+      if (s.ok()) {
+        std::cout << "current table info:" << std::endl;
+        cluster->DebugDumpPartition(table_name);
+      }
       std::cout << s.ToString() << std::endl;
-      std::cout << "current table info:" << std::endl;
-      cluster->DebugDumpPartition(table_name);
 
     } else if (!strncasecmp(line, "DUMP ", 5)) {
       if (line_args.size() != 2) {
@@ -379,7 +386,10 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         continue;
       }
       std::string table_name = line_args[1];
-      cluster->DebugDumpPartition(table_name);
+      cluster->DebugDumpPartition(
+        table_name,
+        -1 /* Dump all partitions */,
+        true /* Dump nodes load info */);
 
     } else if (!strncasecmp(line, "LOCATE ", 5)) {
       if (line_args.size() != 3) {

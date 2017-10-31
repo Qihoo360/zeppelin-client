@@ -29,7 +29,6 @@ extern std::vector<std::vector<Host> > result;
 
 bool Load(const std::string& file);
 void Distribution();
-void Display();
 void Checkup();
 void Cleanup();
 

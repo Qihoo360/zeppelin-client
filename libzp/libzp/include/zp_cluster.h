@@ -106,7 +106,8 @@ public:
   Status InfoServer(const Node& node, ServerState* state);
 
   // local cmd
-  Status DebugDumpPartition(const std::string& table, int partition_id = -1);
+  Status DebugDumpPartition(
+      const std::string& table, int partition_id = -1, bool dump_nodes = false);
   int LocateKey(const std::string& table, const std::string& key);
 
   std::unordered_map<std::string, Table*> tables();

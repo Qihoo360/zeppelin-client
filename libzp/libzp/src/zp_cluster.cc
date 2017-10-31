@@ -613,22 +613,28 @@ Status Cluster::CreateTable(const std::string& table_name,
   meta_cmd_->set_type(ZPMeta::Type::INIT);
   ZPMeta::Table* table = meta_cmd_->mutable_init()->mutable_table();
   table->set_name(table_name);
+  size_t master_index = 0;
   for (size_t i = 0; i < distribution.size(); i++) {
     const std::vector<Node>& partition = distribution[i];
+    master_index = (master_index + 1) % partition.size();
     ZPMeta::Partitions* p = table->add_partitions();
     p->set_id(i);
     p->set_state(ZPMeta::PState::ACTIVE);
 
+    if (partition.empty()) {
+      return Status::Corruption("Empty partition");
+    }
+
     for (size_t j = 0; j < partition.size(); j++) {
       const Node& node = partition[j];
-      ZPMeta::Node* n = j == 0 ?
+      ZPMeta::Node* n = j == master_index ?
         p->mutable_master() : p->add_slaves();
       n->set_ip(node.ip);
       n->set_port(node.port);
     }
   }
 
-  // Debug dump
+  // // Debug dump
   // for (int i = 0; i < table->partitions_size(); i++) {
   //   const ZPMeta::Partitions& p = table->partitions(i);
   //   const ZPMeta::Node& master = p.master();
@@ -1672,7 +1678,7 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
 }
 
 Status Cluster::DebugDumpPartition(const std::string& table,
-    int partition_id) {
+    int partition_id, bool dump_nodes) {
   slash::RWLock l(&meta_rw_, false);
   auto it = tables_.find(table);
   if (it == tables_.end()) {
@@ -1681,19 +1687,21 @@ Status Cluster::DebugDumpPartition(const std::string& table,
   std::cout << "-epoch: " << epoch_ << std::endl;
   it->second->DebugDump(partition_id);
 
-  std::map<Node, std::vector<const Partition*>> nodes_loads;
-  it->second->GetNodesLoads(&nodes_loads);
-  for (auto& node : nodes_loads) {
-    std::cout << node.first << ": [";
-    const std::vector<const Partition*>& p_vec = node.second;
-    const Partition* p;
-    size_t i = 0;
-    for (i = 0; i < p_vec.size() - 1; i++) {
+  if (dump_nodes) {
+    std::map<Node, std::vector<const Partition*>> nodes_loads;
+    it->second->GetNodesLoads(&nodes_loads);
+    for (auto& node : nodes_loads) {
+      std::cout << node.first << ": [";
+      const std::vector<const Partition*>& p_vec = node.second;
+      const Partition* p;
+      size_t i = 0;
+      for (i = 0; i < p_vec.size() - 1; i++) {
+        p = p_vec.at(i);
+        printf("%d%s, ", p->id(), p->master() == node.first ? "*" : "");
+      }
       p = p_vec.at(i);
-      printf("%d%s, ", p->id(), p->master() == node.first ? "*" : "");
+      printf("%d%s]\n", p->id(), p->master() == node.first ? "*" : "");
     }
-    p = p_vec.at(i);
-    printf("%d%s]\n", p->id(), p->master() == node.first ? "*" : "");
   }
 
   return Status::OK();
