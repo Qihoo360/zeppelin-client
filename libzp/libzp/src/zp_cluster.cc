@@ -609,6 +609,21 @@ Status Cluster::CreateTable(const std::string& table_name,
     return Status::InvalidArgument("Empty distribution");
   }
 
+  std::vector<Node> nodes;
+  std::vector<std::string> status;
+  Status s = ListNode(&nodes, &status);
+  if (!s.ok()) {
+    return s;
+  }
+  // For check nodes aliveness
+  std::set<Node> alive_nodes;
+  assert(nodes.size() == status.size());
+  for (size_t i = 0; i < nodes.size(); i++) {
+    if (status[i] == "up") {
+      alive_nodes.insert(nodes[i]);
+    }
+  }
+
   meta_cmd_->Clear();
   meta_cmd_->set_type(ZPMeta::Type::INIT);
   ZPMeta::Table* table = meta_cmd_->mutable_init()->mutable_table();
@@ -627,6 +642,9 @@ Status Cluster::CreateTable(const std::string& table_name,
 
     for (size_t j = 0; j < partition.size(); j++) {
       const Node& node = partition[j];
+      if (alive_nodes.find(node) == alive_nodes.end()) {
+        return Status::Corruption("Node " + node.ToString() + " is down");
+      }
       ZPMeta::Node* n = j == master_index ?
         p->mutable_master() : p->add_slaves();
       n->set_ip(node.ip);
