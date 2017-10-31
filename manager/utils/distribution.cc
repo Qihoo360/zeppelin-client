@@ -7,7 +7,7 @@
 //  This source code is licensed under the BSD-style license found in the
 //  LICENSE file in the root directory of this source tree. An additional grant
 //  of patent rights can be found in the PATENTS file in the same directory.
-//
+
 #include "distribution.h"
 
 namespace distribution {
@@ -227,7 +227,7 @@ void Distribution() {
 //    std::cout << std::endl;
   }
   /*
-   * 2. if the second index is valid, there must have 2 available cabinets 
+   * 2. if the second index is valid, there must have 2 available cabinets
    * so we continue to pick indexes from the 2 available cabinets
    */
   if (idx[1] != -1) {
@@ -238,11 +238,61 @@ void Distribution() {
       // and continue to try to get indexes from 1 cabinet
       if (idx[1] == -1) {
         break;
-      }
-      for (int i = 0; i < 3; i++) {
-        partition.push_back(cab[idx[i]].front());
-//        std::cout << cab[idx[i]].front().host << " ";
-        cab[idx[i]].pop_front();
+      } else if (idx[2] == -1) {
+        // we only get 2 indexes from two cabinets, and we need to pick the
+        // third index randomly
+        int next_cab_idx = -1;
+        int next_node_idx = -1;
+        int retry_times = 0;
+        // 1. first, try to pick the third index from other cabinets that
+        // different from first two indexes
+        while (retry_times < kMaxRetry) {
+          next_cab_idx = std::rand() % cabinets.size();
+          if (next_cab_idx != idx[0] && next_cab_idx != idx[1]) {
+            next_node_idx = std::rand() % cabinets[next_cab_idx].size();
+            break;
+          }
+          retry_times++;
+        }
+        // 2. there is only two cabinets in total, so we need to pick the
+        // third index from random cabinet that is same with one of the
+        // first two indexes
+        if (retry_times == kMaxRetry) {
+          next_cab_idx = std::rand() % 2 == 0 ? idx[0] : idx[1];
+          retry_times = 0;
+          // 2-1. try to pick the third index from different host
+          while (retry_times < kMaxRetry) {
+            next_node_idx = std::rand() % cabinets[next_cab_idx].size();
+            if (cabinets[next_cab_idx][next_node_idx].host_id !=
+                cab[next_cab_idx].front().host_id) {
+              break;
+            }
+            retry_times++;
+          }
+          // 2-2. try to pick the third index from different node [same host]
+          if (retry_times == kMaxRetry) {
+            retry_times = 0;
+            while (retry_times < kMaxRetry) {
+              next_node_idx = std::rand() % cabinets[next_cab_idx].size();
+              if (cabinets[next_cab_idx][next_node_idx].host !=
+                  cab[next_cab_idx].front().host) {
+                break;
+              }
+              retry_times++;
+            }
+          }
+        }
+        partition.push_back(cab[idx[0]].front());
+        cab[idx[0]].pop_front();
+        partition.push_back(cab[idx[1]].front());
+        cab[idx[1]].pop_front();
+        partition.push_back(cabinets[next_cab_idx][next_node_idx]);
+      } else {
+        for (int i = 0; i < 3; i++) {
+          partition.push_back(cab[idx[i]].front());
+  //        std::cout << cab[idx[i]].front().host << " ";
+          cab[idx[i]].pop_front();
+        }
       }
       result.push_back(partition);
 //      std::cout << std::endl;
@@ -464,11 +514,21 @@ void Checkup() {
   int repl_2_in_1_host = 0;
   int repl_3_in_1_cab = 0;
   int repl_2_in_1_cab = 0;
+  int repl_3_in_1_node = 0;
+  int repl_2_in_1_node = 0;
   int partition_num = 0;
 
   for (auto&p : result) {
     partition_num++;
-    // 1. checkup host
+    // 1. checkup node
+    if (p[0].host == p[1].host && p[0].host == p[2].host) {
+      repl_3_in_1_node++;
+    } else if (p[0].host == p[1].host || p[0].host == p[2].host ||
+        p[1].host == p[2].host) {
+      repl_2_in_1_node++;
+    }
+
+    // 2. checkup host
     if (p[0].host_id == p[1].host_id && p[0].host_id == p[2].host_id) {
       repl_3_in_1_host++;
     } else if (p[0].host_id == p[1].host_id || p[0].host_id == p[2].host_id ||
@@ -476,12 +536,12 @@ void Checkup() {
       repl_2_in_1_host++;
     }
 
-    // 2. checkup cab
+    // 3. checkup cab
     if (p[0].cab_id == p[1].cab_id && p[0].cab_id == p[2].cab_id) {
       repl_3_in_1_cab++;
-    } else if (p[0].host_id == p[1].host_id || p[0].host_id == p[2].host_id ||
-        p[1].host_id == p[2].host_id) {
-      repl_3_in_1_cab++;
+    } else if (p[0].cab_id == p[1].cab_id || p[0].cab_id == p[2].cab_id ||
+        p[1].cab_id == p[2].cab_id) {
+      repl_2_in_1_cab++;
     }
   }
 
@@ -529,6 +589,8 @@ void Checkup() {
   std::cout << "-------------------------" << std::endl;
   std::cout << "Node Num: " << node_num << std::endl;
   std::cout << "Partition Num: " << partition_num << std::endl;
+  std::cout << "3 replicas in 1 node: " << repl_3_in_1_node << std::endl;
+  std::cout << "2 replicas in 1 node: " << repl_2_in_1_node << std::endl;
   std::cout << "3 replicas in 1 host: " << repl_3_in_1_host << std::endl;
   std::cout << "2 replicas in 1 host: " << repl_2_in_1_host << std::endl;
   std::cout << "3 replicas in 1 cabinet: " << repl_3_in_1_cab << std::endl;
