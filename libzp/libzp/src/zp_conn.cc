@@ -3,6 +3,7 @@
  */
 #include "libzp/src/zp_conn.h"
 
+#include <algorithm>
 #include <sys/time.h>
 #include "slash/include/env.h"
 #include "pink/include/pink_cli.h"
@@ -65,24 +66,19 @@ Status ZpCli::SetTimeout(uint64_t deadline, TimeoutOptType type) {
   return Status::OK();
 }
 
-ConnectionPool::ConnectionPool() {
-  }
+ConnectionPool::ConnectionPool(size_t capacity) : capacity_(capacity) {}
 
-ConnectionPool::~ConnectionPool() {
-  slash::MutexLock l(&pool_mu_);
-  conn_pool_.clear();
-}
-
-std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node,
-    uint64_t deadline, Status* sptr) {
+std::shared_ptr<ZpCli> ConnectionPool::GetConnection(
+    const Node& node, uint64_t deadline, Status* sptr) {
   *sptr = Status::OK();
   slash::MutexLock l(&pool_mu_);
   std::map<Node, std::shared_ptr<ZpCli>>::iterator it = conn_pool_.find(node);
   if (it != conn_pool_.end()) {
     if (it->second->TryKeepalive()) {
+      MoveToLRUHead(node);
       return it->second;
     }
-    conn_pool_.erase(it);
+    RemoveFromLRU(node);
   }
 
   // Not found or timeout, create new one
@@ -93,6 +89,7 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node,
   }
   if (sptr->ok()) {
     conn_pool_.insert(std::make_pair(node, cli));
+    InsertLRU(node);
     return cli;
   }
   return NULL;
@@ -100,27 +97,48 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(const Node& node,
 
 void ConnectionPool::RemoveConnection(std::shared_ptr<ZpCli> conn) {
   slash::MutexLock l(&pool_mu_);
-  Node node = conn->node;
-  std::map<Node, std::shared_ptr<ZpCli>>::iterator it = conn_pool_.find(node);
-  if (it != conn_pool_.end()) {
-    conn_pool_.erase(it);
-  }
+  RemoveFromLRU(conn->node);
 }
 
+// Only for meta node connection pool
 std::shared_ptr<ZpCli> ConnectionPool::GetExistConnection() {
   Status s;
   std::map<Node, std::shared_ptr<ZpCli>>::iterator first;
   slash::MutexLock l(&pool_mu_);
   while (!conn_pool_.empty()) {
-    first = conn_pool_.begin();
-    if (!first->second->TryKeepalive()) {
+    first_conn = conn_pool_.begin();
+    if (!first_conn->second->TryKeepalive()) {
       // Expire connection
-      conn_pool_.erase(conn_pool_.begin());
+      const Node& node = first_conn->first;
+      RemoveFromLRU(node);
       continue;
     }
-    return conn_pool_.begin()->second;
+    return first_conn->second;
   }
   return NULL;
+}
+
+void ConnectionPool::MoveToLRUHead(const Node& node) {
+  auto pos = std::find(lru_.begin(), lru_.end(), node);
+  assert(pos != lru_.end());
+  lru_.push_front(node);
+  lru_.erase(pos);
+}
+
+void ConnectionPool::InsertLRU(const Node& node) {
+  if (lru_.size() == capacity_) {
+    const Node& rear_node = lru_.back();
+    assert(conn_pool_.find(rear_node) != conn_pool_.end());
+    conn_pool_.erase(rear_node);
+    lru_.pop_back();
+  }
+  lru_.push_front(node);
+}
+
+void ConnectionPool::RemoveFromLRU(const Node& node) {
+  conn_pool_.erase(node);
+  auto pos = std::find(lru_.begin(), lru_.end(), node);
+  lru_.erase(pos);
 }
 
 }  // namespace libzp

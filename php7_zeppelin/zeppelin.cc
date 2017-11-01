@@ -298,6 +298,7 @@ PHP_MINFO_FUNCTION(zeppelin)
 {
 	php_info_print_table_start();
 	php_info_print_table_header(2, "zeppelin support", "enabled");
+	php_info_print_table_header(2, "zeppelin version", PHP_ZEPPELIN_VERSION);
 	php_info_print_table_end();
 
 	/* Remove comments if you have entries in php.ini

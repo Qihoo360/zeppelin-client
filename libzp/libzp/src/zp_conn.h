@@ -6,6 +6,7 @@
 #define CLIENT_INCLUDE_ZP_CONN_H_
 #include <stdint.h>
 #include <map>
+#include <list>
 #include <string>
 #include <memory>
 
@@ -38,18 +39,21 @@ struct ZpCli {
 
 class ConnectionPool {
  public :
-  ConnectionPool();
-
-  virtual ~ConnectionPool();
-
-  std::shared_ptr<ZpCli> GetConnection(const Node& node,
-      uint64_t deadline, Status* sptr);
+  explicit ConnectionPool(size_t capacity);
+  std::shared_ptr<ZpCli> GetConnection(
+    const Node& node, uint64_t deadline, Status* sptr);
   void RemoveConnection(std::shared_ptr<ZpCli> conn);
   std::shared_ptr<ZpCli> GetExistConnection();
 
  private:
   slash::Mutex pool_mu_;
   std::map<Node, std::shared_ptr<ZpCli>> conn_pool_;
+  std::list<Node> lru_;
+  size_t capacity_;
+
+  void MoveToLRUHead(const Node& node);
+  void InsertLRU(const Node& node);
+  void RemoveFromLRU(const Node& node);
 };
 
 }  // namespace libzp
