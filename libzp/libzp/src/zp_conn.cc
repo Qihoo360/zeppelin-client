@@ -103,7 +103,7 @@ void ConnectionPool::RemoveConnection(std::shared_ptr<ZpCli> conn) {
 // Only for meta node connection pool
 std::shared_ptr<ZpCli> ConnectionPool::GetExistConnection() {
   Status s;
-  std::map<Node, std::shared_ptr<ZpCli>>::iterator first;
+  std::map<Node, std::shared_ptr<ZpCli>>::iterator first_conn;
   slash::MutexLock l(&pool_mu_);
   while (!conn_pool_.empty()) {
     first_conn = conn_pool_.begin();

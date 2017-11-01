@@ -234,8 +234,8 @@ Cluster::Cluster(const std::string& ip, int port)
   }
 
 void Cluster::Init() {
-    meta_pool_ = new ConnectionPool(10);
-    data_pool_ = new ConnectionPool(10);
+    meta_pool_ = new ConnectionPool(8);
+    data_pool_ = new ConnectionPool(options_.connection_pool_capacity);
     meta_cmd_ = new ZPMeta::MetaCmd();
     meta_res_ = new ZPMeta::MetaCmdResponse();
     context_ = new CmdContext();

@@ -54,14 +54,16 @@ struct Options {
   // How many milliseconds to wait for a response
   // before returning an error from a zeppelin operation. 0 means no limit
   // Default 1000
-  int op_timeout;
+  size_t op_timeout;
+
+  // Data node connnection pool size
+  // Default 32
+  size_t connection_pool_capacity;
 
   // meta address collection
   std::vector<Node> meta_addr;
 
-  Options()
-    : op_timeout(1000) {
-      }
+  Options() : op_timeout(1000), connection_pool_capacity(32) {}
 };
 
 struct Result {
