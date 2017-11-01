@@ -1,9 +1,16 @@
-## Zeppelin-client
+## Zeppelin-client for [zeppelin](https://github.com/Qihoo360/zeppelin)
 
 [![Build Status](https://travis-ci.org/Qihoo360/zeppelin-client.svg?branch=master)](https://travis-ci.org/Qihoo360/zeppelin-client)
 
-- libzp: A c++ client library for [zeppelin](https://github.com/Qihoo360/zeppelin)
-- manager : Command line tools for [zeppelin](https://github.com/Qihoo360/zeppelin)
-- phpzeppelin : A php client library for [zeppelin](https://github.com/Qihoo360/zeppelin)
-- pyeppelin : A python client library for [zeppelin](https://github.com/Qihoo360/zeppelin)
-- tools : Tools for [zeppelin](https://github.com/Qihoo360/zeppelin)
+- libzp: C++ client library
+- manager : Manager and checkup command line tools
+  - zp_benchmark
+  - zp_checkup
+  - zp_expansion
+  - zp_info
+  - zp_manager
+  - zp_parade
+  - rocksdb_to_zp
+- phpzeppelin : PHP client extension
+- php7zeppelin : PHP7 client extension
+- pyeppelin : Python client library
