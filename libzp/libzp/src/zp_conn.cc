@@ -91,10 +91,14 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(
   ZpCliItem* item = new ZpCliItem(zp_cli);
   *sptr = zp_cli->SetTimeout(deadline, TimeoutOptType::CONNECT);
   if (!sptr->ok()) {
+    delete zp_cli;
+    delete item;
     return nullptr;
   }
   *sptr = zp_cli->cli->Connect(node.ip, node.port);
   if (!sptr->ok()) {
+    delete zp_cli;
+    delete item;
     return nullptr;
   }
 
