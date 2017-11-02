@@ -47,7 +47,7 @@ class ConnectionPool {
 
  private:
   struct ZpCliItem {
-    explicit ZpCliItem(ZpCli* zp_cli)
+    explicit ZpCliItem(std::shared_ptr<ZpCli> zp_cli)
         : cli(zp_cli),
           next(nullptr),
           prev(nullptr) {

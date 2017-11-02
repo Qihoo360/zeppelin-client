@@ -87,17 +87,15 @@ std::shared_ptr<ZpCli> ConnectionPool::GetConnection(
   }
 
   // Not found or timeout, create new one
-  ZpCli* zp_cli = new ZpCli(node);
+  std::shared_ptr<ZpCli> zp_cli(new ZpCli(node));
   ZpCliItem* item = new ZpCliItem(zp_cli);
   *sptr = zp_cli->SetTimeout(deadline, TimeoutOptType::CONNECT);
   if (!sptr->ok()) {
-    delete zp_cli;
     delete item;
     return nullptr;
   }
   *sptr = zp_cli->cli->Connect(node.ip, node.port);
   if (!sptr->ok()) {
-    delete zp_cli;
     delete item;
     return nullptr;
   }
