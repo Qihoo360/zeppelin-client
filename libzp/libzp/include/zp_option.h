@@ -63,7 +63,7 @@ struct Options {
   // meta address collection
   std::vector<Node> meta_addr;
 
-  Options() : op_timeout(1000), connection_pool_capacity(128) {}
+  Options() : op_timeout(1000), connection_pool_capacity(32) {}
 };
 
 struct Result {
