@@ -46,14 +46,25 @@ class ConnectionPool {
   std::shared_ptr<ZpCli> GetExistConnection();
 
  private:
-  slash::Mutex pool_mu_;
-  std::map<Node, std::shared_ptr<ZpCli>> conn_pool_;
-  std::list<Node> lru_;
-  size_t capacity_;
+  struct ZpCliItem {
+    explicit ZpCliItem(ZpCli* zp_cli)
+        : cli(zp_cli),
+          next(nullptr),
+          prev(nullptr) {
+    }
+    std::shared_ptr<ZpCli> cli;
+    ZpCliItem* next;
+    ZpCliItem* prev;
+  };
 
-  void MoveToLRUHead(const Node& node);
-  void InsertLRU(const Node& node);
-  void RemoveFromLRU(const Node& node);
+  slash::Mutex pool_mu_;
+  std::map<Node, ZpCliItem*> conn_pool_;
+  size_t capacity_;
+  ZpCliItem lru_head_;
+
+  void MoveToLRUHead(ZpCliItem* item);
+  void InsertLRU(ZpCliItem* item);
+  void RemoveFromLRU(ZpCliItem* item);
 };
 
 }  // namespace libzp
