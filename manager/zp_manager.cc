@@ -42,8 +42,8 @@ CommandHelp commandHelp[] = {
     "Delete key"},
 
   { "CREATETABLE",
-    "table host_list_file [partition_per_node]",
-    3,
+    "table host_list_file",
+    2,
     "Create table, 3 partition per node as default"},
 
   { "PULL",
@@ -305,18 +305,17 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
     SplitByBlank(info, line_args);
     
     if (!strncasecmp(line, "CREATETABLE ", 12)) {
-      if (line_args.size() != 3 && line_args.size() != 4) {
+      if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
       std::string table_name = line_args[1];
-      int partition_per_node =
-        line_args.size() == 4 ? std::atoi(line_args[3].c_str()) : 3;
       if (!distribution::Load(line_args[2])) {
         std::cout << "Cannot load file " << line_args[1] << std::endl;
         continue;
       }
-      for (int times = 0; times < partition_per_node; times++) {
+      const int kDistributionTimes = 3;
+      for (int times = 0; times < kDistributionTimes; times++) {
         distribution::Distribution();
       }
       distribution::Checkup();
