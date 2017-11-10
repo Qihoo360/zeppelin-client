@@ -383,6 +383,9 @@ Status Cluster::Adelete(const std::string& table, const std::string& key,
 
 Status Cluster::Amget(const std::string& table, const std::vector<std::string>& keys,
     zp_completion_t complietion, void* data) {
+  if (keys.empty()) {
+    return Status::InvalidArgument("Empty keys");
+  }
   CmdContext* context = new CmdContext();
   BuildMgetContext(this, table, keys, context, complietion, data);
   AddAsyncTask(context);
