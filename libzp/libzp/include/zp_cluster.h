@@ -99,6 +99,8 @@ public:
       std::vector<std::string>* status);
 
   Status InfoQps(const std::string& table, int32_t* qps, int64_t* total_query);
+  Status InfoLatency(
+      const std::string& table, std::map<Node, std::string>* latency_info);
   Status InfoRepl(const Node& node,
       const std::string& table, std::map<int, PartitionView>* partitions);
   Status InfoSpace(const std::string& table,

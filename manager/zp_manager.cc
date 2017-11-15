@@ -126,6 +126,11 @@ CommandHelp commandHelp[] = {
     1,
     "Get qps for a table"},
 
+  { "LATENCY",
+    "table",
+    1,
+    "Get latency infomation for a table"},
+
   { "REPLSTATE",
     "table ip:port",
     2,
@@ -729,6 +734,23 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       std::cout << "qps:" << qps << std::endl;
       std::cout << "total query:" << total_query << std::endl;
 
+    } else if (!strncasecmp(line, "LATENCY", 7)) {
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string table_name = line_args[1];
+      std::map<libzp::Node, std::string> latency_info;
+      s = cluster->InfoLatency(table_name, &latency_info);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      printf("Table %s latency:\n", table_name.c_str());
+      for (auto& item : latency_info) {
+        printf("On node: %s\n", item.first.ToString().c_str());
+        printf("%s\n", item.second.c_str());
+      }
     } else if (!strncasecmp(line, "REPLSTATE", 9)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
