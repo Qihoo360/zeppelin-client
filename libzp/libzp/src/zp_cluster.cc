@@ -1411,13 +1411,24 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   return Status::OK();
 }
 
-Status Cluster::MetaStatus(std::map<Node, std::string>* meta_status) {
+Status Cluster::MetaStatus(Node* leader, std::map<Node, std::string>* meta_status) {
+  std::vector<libzp::Node> followers;
+  Status ret = ListMeta(leader, &followers);
+  if (!ret.ok()) {
+    return ret;
+  }
+
+  (*meta_status)[*leader] = "Unknow";
+  for (auto& follower : followers) {
+    (*meta_status)[follower] = "Unknow";
+  }
+
   int32_t version;
   int64_t begin_time;
   int32_t complete_proportion;
   std::string consistency_stautus;
-  Status ret = MetaStatus(&version, &consistency_stautus,
-                          &begin_time, &complete_proportion);
+  ret = MetaStatus(&version, &consistency_stautus,
+                   &begin_time, &complete_proportion);
   if (!ret.ok()) {
     return ret;
   }
@@ -1435,6 +1446,7 @@ Status Cluster::MetaStatus(std::map<Node, std::string>* meta_status) {
         if (slash::ParseIpPortString(word, ip, port)) {
           Node n(ip, port - 100);
           (*meta_status)[n] = "Up";
+          break;
         }
       }
     }
