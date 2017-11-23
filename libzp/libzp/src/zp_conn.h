@@ -40,6 +40,7 @@ struct ZpCli {
 class ConnectionPool {
  public :
   explicit ConnectionPool(size_t capacity);
+  ~ConnectionPool();
   std::shared_ptr<ZpCli> GetConnection(
     const Node& node, uint64_t deadline, Status* sptr);
   void RemoveConnection(std::shared_ptr<ZpCli> conn);
