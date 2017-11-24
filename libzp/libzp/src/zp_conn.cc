@@ -72,6 +72,12 @@ ConnectionPool::ConnectionPool(size_t capacity) :
   lru_head_.prev = &lru_head_;
 }
 
+ConnectionPool::~ConnectionPool() {
+  for (auto& item : conn_pool_) {
+    delete item.second;
+  }
+}
+
 std::shared_ptr<ZpCli> ConnectionPool::GetConnection(
     const Node& node, uint64_t deadline, Status* sptr) {
   *sptr = Status::OK();

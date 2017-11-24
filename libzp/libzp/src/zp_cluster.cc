@@ -1414,13 +1414,24 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   return Status::OK();
 }
 
-Status Cluster::MetaStatus(std::map<Node, std::string>* meta_status) {
+Status Cluster::MetaStatus(Node* leader, std::map<Node, std::string>* meta_status) {
+  std::vector<libzp::Node> followers;
+  Status ret = ListMeta(leader, &followers);
+  if (!ret.ok()) {
+    return ret;
+  }
+
+  (*meta_status)[*leader] = "Unknow";
+  for (auto& follower : followers) {
+    (*meta_status)[follower] = "Unknow";
+  }
+
   int32_t version;
   int64_t begin_time;
   int32_t complete_proportion;
   std::string consistency_stautus;
-  Status ret = MetaStatus(&version, &consistency_stautus,
-                          &begin_time, &complete_proportion);
+  ret = MetaStatus(&version, &consistency_stautus,
+                   &begin_time, &complete_proportion);
   if (!ret.ok()) {
     return ret;
   }
@@ -1438,6 +1449,7 @@ Status Cluster::MetaStatus(std::map<Node, std::string>* meta_status) {
         if (slash::ParseIpPortString(word, ip, port)) {
           Node n(ip, port - 100);
           (*meta_status)[n] = "Up";
+          break;
         }
       }
     }
@@ -1549,17 +1561,38 @@ Status Cluster::InfoQps(const std::string& table,
   }
 
   *qps = *total_query = 0;
-  auto node_iter = related_nodes.begin();
-  while (node_iter != related_nodes.end()) {
+  for (auto& node : related_nodes) {
     BuildInfoContext(this, table, client::Type::INFOSTATS, context_);
-    context_->result = SubmitDataCmd(*node_iter,
+    context_->result = SubmitDataCmd(node,
         *(context_->request), context_->response, context_->deadline);
-    node_iter++;
     if (!context_->result.ok()) {
       continue;
     }
     *qps += context_->response->info_stats(0).qps();
     *total_query += context_->response->info_stats(0).total_querys();
+  }
+  return Status::OK();
+}
+
+Status Cluster::InfoLatency(
+    const std::string& table, std::map<Node, std::string>* latency_info) {
+  PullInternal(table, CalcDeadline(options_.op_timeout));
+  std::set<Node> related_nodes;
+  Status s = GetTableMasters(table, &related_nodes);
+  if (!s.ok()) {
+    return s;
+  }
+
+  for (auto& node : related_nodes) {
+    BuildInfoContext(this, table, client::Type::INFOSTATS, context_);
+    context_->result = SubmitDataCmd(node,
+        *(context_->request), context_->response, context_->deadline);
+    if (!context_->result.ok()) {
+      continue;
+    }
+    const std::string& lat_info =
+      context_->response->info_stats(0).latency_info();
+    latency_info->insert(std::make_pair(node, lat_info));
   }
   return Status::OK();
 }

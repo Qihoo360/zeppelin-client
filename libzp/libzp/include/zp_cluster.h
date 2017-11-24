@@ -90,8 +90,8 @@ public:
 
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);
-  Status ListMeta(Node* master, std::vector<Node>* nodes);
-  Status MetaStatus(std::map<Node, std::string>* meta_status);
+  Status ListMeta(Node* leader, std::vector<Node>* nodes);
+  Status MetaStatus(Node* leader, std::map<Node, std::string>* meta_status);
   Status MetaStatus(std::string* meta_status);
   Status MetaStatus(int32_t* version, std::string* consistency_stautus,
                     int64_t* begin_time, int32_t* complete_proportion);
@@ -99,6 +99,8 @@ public:
       std::vector<std::string>* status);
 
   Status InfoQps(const std::string& table, int32_t* qps, int64_t* total_query);
+  Status InfoLatency(
+      const std::string& table, std::map<Node, std::string>* latency_info);
   Status InfoRepl(const Node& node,
       const std::string& table, std::map<int, PartitionView>* partitions);
   Status InfoSpace(const std::string& table,
