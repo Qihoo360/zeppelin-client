@@ -86,6 +86,7 @@ public:
   Status Migrate(const std::string& table,
                  const Node& src_node, int partition_id, const Node& dst_node);
   Status Shrink(const std::string& table, const std::vector<Node>& ip_ports);
+  Status ReplaceNode(const Node& ori_node, const Node& dst_node);
   Status CancelMigrate();
 
   // statistical cmd

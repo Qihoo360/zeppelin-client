@@ -86,6 +86,11 @@ CommandHelp commandHelp[] = {
     2,
     "Shrink table's capacity"},
 
+  { "REPLACENODE",
+    "source(ip:port) dstination(ip:port)",
+    2,
+    "Move all loads from source to destination"},
+
   { "CANCELMIGRATE",
     "",
     0,
@@ -552,6 +557,27 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       }
 
       s = cluster->Shrink(table_name, deleting);
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "REPLACENODE ", 12)) {
+      if (line_args.size() != 3) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      libzp::Node ori_node, dst_node;
+      if (!slash::ParseIpPortString(line_args[1],
+                                    ori_node.ip,
+                                    ori_node.port)) {
+        printf("unknow source(ip:port) format, %s\n", line_args[1].c_str());
+        continue;
+      }
+      if (!slash::ParseIpPortString(line_args[2],
+                                    dst_node.ip,
+                                    dst_node.port)) {
+        printf("unknow destination(ip:port) format, %s\n", line_args[2].c_str());
+        continue;
+      }
+
+      s = cluster->ReplaceNode(ori_node, dst_node);
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "CANCELMIGRATE", 13)) {
       if (line_args.size() != 1) {

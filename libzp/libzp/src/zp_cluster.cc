@@ -78,12 +78,12 @@ struct CmdContext {
   uint64_t deadline; //0 means no limit
 
   CmdContext()
-    : cluster(NULL), partition_id(-1),
-    result(Status::Incomplete("Not complete")),
-    user_data(NULL), cond_(&mu_), done_(false) {
-      request = new client::CmdRequest();
-      response = new client::CmdResponse();
-    }
+      : cluster(NULL), partition_id(-1),
+        result(Status::Incomplete("Not complete")),
+        user_data(NULL), cond_(&mu_), done_(false) {
+    request = new client::CmdRequest();
+    response = new client::CmdResponse();
+  }
 
   // Init with partition id
   void Init(Cluster* c, const std::string& tab, int id,
@@ -1142,7 +1142,8 @@ Status Cluster::Expand(
     auto diff = migrate_cmd->diff(i);
     auto l = diff.left();
     auto r = diff.right();
-    printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
+    printf("Move table(%s) %s:%d - %d => %s:%d\n", diff.table().c_str(),
+           l.ip().c_str(), l.port(), diff.partition(),
            r.ip().c_str(), r.port());
   }
 
@@ -1345,11 +1346,102 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     auto diff = migrate_cmd->diff(i);
     auto l = diff.left();
     auto r = diff.right();
-    printf("Move %s:%d - %d => %s:%d\n", l.ip().c_str(), l.port(), diff.partition(),
+    printf("Move table(%s) %s:%d - %d => %s:%d\n",diff.table().c_str(),
+           l.ip().c_str(), l.port(), diff.partition(),
            r.ip().c_str(), r.port());
   }
   if (migrate_cmd->diff_size() == 0) {
     return Status::Corruption("There is no reasonable way");
+  }
+
+  printf("Continue? (Y/N)\n");
+  char confirm = getchar(); getchar();  // ignore \n
+  if (std::tolower(confirm) != 'y') {
+    return Status::Incomplete("Abort");
+  }
+
+  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+                    CalcDeadline(options_.op_timeout));
+  if (!s.ok()) {
+    return s;
+  }
+
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  }
+
+  return s;
+}
+
+Status Cluster::ReplaceNode(const Node& ori_node, const Node& dst_node) {
+  // Check dst_node
+  std::vector<Node> nodes;
+  std::vector<std::string> status;
+  Status s = ListNode(&nodes, &status);
+  if (!s.ok()) {
+    return s;
+  }
+  assert(nodes.size() == status.size());
+  size_t i = 0;
+  for (; i < nodes.size(); i++) {
+    if (nodes[i] == dst_node) {
+      break;
+    }
+  }
+  if (i >= nodes.size()) {
+    return Status::Corruption("Cannot find dst_node: " + dst_node.ToString());
+  } else if (status[i] != "up") {
+    return Status::Corruption("dst_node is offline");
+  }
+
+  // Acquire origin nodes' infomation
+  std::vector<std::string> tables;
+  s = ListTable(&tables);
+  if (!s.ok()) {
+    return s;
+  }
+  for (auto& table : tables) {
+    s = PullInternal(table, CalcDeadline(options_.op_timeout));
+    if (!s.ok()) {
+      return s;
+    }
+  }
+
+  // Init protobuf
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
+  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  migrate_cmd->set_origin_epoch(epoch_);
+
+  for (auto& table : tables) {
+    Table* tbl_ptr = tables_[table];
+    std::map<Node, std::vector<const Partition*>> nodes_loads;
+    tbl_ptr->GetNodesLoads(&nodes_loads);
+    auto item = nodes_loads.find(ori_node);
+    if (item != nodes_loads.end()) {
+      for (auto par : item->second) {
+        auto cmd_unit = migrate_cmd->add_diff();
+        cmd_unit->set_table(table);
+        cmd_unit->set_partition(par->id());
+        auto l = cmd_unit->mutable_left();
+        l->set_ip(ori_node.ip);
+        l->set_port(ori_node.port);
+        auto r = cmd_unit->mutable_right();
+        r->set_ip(dst_node.ip);
+        r->set_port(dst_node.port);
+      }
+    }
+  }
+
+  // Dump migrate result
+  printf("Move numbers: %d\n", migrate_cmd->diff_size());
+  for (int i = 0; i < migrate_cmd->diff_size(); i++) {
+    auto diff = migrate_cmd->diff(i);
+    auto l = diff.left();
+    auto r = diff.right();
+    printf("Move table(%s) %s:%d - %d => %s:%d\n", diff.table().c_str(),
+           l.ip().c_str(), l.port(), diff.partition(),
+           r.ip().c_str(), r.port());
   }
 
   printf("Continue? (Y/N)\n");
