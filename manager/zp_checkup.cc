@@ -51,28 +51,53 @@ bool health = true;
 
 void CheckupMeta(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupMeta");
-  std::vector<libzp::Node> slaves;
-  libzp::Node master;
-  slash::Status s = cluster->ListMeta(&master, &slaves);
+  std::map<libzp::Node, std::string> meta_status;
+  libzp::Node leader;
+  slash::Status s = cluster->MetaStatus(&leader, &meta_status);
   if (!s.ok()) {
-    printf(RED "CheckupMeta, ListMeta Failed: %s" NONE "\n",
+    printf(RED "CheckupMeta, MetaStatus Failed: %s" NONE "\n",
         s.ToString().c_str());
     json->AddStr("error", "true");
     health = false;
     return;
   }
-  printf("Master: %s:%d\n", master.ip.c_str(), master.port);
-  printf("Slaves: ");
-  size_t i = 0;
-  for (i = 0; i < slaves.size() - 1; i++) {
-    printf("%s:%d, ", slaves[i].ip.c_str(), slaves[i].port);
+  mjson::Json node_json(mjson::JsonType::kSingle);
+  printf(L_PURPLE "Leader:\n" NONE);
+  printf("  %s:%d ", leader.ip.c_str(), leader.port);
+  printf(GREEN "Up\n" NONE);
+  node_json.AddStr("node", leader.ip + ":" + std::to_string(leader.port));
+  node_json.AddStr("status", "Up");
+  json->AddJson("leader", node_json);
+
+  printf(L_PURPLE "Followers:\n" NONE);
+  bool pass = true;
+  mjson::Json followers_json(mjson::JsonType::kArray);
+  for (auto iter = meta_status.begin(); iter != meta_status.end(); iter++) {
+    node_json.Clear();
+    if (iter->first == leader) {
+      continue;
+    }
+    node_json.AddStr("node", iter->first.ip + ":" +
+        std::to_string(iter->first.port));
+    node_json.AddStr("status", iter->second);
+    followers_json.PushJson(node_json);
+    printf("  %s:%d ", iter->first.ip.c_str(), iter->first.port);
+    if (iter->second == "Up") {
+      printf(GREEN "%s\n" NONE, iter->second.c_str());
+    } else {
+      pass = false;
+      health = false;
+      printf(RED "%s\n" NONE, iter->second.c_str());
+    }
   }
-  if (i == slaves.size() - 1) {
-    printf("%s:%d\n", slaves[i].ip.c_str(), slaves[i].port);
+  json->AddJson("followers", followers_json);
+  if (pass) {
+    printf(GREEN " ...... PASSED\n" NONE);
+    json->AddStr("result", "passed");
   } else {
-    printf("\n");
+    printf(RED "...... FAILED\n" NONE);
+    json->AddStr("result", "failed");
   }
-  json->AddStr("result", "passed");
 }
 
 void CheckupNode(mjson::Json* json) {
@@ -148,6 +173,11 @@ void CheckupEpoch(mjson::Json* json) {
 
   int dismatch_epoch_num = 0;
   for (size_t i = 0; i < nodes.size(); i++) {
+    if (status[i] != "up") {
+      dismatch_epoch_num++;
+      continue;
+    }
+
     libzp::ServerState state;
     libzp::Status s = cluster->InfoServer(nodes[i], &state);
     if (!s.ok()) {
@@ -578,6 +608,7 @@ int main(int argc, char* argv[]) {
   CheckupConclusion(&conclusion_json);
 
   json.AddStr("check_time", check_time);
+  json.AddInt("version", 2);
   json.AddJson("conclusion", conclusion_json);
   json.AddJson("meta", meta_json);
   json.AddJson("node", node_json);
