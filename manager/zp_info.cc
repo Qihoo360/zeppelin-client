@@ -143,31 +143,45 @@ void InfoNodeDetail() {
 
 void InfoMeta(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoMeta");
-  std::vector<libzp::Node> slaves;
-  libzp::Node master;
-  slash::Status s = cluster->ListMeta(&master, &slaves);
+  std::map<libzp::Node, std::string> meta_status;
+  libzp::Node leader;
+  slash::Status s = cluster->MetaStatus(&leader, &meta_status);
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
     json->AddStr("error", "true");
     return;
   }
 
-  json->AddInt("count", slaves.size() + 1);
+  json->AddInt("count", meta_status.size());
+  mjson::Json node_json(mjson::JsonType::kSingle);
 
   printf(L_PURPLE "Leader:\n" NONE);
-  printf("  %s:%d\n", master.ip.c_str(), master.port);
-  json->AddStr("master", master.ip + ":" + std::to_string(master.port));
+  printf("  %s:%d ", leader.ip.c_str(), leader.port);
+  printf(GREEN "Up\n" NONE);
+  node_json.AddStr("node", leader.ip + ":" + std::to_string(leader.port));
+  node_json.AddStr("status", "Up");
+  json->AddJson("leader", node_json);
+
+
+  mjson::Json followers_json(mjson::JsonType::kArray);
   printf(L_PURPLE "Followers:\n" NONE);
-  for (auto iter = slaves.begin(); iter != slaves.end(); iter++) {
-    printf("  %s:%d\n", iter->ip.c_str(), iter->port);
+  for (auto iter = meta_status.begin(); iter != meta_status.end(); iter++) {
+    node_json.Clear();
+    if (iter->first == leader) {
+      continue;
+    }
+    node_json.AddStr("node", iter->first.ip + ":" +
+        std::to_string(iter->first.port));
+    node_json.AddStr("status", iter->second);
+    followers_json.PushJson(node_json);
+    printf("  %s:%d ", iter->first.ip.c_str(), iter->first.port);
+    if (iter->second == "Up") {
+      printf(GREEN "%s\n" NONE, iter->second.c_str());
+    } else {
+      printf(RED "%s\n" NONE, iter->second.c_str());
+    }
   }
-  std::string meta_status;
-  printf(L_PURPLE "Detail:\n" NONE);
-  s = cluster->MetaStatus(&meta_status);
-  if (!s.ok()) {
-    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
-  }
-  printf("%s", meta_status.c_str());
+  json->AddJson("followers", followers_json);
 }
 
 void PartitionDetail(const std::string& table, int32_t id,
@@ -528,7 +542,6 @@ int main(int argc, char* argv[]) {
     InfoSpace(table, &space_json);
   } else if (info == "all") {
     mjson::Json json(mjson::JsonType::kSingle);
-
     InfoNode();
     printf("\n");
 
@@ -547,6 +560,8 @@ int main(int argc, char* argv[]) {
     InfoSpace(table, &space_json);
 
     json.AddStr("info_time", info_time);
+    json.AddInt("version", 2);
+
     json.AddJson("meta", meta_json);
     json.AddJson("query", query_json);
     json.AddJson("space", space_json);
