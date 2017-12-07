@@ -65,5 +65,59 @@ Status Client::Amget(const std::vector<std::string>& keys,
   return cluster_->Amget(table_, keys, complietion, data);
 }
 
-}  // namespace libzp
+const std::string COLSEP = "_###_";
 
+Status Client::PutRow(
+    const std::string primary_key,
+    const std::map<std::string, std::string> columns) {
+  if (columns.empty()) {
+    return Status::InvalidArgument("Empty columns");
+  }
+  std::string hash_tag = primary_key + COLSEP;
+  Cluster::Batch batch(hash_tag);
+  for (auto& item : columns) {
+    batch.Write(item.first, item.second);
+  }
+  return cluster_->WriteBatch(table_, batch);
+}
+
+Status Client::GetRow(
+    const std::string& primary_key,
+    const std::vector<std::string> col_to_get,
+    std::map<std::string, std::string>* columns) {
+  std::string hash_tag = primary_key + COLSEP;
+  if (col_to_get.empty()) {
+    return cluster_->ListbyTag(table_, hash_tag, columns);
+  }
+  // Build Mget request
+  std::vector<std::string> keys;
+  for (auto& c : col_to_get) {
+    keys.emplace_back(hash_tag + c);
+  }
+  std::map<std::string, std::string> results;
+  Status s = cluster_->Mget(table_, keys, &results);
+  if (!s.ok()) {
+    return s;
+  }
+  // Trim hash_tag from original key
+  for (auto& kv : results) {
+    columns->insert(std::make_pair(kv.first.substr(hash_tag.size()), kv.second));
+  }
+  return s;
+}
+
+Status Client::DeleteRow(
+    const std::string primary_key,
+    const std::vector<std::string> col_to_delete) {
+  std::string hash_tag = primary_key + COLSEP;
+  if (col_to_delete.empty()) {
+    return cluster_->DeletebyTag(table_, hash_tag);
+  }
+  Cluster::Batch batch(hash_tag);
+  for (auto& c : col_to_delete) {
+    batch.Delete(c);
+  }
+  return cluster_->WriteBatch(table_, batch);
+}
+
+}  // namespace libzp

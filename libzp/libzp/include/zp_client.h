@@ -44,6 +44,21 @@ class Client {
   Status Amget(const std::vector<std::string>& keys,
       zp_completion_t complietion, void* data);
 
+  Status PutRow(
+      const std::string primary_key,
+      const std::map<std::string, std::string> columns);
+
+  // Get all columns if col_to_delete is empty
+  Status GetRow(
+      const std::string& primary_key,
+      const std::vector<std::string> col_to_get,
+      std::map<std::string, std::string>* columns);
+
+  // Delete all columns if col_to_delete is empty
+  Status DeleteRow(
+      const std::string primary_key,
+      const std::vector<std::string> col_to_delete);
+
  private :
   Cluster* cluster_;
   const std::string table_;
