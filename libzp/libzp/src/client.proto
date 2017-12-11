@@ -196,11 +196,7 @@ message CmdResponse {
   }
   optional InfoServer info_server = 11;
 
-  message ListbyTag {
-    required string key = 1;
-    required bytes value = 2;
-  }
-  repeated ListbyTag listby_tag = 12;
+  repeated Mget listby_tag = 12;
 }
 
 message BinlogSkip {

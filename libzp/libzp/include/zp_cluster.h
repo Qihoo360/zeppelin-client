@@ -68,18 +68,19 @@ public:
   Status Amget(const std::string& table, const std::vector<std::string>& keys,
       zp_completion_t complietion, void* data);
 
+  // The keys in a batch will be written into same partition hashed by 'tag'
   struct Batch {
-    explicit Batch(const std::string& hash_tag) : tag_(hash_tag) {}
+    explicit Batch(const std::string& hash_tag) : tag(hash_tag) {}
     void Delete(const std::string& key) {
-      keys_tobe_deleted_.push_back(key);
+      keys_tobe_deleted.push_back(key);
     }
     void Write(const std::string& key, const std::string& value) {
-      keys_tobe_added_.emplace_back(std::make_pair(key, value));
+      keys_tobe_added.emplace_back(std::make_pair(key, value));
     }
 
-    std::string tag_;
-    std::vector<std::string> keys_tobe_deleted_;
-    std::vector<std::pair<std::string, std::string>> keys_tobe_added_;
+    std::string tag;
+    std::vector<std::string> keys_tobe_deleted;
+    std::vector<std::pair<std::string, std::string>> keys_tobe_added;
   };
 
   Status WriteBatch(const std::string& table, const Batch& batch);

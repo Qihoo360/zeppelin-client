@@ -65,7 +65,7 @@ Status Client::Amget(const std::vector<std::string>& keys,
   return cluster_->Amget(table_, keys, complietion, data);
 }
 
-const std::string COLSEP = "_###_";
+const std::string kTagBracket = "_###_";
 
 Status Client::PutRow(
     const std::string primary_key,
@@ -73,7 +73,7 @@ Status Client::PutRow(
   if (columns.empty()) {
     return Status::InvalidArgument("Empty columns");
   }
-  std::string hash_tag = primary_key + COLSEP;
+  std::string hash_tag = kTagBracket + primary_key + kTagBracket;
   Cluster::Batch batch(hash_tag);
   for (auto& item : columns) {
     batch.Write(item.first, item.second);
@@ -85,31 +85,38 @@ Status Client::GetRow(
     const std::string& primary_key,
     const std::vector<std::string> col_to_get,
     std::map<std::string, std::string>* columns) {
-  std::string hash_tag = primary_key + COLSEP;
-  if (col_to_get.empty()) {
-    return cluster_->ListbyTag(table_, hash_tag, columns);
-  }
-  // Build Mget request
+  std::string hash_tag = kTagBracket + primary_key + kTagBracket;
   std::vector<std::string> keys;
-  for (auto& c : col_to_get) {
-    keys.emplace_back(hash_tag + c);
-  }
   std::map<std::string, std::string> results;
-  Status s = cluster_->Mget(table_, keys, &results);
-  if (!s.ok()) {
-    return s;
+
+  if (col_to_get.empty()) {
+    Status s = cluster_->ListbyTag(table_, hash_tag, &results);
+    if (!s.ok()) {
+      return s;
+    }
+  } else {
+    // Build Mget request
+    for (auto& c : col_to_get) {
+      keys.emplace_back(hash_tag + c);
+    }
+
+    Status s = cluster_->Mget(table_, keys, &results);
+    if (!s.ok()) {
+      return s;
+    }
   }
   // Trim hash_tag from original key
   for (auto& kv : results) {
-    columns->insert(std::make_pair(kv.first.substr(hash_tag.size()), kv.second));
+    const std::string& key = kv.first.substr(hash_tag.size());
+    columns->insert(std::make_pair(key, kv.second));
   }
-  return s;
+  return Status::OK();
 }
 
 Status Client::DeleteRow(
     const std::string primary_key,
     const std::vector<std::string> col_to_delete) {
-  std::string hash_tag = primary_key + COLSEP;
+  std::string hash_tag = kTagBracket + primary_key + kTagBracket;
   if (col_to_delete.empty()) {
     return cluster_->DeletebyTag(table_, hash_tag);
   }

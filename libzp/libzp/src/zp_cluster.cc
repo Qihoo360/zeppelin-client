@@ -207,16 +207,16 @@ static void BuildFlushTableContext(Cluster*cluster, const std::string& table,
 
 static void BuildWriteBatchContext(Cluster*cluster, const std::string& table,
     const Cluster::Batch& batch, CmdContext* context) {
-  context->Init(cluster, table, batch.tag_);
+  context->Init(cluster, table, batch.tag);
   context->request->set_type(client::Type::WRITEBATCH);
   client::CmdRequest_WriteBatch* write_batch_cmd =
     context->request->mutable_write_batch();
   write_batch_cmd->set_table_name(table);
-  for (auto& k : batch.keys_tobe_deleted_) {
-    write_batch_cmd->add_keys_to_delete(batch.tag_ + k);
+  for (auto& k : batch.keys_tobe_deleted) {
+    write_batch_cmd->add_keys_to_delete(batch.tag + k);
   }
-  for (auto& item : batch.keys_tobe_added_) {
-    write_batch_cmd->add_keys_to_add(batch.tag_ + item.first);
+  for (auto& item : batch.keys_tobe_added) {
+    write_batch_cmd->add_keys_to_add(batch.tag + item.first);
     write_batch_cmd->add_values_to_add(item.second);
   }
 }
