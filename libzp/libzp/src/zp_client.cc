@@ -65,8 +65,6 @@ Status Client::Amget(const std::vector<std::string>& keys,
   return cluster_->Amget(table_, keys, complietion, data);
 }
 
-const std::string kTagBracket = "_###_";
-
 Status Client::PutRow(
     const std::string primary_key,
     const std::map<std::string, std::string> columns) {

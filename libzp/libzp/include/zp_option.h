@@ -8,6 +8,8 @@ namespace libzp {
 
 using slash::Status;
 
+const std::string kTagBracket = "_###_";
+
 struct Node {
   Node(const std::string& other_ip, int other_port)
     : ip(other_ip),

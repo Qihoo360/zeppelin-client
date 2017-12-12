@@ -83,7 +83,22 @@ const Partition* Table::GetPartition(const std::string& key) const {
   if (partitions_.empty()) {
     return NULL;
   }
-  int par_num = std::hash<std::string>()(key) % partitions_.size();
+
+  // key := hash_tag
+  std::string hash_tag(key);
+
+  size_t l_bracket = key.find(kTagBracket);
+  if (l_bracket != std::string::npos) {
+    // key := ... + kTagBracket + hash_tag + kTagBracket + ...
+    size_t r_bracket = key.find(kTagBracket, l_bracket + kTagBracket.size());
+    if (r_bracket != std::string::npos) {
+      hash_tag.assign(key.begin() + l_bracket + kTagBracket.size(),
+                      key.begin() + r_bracket);
+    }
+  }
+
+  int par_num = std::hash<std::string>()(hash_tag) % partitions_.size();
+
   return GetPartitionById(par_num);
 }
 
