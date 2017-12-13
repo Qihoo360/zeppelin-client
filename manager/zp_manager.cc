@@ -356,12 +356,13 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
             const libzp::Node& master_node = partition[master_index];
             printf("master: %s:%d ", master_node.ip.c_str(), master_node.port);
 
+            int slave_index = 0;
             for (size_t j = 0; j < partition.size(); j++) {
               if (j == master_index) {
                 continue;
               }
               const libzp::Node& node = partition[j];
-              printf("slave%lu: %s:%d ", j, node.ip.c_str(), node.port);
+              printf("slave%d: %s:%d ", slave_index++, node.ip.c_str(), node.port);
             }
             printf("\n");
           }
