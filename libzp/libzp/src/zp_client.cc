@@ -107,7 +107,7 @@ Status Client::GetRow(
   }
   // Trim hash_tag from original key
   for (auto& kv : results) {
-    const std::string& key = kv.first.substr(hash_tag.size());
+    std::string key = kv.first.substr(hash_tag.size());
     columns->insert(std::make_pair(key, kv.second));
   }
   return Status::OK();

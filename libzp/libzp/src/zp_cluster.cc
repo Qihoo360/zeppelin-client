@@ -226,11 +226,12 @@ static void BuildWriteBatchContext(Cluster*cluster, const std::string& table,
   client::CmdRequest_WriteBatch* write_batch_cmd =
     context->request->mutable_write_batch();
   write_batch_cmd->set_table_name(table);
+  write_batch_cmd->set_hash_tag(batch.tag);
   for (auto& k : batch.keys_tobe_deleted) {
-    write_batch_cmd->add_keys_to_delete(batch.tag + k);
+    write_batch_cmd->add_keys_to_delete(TryBuildKeyWithHashtag(k));
   }
   for (auto& item : batch.keys_tobe_added) {
-    write_batch_cmd->add_keys_to_add(batch.tag + item.first);
+    write_batch_cmd->add_keys_to_add(TryBuildKeyWithHashtag(item.first));
     write_batch_cmd->add_values_to_add(item.second);
   }
 }
@@ -382,6 +383,18 @@ Status Cluster::Get(const std::string& table, const std::string& key,
   }
 }
 
+static std::string TryTrimHashtag(const std::string& key) {
+  if (key.empty() || key.at(0) != '{') {
+    return key;
+  }
+
+  size_t r_brace = key.find(kRBrace, 1);
+  if (r_brace != std::string::npos) {
+    return key.substr(r_brace + 1);
+  }
+  return key;
+}
+
 Status Cluster::Mget(const std::string& table,
     const std::vector<std::string>& keys,
     std::map<std::string, std::string>* values) {
@@ -398,7 +411,7 @@ Status Cluster::Mget(const std::string& table,
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     for (auto& kv : context_->response->mget()) {
-      values->insert(std::pair<std::string, std::string>(kv.key(), kv.value()));
+      values->insert(std::make_pair(TryTrimHashtag(kv.key()), kv.value()));
     }
     return Status::OK();
   } else {
@@ -578,18 +591,6 @@ void Cluster::DeliverAndPull(CmdContext* context) {
 
     context->Reset();
   }
-}
-
-static std::string TryTrimHashtag(const std::string& key) {
-  if (key.empty() || key.at(0) != '{') {
-    return key;
-  }
-
-  size_t r_brace = key.find(kRBrace, 1);
-  if (r_brace != std::string::npos) {
-    return key.substr(r_brace + 1);
-  }
-  return key;
 }
 
 void Cluster::DoAsyncTask(void* arg) {

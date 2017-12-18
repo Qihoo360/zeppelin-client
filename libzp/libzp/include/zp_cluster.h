@@ -72,10 +72,10 @@ public:
   struct Batch {
     explicit Batch(const std::string& hash_tag) : tag(hash_tag) {}
     void Delete(const std::string& key) {
-      keys_tobe_deleted.push_back(key);
+      keys_tobe_deleted.push_back(tag + key);
     }
     void Write(const std::string& key, const std::string& value) {
-      keys_tobe_added.emplace_back(std::make_pair(key, value));
+      keys_tobe_added.emplace_back(std::make_pair(tag + key, value));
     }
 
     std::string tag;
