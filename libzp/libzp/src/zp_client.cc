@@ -65,13 +65,15 @@ Status Client::Amget(const std::vector<std::string>& keys,
   return cluster_->Amget(table_, keys, complietion, data);
 }
 
+const std::string kTableTag = "###";
+
 Status Client::PutRow(
     const std::string primary_key,
     const std::map<std::string, std::string> columns) {
   if (columns.empty()) {
     return Status::InvalidArgument("Empty columns");
   }
-  std::string hash_tag = kTagBracket + primary_key + kTagBracket;
+  std::string hash_tag = kLBrace + kTableTag + primary_key + kRBrace;
   Cluster::Batch batch(hash_tag);
   for (auto& item : columns) {
     batch.Write(item.first, item.second);
@@ -83,7 +85,7 @@ Status Client::GetRow(
     const std::string& primary_key,
     const std::vector<std::string> col_to_get,
     std::map<std::string, std::string>* columns) {
-  std::string hash_tag = kTagBracket + primary_key + kTagBracket;
+  std::string hash_tag = kLBrace + kTableTag + primary_key + kRBrace;
   std::vector<std::string> keys;
   std::map<std::string, std::string> results;
 
@@ -114,7 +116,7 @@ Status Client::GetRow(
 Status Client::DeleteRow(
     const std::string primary_key,
     const std::vector<std::string> col_to_delete) {
-  std::string hash_tag = kTagBracket + primary_key + kTagBracket;
+  std::string hash_tag = kLBrace + kTableTag + primary_key + kRBrace;
   if (col_to_delete.empty()) {
     return cluster_->DeletebyTag(table_, hash_tag);
   }

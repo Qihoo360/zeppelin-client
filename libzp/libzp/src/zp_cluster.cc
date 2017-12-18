@@ -66,7 +66,7 @@ struct CmdContextResult {
 struct CmdContext {
   Cluster* cluster;
   std::string table;
-  
+
   // key and partition_id as two different type of routing info
   // used by different command
   std::string key;
@@ -107,7 +107,7 @@ struct CmdContext {
     done_ = false;
     deadline = CalcDeadline(c->op_timeout());
   }
-  
+
   bool OpTimeout() {
     if (deadline == 0) {
       return false; // no limit
@@ -120,13 +120,13 @@ struct CmdContext {
     result = Status::Incomplete("Not complete");
     done_ = false;
   }
-  
+
   void SetResult(const CmdContextResult& ccr) {
     result = ccr.status;
     response->set_code(ccr.res_code);
     response->set_msg(ccr.res_msg);
   }
-  
+
   ~CmdContext() {
     delete response;
     delete request;
@@ -135,7 +135,7 @@ struct CmdContext {
   void WaitRpcDone() {
     slash::MutexLock l(&mu_);
     while (!done_) {
-      cond_.Wait();  
+      cond_.Wait();
     }
   }
   void RpcDone() {
@@ -150,6 +150,20 @@ private:
   bool done_;
 };
 
+static std::string TryBuildKeyWithHashtag(const std::string& key) {
+  std::string hashtag_with_brace;
+  size_t l_brace = key.find(kLBrace);
+  if (l_brace != std::string::npos) {
+    // key := ...{hash_tag}...
+    size_t r_brace = key.find(kRBrace, l_brace + 1);
+    if (r_brace != std::string::npos) {
+      hashtag_with_brace.assign(key.begin() + l_brace, key.begin() + r_brace + 1);
+    }
+  }
+
+  return hashtag_with_brace.empty() ? key : hashtag_with_brace + key;
+}
+
 static void BuildSetContext(Cluster* cluster, const std::string& table,
     const std::string& key, const std::string& value, int ttl,
     CmdContext* set_context, zp_completion_t completion = NULL, void* data = NULL) {
@@ -157,7 +171,7 @@ static void BuildSetContext(Cluster* cluster, const std::string& table,
   set_context->request->set_type(client::Type::SET);
   client::CmdRequest_Set* set_info = set_context->request->mutable_set();
   set_info->set_table_name(table);
-  set_info->set_key(key);
+  set_info->set_key(TryBuildKeyWithHashtag(key));
   set_info->set_value(value);
   if (ttl >= 0) {
     set_info->mutable_expire()->set_ttl(ttl);
@@ -171,7 +185,7 @@ static void BuildGetContext(Cluster*cluster, const std::string& table,
   get_context->request->set_type(client::Type::GET);
   client::CmdRequest_Get* get_cmd = get_context->request->mutable_get();
   get_cmd->set_table_name(table);
-  get_cmd->set_key(key);
+  get_cmd->set_key(TryBuildKeyWithHashtag(key));
 }
 
 static void BuildDeleteContext(Cluster* cluster, const std::string& table,
@@ -181,7 +195,7 @@ static void BuildDeleteContext(Cluster* cluster, const std::string& table,
   delete_context->request->set_type(client::Type::DEL);
   client::CmdRequest_Del* delete_cmd = delete_context->request->mutable_del();
   delete_cmd->set_table_name(table);
-  delete_cmd->set_key(key);
+  delete_cmd->set_key(TryBuildKeyWithHashtag(key));
 }
 
 static void BuildMgetContext(Cluster* cluster, const std::string& table,
@@ -192,7 +206,7 @@ static void BuildMgetContext(Cluster* cluster, const std::string& table,
   client::CmdRequest_Mget* mget_cmd = mget_context->request->mutable_mget();
   mget_cmd->set_table_name(table);
   for (auto& key : keys) {
-    mget_cmd->add_keys(key);
+    mget_cmd->add_keys(TryBuildKeyWithHashtag(key));
   }
 }
 
@@ -285,7 +299,6 @@ void Cluster::Init() {
 }
 
 Cluster::~Cluster() {
-    
   delete async_worker_;
   {
     slash::MutexLock l(&peer_mu_);
@@ -302,7 +315,7 @@ Cluster::~Cluster() {
       iter++;
     }
   }
-  
+
   pthread_rwlock_destroy(&meta_rw_);
   delete context_;
   delete meta_res_;
@@ -354,7 +367,7 @@ Status Cluster::Get(const std::string& table, const std::string& key,
     std::string* value) {
   BuildGetContext(this, table, key, context_);
   DeliverAndPull(context_);
-  
+
   if (!context_->result.ok()) {
     return context_->result;
   }
@@ -378,7 +391,7 @@ Status Cluster::Mget(const std::string& table,
 
   BuildMgetContext(this, table, keys, context_);
   DeliverAndPull(context_);
-  
+
 
   if (!context_->result.ok()) {
     return context_->result;
@@ -490,7 +503,7 @@ bool Cluster::DeliverMget(CmdContext* context) {
 
 bool Cluster::Deliver(CmdContext* context) {
   if (context->request->type() == client::Type::MGET) {
-    return DeliverMget(context); 
+    return DeliverMget(context);
   }
 
   // Prepare Request
@@ -505,7 +518,7 @@ bool Cluster::Deliver(CmdContext* context) {
   if (!context->result.ok()) {
     return false;
   }
-  
+
   context->result = SubmitDataCmd(master,
       *(context->request), context->response, context->deadline);
 
@@ -518,7 +531,7 @@ bool Cluster::Deliver(CmdContext* context) {
 }
 
 void Cluster::DeliverAndPull(CmdContext* context) {
-  CmdContextResult initiator;  
+  CmdContextResult initiator;
   while (!Deliver(context)) {
     if (initiator.empty()) {
       initiator.Fill(context->result,
@@ -530,7 +543,7 @@ void Cluster::DeliverAndPull(CmdContext* context) {
       context->SetResult(initiator);
       return;
     }
-    
+
     bool need_pull = false;
     if (context->response->code() == client::StatusCode::kMove
         && context->response->has_redirect()) {
@@ -549,7 +562,7 @@ void Cluster::DeliverAndPull(CmdContext* context) {
     } else {
       need_pull = true;
     }
-    
+
     if (need_pull) {
       // Refresh meta info on error except kWait
       context->result = PullInternal(context->table, context->deadline);
@@ -565,6 +578,18 @@ void Cluster::DeliverAndPull(CmdContext* context) {
 
     context->Reset();
   }
+}
+
+static std::string TryTrimHashtag(const std::string& key) {
+  if (key.empty() || key.at(0) != '{') {
+    return key;
+  }
+
+  size_t r_brace = key.find(kRBrace, 1);
+  if (r_brace != std::string::npos) {
+    return key.substr(r_brace + 1);
+  }
+  return key;
 }
 
 void Cluster::DoAsyncTask(void* arg) {
@@ -587,7 +612,8 @@ void Cluster::DoAsyncTask(void* arg) {
     case client::Type::MGET:
       kvs.clear();
       for (auto& kv : carg->response->mget()) {
-        kvs.insert(std::pair<std::string, std::string>(kv.key(), kv.value()));
+        std::string key = TryTrimHashtag(kv.key());
+        kvs.insert(std::pair<std::string, std::string>(key, kv.value()));
       }
       carg->completion(Result(carg->result, &kvs),
           carg->user_data);
@@ -669,7 +695,7 @@ Status Cluster::ListbyTag(
   }
   if (context_->response->code() == client::StatusCode::kOk) {
     for (auto& kv : context_->response->listby_tag()) {
-      kvs->insert(std::make_pair(kv.key().substr(hash_tag.size()), kv.value()));
+      kvs->insert(std::make_pair(TryTrimHashtag(kv.key()), kv.value()));
     }
     return Status::OK();
   } else {
@@ -957,7 +983,7 @@ Status Cluster::GetDataMaster(const std::string& table,
     if (!part) {
       return Status::Incomplete("no partitions yet");
     }
-    if (part->master().port == 0 || part->master().ip == ""){ 
+    if (part->master().port == 0 || part->master().ip == "") {
       return Status::Incomplete("no master yet");
     }
     *master = part->master();
@@ -976,7 +1002,7 @@ Status Cluster::GetDataMasterById(const std::string& table,
     if (!part) {
       return Status::Incomplete("no partitions yet");
     }
-    if (part->master().port == 0 || part->master().ip == ""){ 
+    if (part->master().port == 0 || part->master().ip == "") {
       return Status::Incomplete("no master yet");
     }
     *master = part->master();
