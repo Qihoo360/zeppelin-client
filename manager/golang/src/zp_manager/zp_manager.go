@@ -2,7 +2,7 @@ package zp_manager
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/include
-#cgo LDFLAGS: -L${SRCDIR}/lib -lzp -lpthread -lprotobuf -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/lib -lzp -lm -lpthread -lprotobuf -lstdc++
 #include <stdlib.h>
 #include <string.h>
 #include "libzp/include/zp_cluster_c.h"
@@ -183,20 +183,20 @@ func (cluster *ZpCluster) ListNode() (bool, string, *[]ZpNode, *[]string) {
   return true, "OK", node_res, node_status_res
 }
 
-func (cluster *ZpCluster) CreateTable(table_name string, partition_num int) (bool, string) {
-  c_table_name_str := C.CString(table_name)
-  defer C.free(unsafe.Pointer(c_table_name_str))
-  status := C.zp_create_table(cluster.zp_cluster, c_table_name_str, C.int(partition_num))
-  defer C.zp_status_destroy(status)
-
-  if int(C.zp_status_ok(status)) != 1 {
-    status_str := C.zp_status_tostring(status)
-    reason := C.GoString(C.zp_string_data(status_str))
-    C.zp_string_destroy(status_str)
-    return false, reason
-  }
-  return true, "OK"
-}
+// func (cluster *ZpCluster) CreateTable(table_name string, partition_num int) (bool, string) {
+//   c_table_name_str := C.CString(table_name)
+//   defer C.free(unsafe.Pointer(c_table_name_str))
+//   status := C.zp_create_table(cluster.zp_cluster, c_table_name_str, C.int(partition_num))
+//   defer C.zp_status_destroy(status)
+// 
+//   if int(C.zp_status_ok(status)) != 1 {
+//     status_str := C.zp_status_tostring(status)
+//     reason := C.GoString(C.zp_string_data(status_str))
+//     C.zp_string_destroy(status_str)
+//     return false, reason
+//   }
+//   return true, "OK"
+// }
 
 func (cluster *ZpCluster) InfoQps(table_name string) (bool, string, int, uint64) {
   c_table_name_str := C.CString(table_name)
