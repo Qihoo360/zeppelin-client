@@ -52,6 +52,12 @@ zp_mget: zp_mget.cc $(DEP_LIBS)
 zp_async: zp_async.cc $(DEP_LIBS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
+zp_table: zp_table.cc $(DEP_LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+zp_hashtag: zp_hashtag.cc $(DEP_LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
 # zp_parallel: zp_parallel.cc $(DEP_LIBS)
 # 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
