@@ -13,4 +13,5 @@
   - rocksdb_to_zp
 - phpzeppelin : PHP client extension
 - php7zeppelin : PHP7 client extension
-- pyeppelin : Python client library
+- pyzeppelin : Python client library
+- gozeppelin : Golang client library
