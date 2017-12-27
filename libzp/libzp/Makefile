@@ -146,5 +146,5 @@ clean:
 	$(AM_V_GEN)
 	$(AM_V_at)$(PROTOC) -I$(dir $@) --cpp_out=$(dir $@) $<
 
-%.o: %.cc
+%.o: %.cc $(PROTO_GENS)
 	$(AM_V_CXX)$(CXX) $(CXXFLAGS) -c $< -o $@

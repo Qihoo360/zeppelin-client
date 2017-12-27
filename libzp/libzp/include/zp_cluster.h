@@ -104,11 +104,25 @@ public:
   Status RemoveSlave(const std::string& table, const int partition,
       const Node& ip_port);
   Status RemoveNodes(const std::vector<libzp::Node>& nodes);
-  Status Expand(const std::string& table, const std::vector<Node>& ip_ports);
+
+  struct MigrateCmd;
+  MigrateCmd* GetMigrateCmd();  // Would not lead to memoryleak
+  Status Expand(const std::string& table,
+                const std::vector<Node>& ip_ports,
+                MigrateCmd* cmd);
   Status Migrate(const std::string& table,
-                 const Node& src_node, int partition_id, const Node& dst_node);
-  Status Shrink(const std::string& table, const std::vector<Node>& ip_ports);
-  Status ReplaceNode(const Node& ori_node, const Node& dst_node);
+                 const Node& src_node,
+                 int partition_id,
+                 const Node& dst_node,
+                 MigrateCmd* cmd);
+  Status Shrink(const std::string& table,
+                const std::vector<Node>& ip_ports,
+                MigrateCmd* cmd);
+  Status ReplaceNode(const Node& ori_node,
+                     const Node& dst_node,
+                     MigrateCmd* cmd);
+  void DumpMigrateCmd(const MigrateCmd* cmd);
+  Status SubmitMigrateCmd();
   Status CancelMigrate();
 
   // statistical cmd

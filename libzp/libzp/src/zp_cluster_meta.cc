@@ -425,11 +425,21 @@ bool IsValidDstNode(
   return false;
 }
 
+}  // anonymous namespace
+
+struct Cluster::MigrateCmd {};
+
+Cluster::MigrateCmd* Cluster::GetMigrateCmd() {
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
+  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  return reinterpret_cast<MigrateCmd*>(migrate_cmd);
 }
 
 Status Cluster::Expand(
     const std::string& table,
-    const std::vector<Node>& new_nodes) {
+    const std::vector<Node>& new_nodes,
+    MigrateCmd* cmd) {
   Status s;
   if (new_nodes.empty()) {
     return s;  // OK
@@ -506,10 +516,8 @@ Status Cluster::Expand(
     }
   }
 
-  // Init protobuf
-  meta_cmd_->Clear();
-  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
-  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  ZPMeta::MetaCmd_Migrate* migrate_cmd =
+    reinterpret_cast<ZPMeta::MetaCmd_Migrate*>(cmd);
   migrate_cmd->set_origin_epoch(epoch_);
 
   for (auto& dst_node : new_nodes) {
@@ -562,38 +570,15 @@ Status Cluster::Expand(
     }
   }
 
-  // Dump migrate result
-  printf("Move numbers: %d\n", migrate_cmd->diff_size());
-  for (int i = 0; i < migrate_cmd->diff_size(); i++) {
-    auto diff = migrate_cmd->diff(i);
-    auto l = diff.left();
-    auto r = diff.right();
-    printf("Move table(%s) %s:%d - %d => %s:%d\n", diff.table().c_str(),
-           l.ip().c_str(), l.port(), diff.partition(),
-           r.ip().c_str(), r.port());
-  }
-
-  printf("Continue? (Y/N)\n");
-  char confirm = getchar(); getchar();  // ignore \n
-  if (std::tolower(confirm) != 'y') {
-    return Status::Incomplete("Abort");
-  }
-
-  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
-                    CalcDeadline(options_.op_timeout));
-  if (!s.ok()) {
-    return s;
-  }
-
-  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
-    return Status::Corruption(meta_res_->msg());
-  }
-
   return s;
 }
 
-Status Cluster::Migrate(const std::string& table,
-    const Node& src_node, int partition_id, const Node& dst_node) {
+Status Cluster::Migrate(
+    const std::string& table,
+    const Node& src_node,
+    int partition_id,
+    const Node& dst_node,
+    MigrateCmd* cmd) {
   Status s = PullInternal(table, CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
     return s;
@@ -616,9 +601,8 @@ Status Cluster::Migrate(const std::string& table,
     }
   }
 
-  meta_cmd_->Clear();
-  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
-  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  ZPMeta::MetaCmd_Migrate* migrate_cmd =
+    reinterpret_cast<ZPMeta::MetaCmd_Migrate*>(cmd);
   migrate_cmd->set_origin_epoch(epoch_);
 
   // Build cmd proto
@@ -632,32 +616,13 @@ Status Cluster::Migrate(const std::string& table,
   r->set_ip(dst_node.ip);
   r->set_port(dst_node.port);
 
-  auto diff = migrate_cmd->diff(0);
-  printf("Move %s:%d - %d => %s:%d\n",
-         diff.left().ip().c_str(), diff.left().port(),
-         diff.partition(),
-         diff.right().ip().c_str(), diff.right().port());
-
-  printf("Continue? (Y/N)\n");
-  char confirm = getchar(); getchar();  // ignore \n
-  if (std::tolower(confirm) != 'y') {
-    return Status::Incomplete("Abort");
-  }
-
-  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
-                    CalcDeadline(options_.op_timeout));
-  if (!s.ok()) {
-    return s;
-  }
-
-  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
-    return Status::Corruption(meta_res_->msg());
-  }
-
   return s;
 }
 
-Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleting) {
+Status Cluster::Shrink(
+    const std::string& table,
+    const std::vector<Node>& deleting,
+    MigrateCmd* cmd) {
   Status s;
   if (deleting.empty()) {
     return s; // OK
@@ -728,9 +693,8 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
   }
 #endif
 
-  meta_cmd_->Clear();
-  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
-  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  ZPMeta::MetaCmd_Migrate* migrate_cmd =
+    reinterpret_cast<ZPMeta::MetaCmd_Migrate*>(cmd);
   migrate_cmd->set_origin_epoch(epoch_);
 
   for (auto& n : nodes_tobe_deleted) {
@@ -767,39 +731,13 @@ Status Cluster::Shrink(const std::string& table, const std::vector<Node>& deleti
     }
   }
 
-  // Dump migrate result
-  for (int i = 0; i < migrate_cmd->diff_size(); i++) {
-    auto diff = migrate_cmd->diff(i);
-    auto l = diff.left();
-    auto r = diff.right();
-    printf("Move table(%s) %s:%d - %d => %s:%d\n",diff.table().c_str(),
-           l.ip().c_str(), l.port(), diff.partition(),
-           r.ip().c_str(), r.port());
-  }
-  if (migrate_cmd->diff_size() == 0) {
-    return Status::Corruption("There is no reasonable way");
-  }
-
-  printf("Continue? (Y/N)\n");
-  char confirm = getchar(); getchar();  // ignore \n
-  if (std::tolower(confirm) != 'y') {
-    return Status::Incomplete("Abort");
-  }
-
-  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
-                    CalcDeadline(options_.op_timeout));
-  if (!s.ok()) {
-    return s;
-  }
-
-  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
-    return Status::Corruption(meta_res_->msg());
-  }
-
   return s;
 }
 
-Status Cluster::ReplaceNode(const Node& ori_node, const Node& dst_node) {
+Status Cluster::ReplaceNode(
+    const Node& ori_node,
+    const Node& dst_node,
+    MigrateCmd* cmd) {
   // Check dst_node
   std::vector<Node> nodes;
   std::vector<std::string> status;
@@ -833,10 +771,8 @@ Status Cluster::ReplaceNode(const Node& ori_node, const Node& dst_node) {
     }
   }
 
-  // Init protobuf
-  meta_cmd_->Clear();
-  meta_cmd_->set_type(ZPMeta::Type::MIGRATE);
-  ZPMeta::MetaCmd_Migrate* migrate_cmd = meta_cmd_->mutable_migrate();
+  ZPMeta::MetaCmd_Migrate* migrate_cmd =
+    reinterpret_cast<ZPMeta::MetaCmd_Migrate*>(cmd);
   migrate_cmd->set_origin_epoch(epoch_);
 
   for (auto& table : tables) {
@@ -859,7 +795,12 @@ Status Cluster::ReplaceNode(const Node& ori_node, const Node& dst_node) {
     }
   }
 
-  // Dump migrate result
+  return s;
+}
+
+void Cluster::DumpMigrateCmd(const MigrateCmd* cmd) {
+  const ZPMeta::MetaCmd_Migrate* migrate_cmd =
+    reinterpret_cast<const ZPMeta::MetaCmd_Migrate*>(cmd);
   printf("Move numbers: %d\n", migrate_cmd->diff_size());
   for (int i = 0; i < migrate_cmd->diff_size(); i++) {
     auto diff = migrate_cmd->diff(i);
@@ -869,19 +810,17 @@ Status Cluster::ReplaceNode(const Node& ori_node, const Node& dst_node) {
            l.ip().c_str(), l.port(), diff.partition(),
            r.ip().c_str(), r.port());
   }
+}
 
-  printf("Continue? (Y/N)\n");
-  char confirm = getchar(); getchar();  // ignore \n
-  if (std::tolower(confirm) != 'y') {
-    return Status::Incomplete("Abort");
+Status Cluster::SubmitMigrateCmd() {
+  if (meta_cmd_->type() != ZPMeta::Type::MIGRATE) {
+    return Status::Corruption("Unsupported command");
   }
-
-  s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+  Status s = SubmitMetaCmd(*meta_cmd_, meta_res_,
                     CalcDeadline(options_.op_timeout));
   if (!s.ok()) {
     return s;
   }
-
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }
@@ -898,7 +837,6 @@ Status Cluster::CancelMigrate() {
   if (!s.ok()) {
     return s;
   }
-
   if (meta_res_->code() != ZPMeta::StatusCode::OK) {
     return Status::Corruption(meta_res_->msg());
   }

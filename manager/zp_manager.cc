@@ -30,7 +30,7 @@ CommandHelp commandHelp[] = {
     "table key",
     2,
     "Get key's value"},
-  
+
   { "MGET",
     "table key [key ...]",
     2,
@@ -74,7 +74,12 @@ CommandHelp commandHelp[] = {
   { "EXPAND",
     "table ip:port [ip:port ...]",
     2,
-    "Expand table's capacity"},
+    "Expand specific table's capacity"},
+
+  { "EXPANDALLTABLE",
+    "ip:port [ip:port ...]",
+    1,
+    "Expand all tables' capacity"},
 
   { "MIGRATE",
     "table source(ip:port) partition_id destination(ip:port)",
@@ -84,7 +89,12 @@ CommandHelp commandHelp[] = {
   { "SHRINK",
     "table ip:port [ip:port ...]",
     2,
-    "Shrink table's capacity"},
+    "Shrink specific table's capacity"},
+
+  { "SHRINKALLTABLE",
+    "ip:port [ip:port ...]",
+    1,
+    "Shrink all tables' capacity"},
 
   { "REPLACENODE",
     "source(ip:port) dstination(ip:port)",
@@ -140,7 +150,7 @@ CommandHelp commandHelp[] = {
     "table ip:port",
     2,
     "Check replication state"},
-  
+
   { "NODESTATE",
     "ip:port",
     1,
@@ -313,7 +323,7 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
     std::string info = line;
     std::vector<std::string> line_args;
     SplitByBlank(info, line_args);
-    
+
     if (!strncasecmp(line, "CREATETABLE ", 12)) {
       if (line_args.size() != 3) {
         std::cout << "arg num wrong" << std::endl;
@@ -515,7 +525,77 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         printf("   --- %s:%d\n", node.ip.c_str(), node.port);
       }
 
-      s = cluster->Expand(table_name, new_nodes);
+      libzp::Cluster::MigrateCmd* cmd = cluster->GetMigrateCmd();
+      s = cluster->Expand(table_name, new_nodes, cmd);
+      if (!s.ok()) {
+        printf("Expand error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
+
+      cluster->DumpMigrateCmd(cmd);
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        printf("Commmand Aborted\n");
+        continue;
+      }
+
+      s = cluster->SubmitMigrateCmd();
+      if (!s.ok()) {
+        printf("SubmitMigrateCmd error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "EXPANDALLTABLE ", 15)) {
+      if (line_args.size() < 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::vector<libzp::Node> new_nodes;
+      for (size_t i = 1; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        new_nodes.push_back(libzp::Node(ip, port));
+      }
+
+      std::vector<std::string> tables;
+      s = cluster->ListTable(&tables);
+      if (!s.ok()) {
+        std::cout << "ListTable failed: " << s.ToString() << std::endl;
+        continue;
+      }
+
+      printf("Adding new nodes:\n");
+      for (auto& node : new_nodes) {
+        printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+      }
+
+      libzp::Cluster::MigrateCmd* cmd = cluster->GetMigrateCmd();
+      for (auto& table : tables) {
+        s = cluster->Expand(table, new_nodes, cmd);
+        if (!s.ok()) {
+          printf("Expand failed: %s\n", s.ToString().c_str());
+          continue;
+        }
+      }
+
+      cluster->DumpMigrateCmd(cmd);
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        printf("Commmand Aborted\n");
+        continue;
+      }
+
+      s = cluster->SubmitMigrateCmd();
+      if (!s.ok()) {
+        printf("SubmitMigrateCmd error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "MIGRATE ", 8)) {
       if (line_args.size() < 5) {
@@ -534,7 +614,26 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         continue;
       }
 
-      s = cluster->Migrate(table_name, src_node, partition_id, dst_node);
+      libzp::Cluster::MigrateCmd* cmd = cluster->GetMigrateCmd();
+      s = cluster->Migrate(table_name, src_node, partition_id, dst_node, cmd);
+      if (!s.ok()) {
+        printf("Migrate error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
+
+      cluster->DumpMigrateCmd(cmd);
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        printf("Commmand Aborted\n");
+        continue;
+      }
+
+      s = cluster->SubmitMigrateCmd();
+      if (!s.ok()) {
+        printf("SubmitMigrateCmd error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "SHRINK ", 7)) {
       if (line_args.size() < 3) {
@@ -557,7 +656,76 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         printf("   --- %s:%d\n", node.ip.c_str(), node.port);
       }
 
-      s = cluster->Shrink(table_name, deleting);
+      libzp::Cluster::MigrateCmd* cmd = cluster->GetMigrateCmd();
+      s = cluster->Shrink(table_name, deleting, cmd);
+      if (!s.ok()) {
+        printf("Shrink error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
+
+      cluster->DumpMigrateCmd(cmd);
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        printf("Commmand Aborted\n");
+        continue;
+      }
+
+      s = cluster->SubmitMigrateCmd();
+      if (!s.ok()) {
+        printf("SubmitMigrateCmd error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
+      std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "SHRINKALLTABLE ", 15)) {
+      if (line_args.size() < 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::vector<libzp::Node> deleting;
+      for (size_t i = 1; i< line_args.size(); ++i) {
+        std::string ip;
+        int port = -1;
+        if (!slash::ParseIpPortString(line_args[i], ip, port)) {
+          printf("unknow ip:port format, %s\n", line_args[i].c_str());
+          continue;
+        }
+        deleting.push_back(libzp::Node(ip, port));
+      }
+
+      std::vector<std::string> tables;
+      s = cluster->ListTable(&tables);
+      if (!s.ok()) {
+        std::cout << "ListTable failed: " << s.ToString() << std::endl;
+        continue;
+      }
+      printf("Deleting nodes:\n");
+      for (auto& node : deleting) {
+        printf("   --- %s:%d\n", node.ip.c_str(), node.port);
+      }
+
+      libzp::Cluster::MigrateCmd* cmd = cluster->GetMigrateCmd();
+      for (auto& table : tables) {
+        s = cluster->Shrink(table, deleting, cmd);
+        if (!s.ok() && !s.IsNotFound()) {
+          printf("Shrink failed: %s\n", s.ToString().c_str());
+          continue;
+        }
+      }
+
+      cluster->DumpMigrateCmd(cmd);
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        printf("Commmand Aborted\n");
+        continue;
+      }
+
+      s = cluster->SubmitMigrateCmd();
+      if (!s.ok()) {
+        printf("SubmitMigrateCmd error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "REPLACENODE ", 12)) {
       if (line_args.size() != 3) {
@@ -578,7 +746,25 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         continue;
       }
 
-      s = cluster->ReplaceNode(ori_node, dst_node);
+      libzp::Cluster::MigrateCmd* cmd = cluster->GetMigrateCmd();
+      s = cluster->ReplaceNode(ori_node, dst_node, cmd);
+      if (!s.ok()) {
+        printf("ReplaceNode failed: %s\n", s.ToString().c_str());
+      }
+
+      cluster->DumpMigrateCmd(cmd);
+      printf("Continue? (Y/N)\n");
+      char confirm = getchar(); getchar();  // ignore \n
+      if (std::tolower(confirm) != 'y') {
+        printf("Commmand Aborted\n");
+        continue;
+      }
+
+      s = cluster->SubmitMigrateCmd();
+      if (!s.ok()) {
+        printf("SubmitMigrateCmd error happened: %s\n", s.ToString().c_str());
+        continue;
+      }
       std::cout << s.ToString() << std::endl;
     } else if (!strncasecmp(line, "CANCELMIGRATE", 13)) {
       if (line_args.size() != 1) {
@@ -801,8 +987,8 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
           std::cout << " -Notice! has binlog fallback" << std::endl;
           std::cout << "  -time:"
             << TimeString(p.second.fallback_time) << std::endl;
-          std::cout << "  -before: " << p.second.fallback_before << std::endl;  
-          std::cout << "  -after: " << p.second.fallback_after << std::endl;  
+          std::cout << "  -before: " << p.second.fallback_before << std::endl;
+          std::cout << "  -after: " << p.second.fallback_after << std::endl;
         }
       }
 
