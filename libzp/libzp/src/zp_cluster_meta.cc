@@ -55,6 +55,52 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
   return s;
 }
 
+Status Cluster::AddMetaNode(const Node& node) {
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::ADDMETANODE);
+
+  ZPMeta::Node* add_meta_node = meta_cmd_->mutable_add_meta_node();
+  add_meta_node->set_ip(node.ip);
+  add_meta_node->set_port(node.port);
+
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
+  if (!ret.ok()) {
+    return ret;
+  }
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  } else {
+    return Status::OK();
+  }
+}
+
+Status Cluster::RemoveMetaNode(const Node& node) {
+  std::vector<Node>* meta_addr = &options_.meta_addr;
+  auto node_iter = find(meta_addr->begin(), meta_addr->end(), node);
+  if (node_iter != meta_addr->end()) {
+    meta_addr->erase(node_iter);
+  }
+
+  meta_cmd_->Clear();
+  meta_cmd_->set_type(ZPMeta::Type::REMOVEMETANODE);
+
+  ZPMeta::Node* remove_meta_node = meta_cmd_->mutable_remove_meta_node();
+  remove_meta_node->set_ip(node.ip);
+  remove_meta_node->set_port(node.port);
+
+  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
+      CalcDeadline(options_.op_timeout));
+  if (!ret.ok()) {
+    return ret;
+  }
+  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+    return Status::Corruption(meta_res_->msg());
+  } else {
+    return Status::OK();
+  }
+}
+
 Status Cluster::CreateTable(const std::string& table_name,
     const std::vector<std::vector<Node>>& distribution) {
   if (distribution.empty()) {

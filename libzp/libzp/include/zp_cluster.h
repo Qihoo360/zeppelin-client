@@ -92,6 +92,8 @@ public:
 
   // meta cmd
   int64_t epoch() { return epoch_; }
+  Status AddMetaNode(const Node& node);
+  Status RemoveMetaNode(const Node& node);
   Status CreateTable(const std::string& table_name,
                      const std::vector<std::vector<Node>>& distribution);
   Status DropTable(const std::string& table_name);

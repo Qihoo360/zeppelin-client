@@ -21,6 +21,8 @@ enum Type {
   MIGRATE = 12;
   CANCELMIGRATE = 13;
   REMOVENODES = 14;
+  ADDMETANODE = 15;
+  REMOVEMETANODE = 16;
 }
 
 enum PState {
@@ -161,6 +163,10 @@ message MetaCmd {
     repeated Node nodes = 1;
   }
   optional RemoveNodes remove_nodes = 10;
+
+  optional Node add_meta_node = 11;
+
+  optional Node remove_meta_node = 12;
 }
 
 message MetaCmdResponse {
@@ -179,6 +185,7 @@ message MetaCmdResponse {
   message Pull {
     required int32 version = 1;
     repeated Table info = 2;
+    repeated Node meta_members = 3;
   }
   optional Pull pull = 5;
 

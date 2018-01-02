@@ -46,6 +46,16 @@ CommandHelp commandHelp[] = {
     2,
     "Create table, 3 partition per node as default"},
 
+  { "ADDMETANODE",
+    "ip:addr",
+    1,
+    "Add new meta node to cluster"},
+
+  { "REMOVEMETANODE",
+    "ip:addr",
+    1,
+    "Remove existing meta node from cluster"},
+
   { "PULL",
     "table",
     1,
@@ -387,6 +397,30 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
 
       s = cluster->CreateTable(table_name, distribution);
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "ADDMETANODE ", 12)) {
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[1], ip, port);
+      libzp::Node node_to_add(ip, port);
+      s = cluster->RemoveMetaNode(node_to_add);
+      std::cout << s.ToString() << std::endl;
+
+    } else if (!strncasecmp(line, "REMOVEMETANODE ", 15)) {
+      if (line_args.size() != 2) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      std::string ip;
+      int port;
+      slash::ParseIpPortString(line_args[1], ip, port);
+      libzp::Node node_to_remove(ip, port);
+      s = cluster->RemoveMetaNode(node_to_remove);
+      std::cout << s.ToString() << std::endl;
+
     } else if (!strncasecmp(line, "PULL ", 5)) {
       if (line_args.size() != 2) {
         std::cout << "arg num wrong" << std::endl;

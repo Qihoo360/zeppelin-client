@@ -1043,6 +1043,15 @@ void Cluster::ResetMetaInfo(const std::string& table_name,
     tables_.erase(table_ptr);
   }
 
+  if (pull.meta_members_size() > 0) {
+    options_.meta_addr.clear();
+    for (auto& node : pull.meta_members()) {
+      options_.meta_addr.push_back(Node(node.ip(), node.port()));
+    }
+    delete meta_pool_;
+    meta_pool_ = new ConnectionPool(8);
+  }
+
   if (pull.info_size() == 0
       || pull.info(0).name() != table_name) { // no meta for table_name
     return;
