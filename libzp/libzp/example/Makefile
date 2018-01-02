@@ -8,7 +8,7 @@ OPT=
 
 .PHONY: clean all
 
-all: zp_simple zp_timeout zp_get zp_mget zp_async
+all: zp_simple zp_timeout zp_get zp_mget zp_async zp_table zp_hashtag
 
 ifndef ZP_PATH 
   $(warning Warning: missing zp path, using default)
@@ -63,4 +63,4 @@ zp_hashtag: zp_hashtag.cc $(DEP_LIBS)
 
 clean: 
 	find . -name "*.[oda]" -exec rm -f {} \;
-	rm -rf ./zp_simple ./zp_timeout ./zp_get ./zp_mget ./zp_create_table ./zp_async ./zp_parallel
+	rm -rf ./zp_simple ./zp_timeout ./zp_get ./zp_mget ./zp_create_table ./zp_async ./zp_parallel ./zp_table ./zp_hashtag
