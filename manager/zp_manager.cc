@@ -406,7 +406,7 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       int port;
       slash::ParseIpPortString(line_args[1], ip, port);
       libzp::Node node_to_add(ip, port);
-      s = cluster->RemoveMetaNode(node_to_add);
+      s = cluster->AddMetaNode(node_to_add);
       std::cout << s.ToString() << std::endl;
 
     } else if (!strncasecmp(line, "REMOVEMETANODE ", 15)) {
