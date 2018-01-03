@@ -7,6 +7,8 @@ libzp/libzp/example/zp_mget
 libzp/libzp/example/zp_parallel
 libzp/libzp/example/zp_simple
 libzp/libzp/example/zp_timeout
+libzp/libzp/example/zp_hashtag
+libzp/libzp/example/zp_table
 
 manager/zp_benchmark
 manager/zp_checkup
