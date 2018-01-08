@@ -42,9 +42,9 @@ CommandHelp commandHelp[] = {
     "Delete key"},
 
   { "CREATETABLE",
-    "table host_list_file",
+    "table host_list_file [amplification_factor]",
     2,
-    "Create table, 3 partition per node as default"},
+    "Create table, amplification factor default 1"},
 
   { "ADDMETANODE",
     "ip:addr",
@@ -335,7 +335,8 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
     SplitByBlank(info, line_args);
 
     if (!strncasecmp(line, "CREATETABLE ", 12)) {
-      if (line_args.size() != 3) {
+      if (line_args.size() != 3 &&
+          line_args.size() != 4) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
@@ -344,8 +345,18 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         std::cout << "Cannot load file " << line_args[1] << std::endl;
         continue;
       }
-      const int kDistributionTimes = 3;
-      for (int times = 0; times < kDistributionTimes; times++) {
+
+      int amplification_factor = 1;
+      if (line_args.size() == 4) {
+        char* end = nullptr;
+        amplification_factor = std::strtol(line_args[3].c_str(), &end, 10);
+        if (*end != 0) {
+          std::cout << "amplification_factor must be a interger" << std::endl;
+          continue;
+        }
+      }
+      int distribution_times = amplification_factor * 3;
+      for (int times = 0; times < distribution_times; times++) {
         distribution::Distribution();
       }
       distribution::Checkup();
@@ -458,8 +469,8 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
       }
 
     } else if (!strncasecmp(line, "SET ", 4)) {
-      if (line_args.size() != 4
-          && line_args.size() != 5) {
+      if (line_args.size() != 4 &&
+          line_args.size() != 5) {
         std::cout << "arg num wrong" << std::endl;
         continue;
       }
