@@ -941,7 +941,12 @@ static int RandomIndex(int floor, int ceil) {
   return di(mt);
 }
 
-std::shared_ptr<ZpCli> Cluster::GetMetaConnection(uint64_t deadline, Status* sptr) {
+std::shared_ptr<ZpCli> Cluster::GetMetaConnection(
+    uint64_t deadline, Status* sptr, const Node* specific_meta) {
+  if (specific_meta != nullptr) {
+    return meta_pool_->GetConnection(*specific_meta, deadline, sptr);
+  }
+
   std::shared_ptr<ZpCli> meta_cli = meta_pool_->GetExistConnection();
   if (meta_cli) {
     return meta_cli;

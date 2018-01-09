@@ -20,11 +20,14 @@ uint64_t CalcDeadline(int timeout);
 /*
  * deadline is 0 means no deadline
  */
-Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
-    ZPMeta::MetaCmdResponse *res, uint64_t deadline, int attempt) {
+Status Cluster::SubmitMetaCmd(
+    ZPMeta::MetaCmd& req, ZPMeta::MetaCmdResponse *res,
+    uint64_t deadline, int attempt,
+    const Node* specific_meta) {
   Status s;
   res->Clear();
-  std::shared_ptr<ZpCli> meta_cli = GetMetaConnection(deadline, &s);
+  std::shared_ptr<ZpCli> meta_cli =
+    GetMetaConnection(deadline, &s, specific_meta);
   if (!meta_cli) {
     return s;
   }
@@ -49,7 +52,7 @@ Status Cluster::SubmitMetaCmd(ZPMeta::MetaCmd& req,
       return s;
     }
     if (attempt <= kMetaAttempt) {
-      return SubmitMetaCmd(req, res, deadline, attempt + 1);
+      return SubmitMetaCmd(req, res, deadline, attempt + 1, specific_meta);
     }
   }
   return s;
@@ -916,8 +919,11 @@ Status Cluster::ListMeta(Node* master, std::vector<Node>* nodes) {
   return Status::OK();
 }
 
-Status Cluster::MetaStatus(Node* leader, std::map<Node, std::string>* meta_status) {
-  std::vector<libzp::Node> followers;
+Status Cluster::MetaStatusInternal(
+    Node* leader, std::map<Node, std::string>* meta_status,
+    int32_t* version, std::string* consistency_stautus,
+    int64_t* migrate_begin_time, int32_t* complete_proportion) {
+  std::vector<Node> followers;
   Status ret = ListMeta(leader, &followers);
   if (!ret.ok()) {
     return ret;
@@ -928,32 +934,43 @@ Status Cluster::MetaStatus(Node* leader, std::map<Node, std::string>* meta_statu
     (*meta_status)[follower] = "Unknow";
   }
 
-  int32_t version;
-  int64_t begin_time;
-  int32_t complete_proportion;
-  std::string consistency_stautus;
-  ret = MetaStatus(&version, &consistency_stautus,
-                   &begin_time, &complete_proportion);
-  if (!ret.ok()) {
-    return ret;
-  }
-
-  std::istringstream input(consistency_stautus);
-  for (std::string line; std::getline(input, line); ) {
-    if (line.find(":") == std::string::npos) {
-      continue;  // Skip header
+  std::vector<Node> all_metas(followers.begin(), followers.end());
+  all_metas.push_back(*leader);
+  bool first_line = true;
+  for (const auto& m : all_metas) {
+    meta_cmd_->Clear();
+    meta_cmd_->set_type(ZPMeta::Type::METASTATUS);
+    slash::Status s = SubmitMetaCmd(*meta_cmd_, meta_res_,
+        CalcDeadline(options_.op_timeout), 0, &m);
+    if (!s.ok()) {
+      continue;
+    } else if (meta_res_->code() != ZPMeta::StatusCode::OK) {
+      continue;
     }
-    std::string ip;
-    int port;
-    std::istringstream line_s(line);
-    for (std::string word; std::getline(line_s, word, ' '); ) {
-      if (word.find(":") != std::string::npos) {
-        if (slash::ParseIpPortString(word, ip, port)) {
-          Node n(ip, port - 100);
-          (*meta_status)[n] = "Up";
-          break;
+
+    (*meta_status)[m] = "Up";
+    auto mstatus = meta_res_->meta_status();
+    *version = mstatus.version();
+    const std::string& cons_str = mstatus.consistency_stautus();
+    if (first_line) {
+      consistency_stautus->assign(cons_str);
+      first_line = false;
+    } else {
+      std::istringstream input(cons_str);
+      for (std::string line; std::getline(input, line); ) {
+        if (line.find(":") == std::string::npos) {
+          continue;  // Skip header
         }
+        consistency_stautus->append(line + "\r\n");
       }
+    }
+
+    if (mstatus.has_migrate_status() &&
+        migrate_begin_time != nullptr &&
+        complete_proportion != nullptr) {
+      auto migrate_status = mstatus.migrate_status();
+      *migrate_begin_time = migrate_status.begin_time();
+      *complete_proportion = migrate_status.complete_proportion();
     }
   }
 
@@ -966,40 +983,24 @@ Status Cluster::MetaStatus(Node* leader, std::map<Node, std::string>* meta_statu
   return ret;
 }
 
-Status Cluster::MetaStatus(std::string* consistency_stautus) {
+Status Cluster::MigrateStatus(int64_t* migrate_begin_time,
+                              int32_t* complete_proportion) {
+  Node leader;
+  std::map<Node, std::string> meta_status;
   int32_t version;
-  int64_t begin_time;
-  int32_t complete_proportion;
-  return MetaStatus(&version, consistency_stautus,
-                    &begin_time, &complete_proportion);
+  std::string consistency_stautus;
+  return MetaStatusInternal(&leader, &meta_status,
+                            &version, &consistency_stautus,
+                            migrate_begin_time, complete_proportion);
 }
 
-Status Cluster::MetaStatus(int32_t* version,
-                           std::string* consistency_stautus,
-                           int64_t* begin_time,
-                           int32_t* complete_proportion) {
-  meta_cmd_->Clear();
-  meta_cmd_->set_type(ZPMeta::Type::METASTATUS);
-
-  slash::Status ret = SubmitMetaCmd(*meta_cmd_, meta_res_,
-      CalcDeadline(options_.op_timeout));
-
-  if (!ret.ok()) {
-    return ret;
-  }
-  if (meta_res_->code() != ZPMeta::StatusCode::OK) {
-    return Status::Corruption(meta_res_->msg());
-  }
-
-  const ZPMeta::MetaCmdResponse_MetaStatus& mstatus = meta_res_->meta_status();
-  *version = mstatus.version();
-  *consistency_stautus = mstatus.consistency_stautus();
-
-  const ZPMeta::MigrateStatus& migrate_status = mstatus.migrate_status();
-  *begin_time = migrate_status.begin_time();
-  *complete_proportion = migrate_status.complete_proportion();
-
-  return Status::OK();
+Status Cluster::MetaStatus(
+    Node* leader, std::map<Node, std::string>* meta_status,
+    int32_t* version, std::string* consistency_stautus) {
+  int64_t migrate_begin_time;
+  int32_t complete_proportion;
+  return MetaStatusInternal(leader, meta_status, version, consistency_stautus,
+                            &migrate_begin_time, &complete_proportion);
 }
 
 Status Cluster::ListNode(std::vector<Node>* nodes,

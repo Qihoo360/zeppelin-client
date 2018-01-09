@@ -129,11 +129,10 @@ public:
 
   // statistical cmd
   Status ListTable(std::vector<std::string>* tables);
-  Status ListMeta(Node* leader, std::vector<Node>* nodes);
-  Status MetaStatus(Node* leader, std::map<Node, std::string>* meta_status);
-  Status MetaStatus(std::string* meta_status);
-  Status MetaStatus(int32_t* version, std::string* consistency_stautus,
-                    int64_t* begin_time, int32_t* complete_proportion);
+  Status MetaStatus(Node* leader, std::map<Node, std::string>* meta_status,
+                    int32_t* version, std::string* consistency_stautus);
+  Status MigrateStatus(
+      int64_t* migrate_begin_time, int32_t* complete_proportion);
   Status ListNode(std::vector<Node>* nodes,
       std::vector<std::string>* status);
 
@@ -157,6 +156,10 @@ public:
   
   void Init();
   Status PullInternal(const std::string& table, uint64_t deadline);
+  Status ListMeta(Node* leader, std::vector<Node>* nodes);
+  Status MetaStatusInternal(Node* leader, std::map<Node, std::string>* meta_status,
+                            int32_t* version, std::string* consistency_stautus,
+                            int64_t* migrate_begin_time, int32_t* complete_proportion);
   bool DeliverMget(CmdContext* context);
   bool Deliver(CmdContext* context);
   void DeliverAndPull(CmdContext* context);
@@ -168,8 +171,9 @@ public:
       client::CmdRequest& req, client::CmdResponse *res,
       uint64_t deadline, int attempt = 0);
   Status SubmitMetaCmd(ZPMeta::MetaCmd& req, ZPMeta::MetaCmdResponse *res,
-      uint64_t deadline, int attempt = 0);
-  std::shared_ptr<ZpCli> GetMetaConnection(uint64_t deadline, Status* s);
+      uint64_t deadline, int attempt = 0, const Node* specific_meta = nullptr);
+  std::shared_ptr<ZpCli> GetMetaConnection(
+      uint64_t deadline, Status* s, const Node* specific_meta = nullptr);
 
   // options
   Options options_;

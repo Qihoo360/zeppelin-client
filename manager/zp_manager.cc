@@ -141,7 +141,7 @@ CommandHelp commandHelp[] = {
     0,
     "List all meta nodes"},
 
-  { "METASTATUS",
+  { "MIGRATESTATUS",
     "",
     0,
     "List meta internal details"},
@@ -872,9 +872,17 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         continue;
       }
 
-      std::map<libzp::Node, std::string> meta_status;
       libzp::Node leader;
-      cluster->MetaStatus(&leader, &meta_status);
+      std::map<libzp::Node, std::string> meta_status;
+      int32_t version;
+      std::string consistency_stautus;
+
+      s = cluster->MetaStatus(&leader, &meta_status,
+                              &version, &consistency_stautus);
+      if (!s.ok()) {
+        std::cout << s.ToString() << std::endl;
+        continue;
+      }
 
       printf("Leader:\n --- %s:%d, status: %s\n",
              leader.ip.c_str(), leader.port, meta_status[leader].c_str());
@@ -889,33 +897,30 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         }
       }
 
-      std::cout << s.ToString() << std::endl;
-    } else if (!strncasecmp(line, "METASTATUS", 10)) {
-      if (line_args.size() != 1) {
-        std::cout << "arg num wrong" << std::endl;
-        continue;
-      }
-      int32_t version;
-      std::string consistency_stautus;
-      int64_t begin_time;
-      int32_t complete_proportion;
-      s = cluster->MetaStatus(&version, &consistency_stautus,
-                              &begin_time, &complete_proportion);
-      if (!s.ok()) {
-        std::cout << "Failed: " << s.ToString() << std::endl;
-        continue;
-      }
       std::cout << "Epoch: " << version << std::endl;
       std::cout << "Consistency status: " << std::endl;
       std::cout << std::string(140, '=') << std::endl;
       std::cout << consistency_stautus << std::endl;
       std::cout << std::string(140, '=') << std::endl;
-      if (begin_time != 0) {
-        std::cout << "Migrate Status:" << std::endl;
-        std::cout << "begin_time: " << begin_time << std::endl;
-        std::cout << "complete_proportion: " << complete_proportion << std::endl;
-      }
+
       std::cout << s.ToString() << std::endl;
+    } else if (!strncasecmp(line, "MIGRATESTATUS", 13)) {
+      if (line_args.size() != 1) {
+        std::cout << "arg num wrong" << std::endl;
+        continue;
+      }
+      int64_t migrate_begin_time = 0;
+      int32_t complete_proportion = 0;
+      s = cluster->MigrateStatus(&migrate_begin_time, &complete_proportion);
+      if (!s.ok()) {
+        std::cout << "Failed: " << s.ToString() << std::endl;
+        continue;
+      }
+
+      std::cout << "Migrate Status:" << std::endl;
+      std::cout << "  migrate begin time: " << migrate_begin_time << std::endl;
+      std::cout << "  complete proportion: " << complete_proportion << std::endl;
+
     } else if (!strncasecmp(line, "LISTNODE", 8)) {
       if (line_args.size() != 1) {
         std::cout << "arg num wrong" << std::endl;
@@ -1123,4 +1128,5 @@ int main(int argc, char* argv[]) {
 
   cliInitHelp();
   StartRepl(cluster, ip, port);
+  delete cluster;
 }

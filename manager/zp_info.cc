@@ -145,7 +145,10 @@ void InfoMeta(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoMeta");
   std::map<libzp::Node, std::string> meta_status;
   libzp::Node leader;
-  slash::Status s = cluster->MetaStatus(&leader, &meta_status);
+  int32_t version;
+  std::string consistency_stautus;
+  slash::Status s = cluster->MetaStatus(&leader, &meta_status,
+                                        &version, &consistency_stautus);
   if (!s.ok()) {
     printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
     json->AddStr("error", "true");

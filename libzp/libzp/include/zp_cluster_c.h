@@ -105,14 +105,14 @@ extern zp_status_t* zp_list_table(
     const zp_cluster_t* cluster,
     zp_string_vec_t* tables);
 
-extern zp_status_t* zp_list_meta(
-    const zp_cluster_t* cluster,
-    zp_node_t* master,
-    zp_node_vec_t* slaves);
+// extern zp_status_t* zp_list_meta(
+//     const zp_cluster_t* cluster,
+//     zp_node_t* master,
+//     zp_node_vec_t* slaves);
 
-extern zp_status_t* zp_metastatus(
-    const zp_cluster_t* cluster,
-    zp_string_t* status);
+// extern zp_status_t* zp_metastatus(
+//     const zp_cluster_t* cluster,
+//     zp_string_t* status);
 
 extern zp_status_t* zp_list_node(
     const zp_cluster_t* cluster,

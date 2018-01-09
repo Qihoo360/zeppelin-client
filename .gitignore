@@ -17,6 +17,9 @@ manager/zp_info
 manager/zp_parade
 manager/golang/manager
 manager/zp_manager
+manager/rocksdb_to_zp
+manager/checkup_json_result
+manager/info_json_result
 
 tags
 

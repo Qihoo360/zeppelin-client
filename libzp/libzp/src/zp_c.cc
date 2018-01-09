@@ -241,35 +241,35 @@ zp_status_t* zp_list_table(
   return s;
 }
 
-zp_status_t* zp_list_meta(
-    const zp_cluster_t* cluster,
-    zp_node_t* master,
-    zp_node_vec_t* slaves) {
-  zp_status_t* s = new zp_status_t;
-  Node mn;
-  std::vector<Node> sns;
-  s->rep = cluster->rep->ListMeta(&mn, &sns);
-  if (s->rep.ok()) {
-    snprintf(master->ip, 32, "%s", mn.ip.c_str());
-    master->port = mn.port;
-    for (auto& s : sns) {
-      zp_node_t* slave = zp_node_create1(s.ip.c_str(), s.port);
-      zp_nodevec_pushback(slaves, slave);
-    }
-  }
-  return s;
-}
+// zp_status_t* zp_list_meta(
+//     const zp_cluster_t* cluster,
+//     zp_node_t* master,
+//     zp_node_vec_t* slaves) {
+//   zp_status_t* s = new zp_status_t;
+//   Node mn;
+//   std::vector<Node> sns;
+//   s->rep = cluster->rep->ListMeta(&mn, &sns);
+//   if (s->rep.ok()) {
+//     snprintf(master->ip, 32, "%s", mn.ip.c_str());
+//     master->port = mn.port;
+//     for (auto& s : sns) {
+//       zp_node_t* slave = zp_node_create1(s.ip.c_str(), s.port);
+//       zp_nodevec_pushback(slaves, slave);
+//     }
+//   }
+//   return s;
+// }
 
-zp_status_t* zp_metastatus(
-    const zp_cluster_t* cluster,
-    zp_string_t* status) {
-  zp_status_t* s = new zp_status_t;
-  std::string buf;
-  s->rep = cluster->rep->MetaStatus(&buf);
-  status->data = static_cast<char*>(realloc(status->data, buf.length()));
-  memcpy(status->data, buf.data(), buf.length());
-  return s;
-}
+// zp_status_t* zp_metastatus(
+//     const zp_cluster_t* cluster,
+//     zp_string_t* status) {
+//   zp_status_t* s = new zp_status_t;
+//   std::string buf;
+//   s->rep = cluster->rep->MetaStatus(&buf);
+//   status->data = static_cast<char*>(realloc(status->data, buf.length()));
+//   memcpy(status->data, buf.data(), buf.length());
+//   return s;
+// }
 
 zp_status_t* zp_list_node(
     const zp_cluster_t* cluster,
