@@ -26,7 +26,14 @@ namespace ZPMeta {
 namespace libzp {
 
 class Partition {
-public:
+ public:
+  enum State {
+    kActive,
+    kStuck,
+    kSlowDown,
+    kUnknow,
+  };
+
   explicit Partition(const ZPMeta::Partitions& partition_info);
   void DebugDump() const;
   Node master() const {
@@ -38,17 +45,17 @@ public:
   std::vector<Node> slaves() const {
     return slaves_;
   }
-  bool active() const {
-    return active_;
+  bool state() const {
+    return state_;
   }
 
   void SetMaster(const Node& new_master);
 
-private:
+ private:
   std::vector<Node> slaves_;
   Node master_;
   int id_;
-  bool active_;
+  State state_;
 };
 
 class Table {

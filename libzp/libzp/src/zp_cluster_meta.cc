@@ -989,9 +989,17 @@ Status Cluster::MigrateStatus(int64_t* migrate_begin_time,
   std::map<Node, std::string> meta_status;
   int32_t version;
   std::string consistency_stautus;
-  return MetaStatusInternal(&leader, &meta_status,
-                            &version, &consistency_stautus,
-                            migrate_begin_time, complete_proportion);
+  Status s = MetaStatusInternal(
+      &leader, &meta_status,
+      &version, &consistency_stautus,
+      migrate_begin_time, complete_proportion);
+  if (!s.ok()) {
+    return s;
+  }
+  if (migrate_begin_time == 0) {
+    return Status::NotFound("There is no migrate task");
+  }
+  return Status::OK();
 }
 
 Status Cluster::MetaStatus(

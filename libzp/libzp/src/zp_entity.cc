@@ -43,12 +43,41 @@ Partition::Partition(const ZPMeta::Partitions& partition_info)
             partition_info.slaves(i).port()));
     }
     id_ = partition_info.id();
-    active_ = (partition_info.state() == ZPMeta::PState::ACTIVE);
+
+    switch (partition_info.state()) {
+      case ZPMeta::PState::ACTIVE:
+        state_ = kActive;
+        break;
+      case ZPMeta::PState::STUCK:
+        state_ = kStuck;
+        break;
+      case ZPMeta::PState::SLOWDOWN:
+        state_ = kSlowDown;
+        break;
+      default:
+        state_ = kUnknow;
+        break;
+    }
   }
 
 void Partition::DebugDump() const {
-  printf("  -%d,\t active: %5s, master: %s:%d\t",
-         id_, active_ ? "true" : "false", master_.ip.c_str(), master_.port);
+  std::string state_str;
+  switch (state_) {
+    case kActive:
+      state_str.assign("Active");
+      break;
+    case kStuck:
+      state_str.assign("Stuck");
+      break;
+    case kSlowDown:
+      state_str.assign("SlowDown");
+      break;
+    default:
+      state_str.assign("Unknow");
+      break;
+  }
+  printf("  -%d,\t state: %5s, master: %s:%d\t",
+         id_, state_str.c_str(), master_.ip.c_str(), master_.port);
   for (auto& s : slaves_) {
     printf("slave: %s:%d\t", s.ip.c_str(), s.port);
   }
