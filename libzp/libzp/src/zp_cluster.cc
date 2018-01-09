@@ -571,7 +571,7 @@ void Cluster::DeliverAndPull(CmdContext* context) {
                 context->response->redirect().port())).ok());
       }
     } else if (context->response->code() == client::StatusCode::kWait) {
-      // might be solved by just wait
+      usleep(500 * 1000);  // 500ms
     } else {
       need_pull = true;
     }
