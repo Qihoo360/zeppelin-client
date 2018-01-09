@@ -185,6 +185,23 @@ void InfoMeta(mjson::Json* json) {
     }
   }
   json->AddJson("followers", followers_json);
+
+  int64_t migrate_begin_time = 0;
+  int32_t complete_proportion = 0;
+  s = cluster->MigrateStatus(&migrate_begin_time, &complete_proportion);
+  json->AddInt("begin_time", migrate_begin_time);
+  json->AddInt("complete_proportion", complete_proportion);
+  if (!s.ok() && !s.IsNotFound()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    return;
+  }
+  printf(L_PURPLE "MigrateStatus\n" NONE);
+  if (s.ok()) {
+    printf("  begin_time: %ld\n", migrate_begin_time);
+    printf("  complete_proportion: %d\n", complete_proportion);
+  } else {
+    printf("  No migrate task is running\n");
+  }
 }
 
 void PartitionDetail(const std::string& table, int32_t id,
@@ -263,14 +280,16 @@ void InfoTable(const std::string& table, bool detail = false) {
     printf("\e[0;35m%s [%d]\e[0m\n", it->second->table_name().c_str(),
         it->second->partition_num());
     printf("\e[7m%-5s\e[0m \e[7m%-10s\e[0m \e[7m%-70s\e[0m \e[7m%-140s\e[0m\n",
-        "Id", "Active", "Master", "Slaves");
+        "Id", "State", "Master", "Slaves");
     std::map<int, libzp::Partition> partitions = it->second->partitions();
     for (auto& par : partitions) {
       printf("%5d ", par.second.id());
-      if (par.second.active()) {
-        printf(GREEN "%10s " NONE, "Yes");
-      } else {
-        printf(RED "%10s " NONE, "No");
+      if (par.second.state() == libzp::Partition::kActive) {
+        printf(GREEN "%10s " NONE, "Active");
+      } else if (par.second.state() == libzp::Partition::kStuck) {
+        printf(RED "%10s " NONE, "Stuck");
+      } else if (par.second.state() == libzp::Partition::kSlowDown) {
+        printf(YELLOW "%10s " NONE, "SlowDown");
       }
       if (detail) {
         PartitionDetail(*iter, par.second.id(),

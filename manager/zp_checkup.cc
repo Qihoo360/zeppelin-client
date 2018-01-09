@@ -283,6 +283,10 @@ void CheckupTable(mjson::Json* json) {
     std::vector<int> lack_alive_repl_num;
     // save partitions which offset is dismatched between its master & slaves
     std::vector<int> dismatch_offset_num;
+    // save partitions which is stuck
+    std::vector<int> stuck_num;
+    // save partitions which is slowdown
+    std::vector<int> slowdown_num;
 
     mjson::Json tmp_json(mjson::JsonType::kSingle);
     tmp_json.AddStr("name", *iter);
@@ -400,10 +404,20 @@ void CheckupTable(mjson::Json* json) {
           break;
         }
       }
+
+      /*
+       *  3. checkup partition state
+       */
+       if (p.second.state() == libzp::Partition::kStuck) {
+         stuck_num.push_back(p.second.id());
+       } else if (p.second.state() == libzp::Partition::kSlowDown) {
+         slowdown_num.push_back(p.second.id());
+       }
     }
 
     if (dismatch_repl_num.empty() && lack_alive_repl_num.empty() &&
-          dismatch_offset_num.empty()) {
+          dismatch_offset_num.empty() && stuck_num.empty() &&
+          slowdown_num.empty()) {
       printf(GREEN "...... PASSED\n" NONE);
       tmp_json.AddStr("result", "passed");
       table_json.PushJson(tmp_json);
@@ -461,6 +475,36 @@ void CheckupTable(mjson::Json* json) {
       printf("]\n");
     }
     tmp_json.AddInt("lagging", dismatch_offset_num.size());
+    printf("----repl-stuck: ");
+    if (stuck_num.empty()) {
+      printf("0\n");
+    } else {
+      printf(BROWN "%lu " NONE "[", stuck_num.size());
+      size_t i = 0;
+      for (i = 0; i < stuck_num.size() - 1; i++) {
+        printf(RED "%d, " NONE, stuck_num[i]);
+      }
+      if (i == stuck_num.size() - 1) {
+        printf(RED "%d" NONE, stuck_num[i]);
+      }
+      printf("]\n");
+    }
+    tmp_json.AddInt("stuck", stuck_num.size());
+    printf("----repl-slowdown: ");
+    if (slowdown_num.empty()) {
+      printf("0\n");
+    } else {
+      printf(BROWN "%lu " NONE "[", slowdown_num.size());
+      size_t i = 0;
+      for (i = 0; i < slowdown_num.size() - 1; i++) {
+        printf(RED "%d, " NONE, slowdown_num[i]);
+      }
+      if (i == slowdown_num.size() - 1) {
+        printf(RED "%d" NONE, slowdown_num[i]);
+      }
+      printf("]\n");
+    }
+    tmp_json.AddInt("slowdown", slowdown_num.size());
 
     table_json.PushJson(tmp_json);
   }

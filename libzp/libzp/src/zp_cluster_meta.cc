@@ -996,7 +996,7 @@ Status Cluster::MigrateStatus(int64_t* migrate_begin_time,
   if (!s.ok()) {
     return s;
   }
-  if (migrate_begin_time == 0) {
+  if (*migrate_begin_time == 0) {
     return Status::NotFound("There is no migrate task");
   }
   return Status::OK();
