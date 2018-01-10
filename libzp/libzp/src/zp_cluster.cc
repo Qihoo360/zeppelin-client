@@ -31,11 +31,11 @@ struct NodeTaskArg {
     :context(c), target(n) {}
 };
 
-uint64_t CalcDeadline(int timeout) {
-  if (timeout == 0) {
+uint64_t CalcDeadline(int timeout_ms) {
+  if (timeout_ms == 0) {
     return 0; // no limit
   }
-  return slash::NowMicros() / 1000 + timeout;
+  return slash::NowMicros() / 1000 + timeout_ms;
 }
 
 struct CmdContextResult {
@@ -571,7 +571,7 @@ void Cluster::DeliverAndPull(CmdContext* context) {
                 context->response->redirect().port())).ok());
       }
     } else if (context->response->code() == client::StatusCode::kWait) {
-      usleep(500 * 1000);  // 500ms
+      usleep(1000);  // 1ms
     } else {
       need_pull = true;
     }
