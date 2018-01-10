@@ -35,19 +35,16 @@ class Partition {
   };
 
   explicit Partition(const ZPMeta::Partitions& partition_info);
+
   void DebugDump() const;
-  Node master() const {
-    return master_;
-  }
-  int id() const {
-    return id_;
-  }
-  std::vector<Node> slaves() const {
-    return slaves_;
-  }
-  bool state() const {
-    return state_;
-  }
+
+  Node master() const { return master_; }
+
+  int id() const { return id_; }
+
+  std::vector<Node> slaves() const { return slaves_; }
+
+  State state() const { return state_; }
 
   void SetMaster(const Node& new_master);
 
@@ -63,15 +60,11 @@ class Table {
   Table();
   explicit Table(const ZPMeta::Table& table_info);
   virtual ~Table();
-  std::string table_name() {
-    return table_name_;
-  }
-  int partition_num() {
-    return partition_num_;
-  }
-  std::map<int, Partition> partitions() {
-    return partitions_;
-  }
+  std::string table_name() { return table_name_; }
+
+  int partition_num() { return partition_num_; }
+
+  std::map<int, Partition> partitions() { return partitions_; }
 
   const Partition* GetPartition(const std::string& key) const;
   const Partition* GetPartitionById(int id) const;
@@ -93,7 +86,7 @@ struct BinlogOffset {
   uint64_t offset;
   BinlogOffset()
     : filenum(0), offset(0) {}
-  
+
   BinlogOffset(uint32_t num, uint64_t off)
     : filenum(num), offset(off) {}
 
