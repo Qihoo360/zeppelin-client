@@ -64,7 +64,7 @@ class Client {
 
  private :
   Cluster* cluster_;
-  const std::string table_;
+  std::string table_;
 };
 
 
