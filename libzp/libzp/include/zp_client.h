@@ -19,11 +19,14 @@ class Cluster;
 
 class Client {
  public :
-  explicit Client(const Options& options, const std::string& table);
-  Client(const std::string& ip, const int port,
-      const std::string& table);
+  Client(const Options& options, const std::string& table);
+  Client(const std::string& ip, const int port, const std::string& table);
   virtual ~Client();
+
   Status Connect();
+
+  void SetTableName(const std::string& table_name) { table_.assign(table_name); }
+  const std::string& table_name() { return table_; }
 
   // data cmd
   Status Set(const std::string& key, const std::string& value,
