@@ -640,13 +640,14 @@ Status Cluster::Migrate(
   std::map<Node, std::vector<const Partition*>> nodes_loads;
   table_ptr->GetNodesLoads(&nodes_loads);
 
-  if (nodes_loads.find(src_node) == nodes_loads.end() ||
-      nodes_loads.find(dst_node) == nodes_loads.end()) {
+  if (nodes_loads.find(src_node) == nodes_loads.end()) {
     return Status::Corruption("Invalid node");
   }
-  for (const auto p : nodes_loads[dst_node]) {
-    if (p->id() == partition_id) {
-      return Status::Corruption("Invalid Move");
+  if (nodes_loads.find(dst_node) != nodes_loads.end()) {
+    for (const auto p : nodes_loads[dst_node]) {
+      if (p->id() == partition_id) {
+        return Status::Corruption("Invalid move, duplicated partition");
+      }
     }
   }
 
