@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <memory>
 
 #include "libzp/include/zp_cluster.h"
 #include "libzp/include/zp_client.h"
@@ -10,10 +11,11 @@ int main() {
   libzp::Options options;
   options.meta_addr.push_back(libzp::Node("127.0.0.1", 9221));
   options.op_timeout = 1000;
-  libzp::Client* client = new libzp::Client(options, "test");
+  std::unique_ptr<libzp::RawClient> client(new libzp::RawClient(options));
   slash::Status s;
 
   std::string primary_key("testkey");
+  std::string table_name("test");
 
   // PutRow, insert new
   printf("PutRow, insert new row\n");
@@ -22,7 +24,7 @@ int main() {
     {"col2", "value2"},
     {"col3", "value3"},
   };
-  s = client->PutRow(primary_key, columns);
+  s = client->PutRow(table_name, primary_key, columns);
   if (!s.ok()) {
     std::cout << "PutRow Error: " << s.ToString() << std::endl;
     return -1;
@@ -34,7 +36,7 @@ int main() {
     {"col4", "value4"},
     {"col5", "value5"},
   };
-  s = client->PutRow(primary_key, columns1);
+  s = client->PutRow(table_name, primary_key, columns1);
   if (!s.ok()) {
     std::cout << "PutRow Error: " << s.ToString() << std::endl;
     return -1;
@@ -44,7 +46,7 @@ int main() {
   printf("GetRow, get all columns\n");
   std::vector<std::string> empty_col;
   std::map<std::string, std::string> results;
-  s = client->GetRow(primary_key, empty_col, &results);
+  s = client->GetRow(table_name, primary_key, empty_col, &results);
   if (!s.ok()) {
     std::cout << "GetRow Error: " << s.ToString() << std::endl;
     return -1;
@@ -58,7 +60,7 @@ int main() {
   printf("GetRow, get specified columns\n");
   std::vector<std::string> col_to_get{"col1", "col2"};
   results.clear();
-  s = client->GetRow(primary_key, col_to_get, &results);
+  s = client->GetRow(table_name, primary_key, col_to_get, &results);
   if (!s.ok()) {
     std::cout << "GetRow Error: " << s.ToString() << std::endl;
     return -1;
@@ -70,13 +72,13 @@ int main() {
 
   // DeleteRow, delete specified columns
   printf("DeleteRow, delete specified columns\n");
-  s = client->DeleteRow(primary_key, col_to_get);
+  s = client->DeleteRow(table_name, primary_key, col_to_get);
   if (!s.ok()) {
     std::cout << "DeleteRow Error: " << s.ToString() << std::endl;
     return -1;
   }
   results.clear();
-  s = client->GetRow(primary_key, empty_col, &results);
+  s = client->GetRow(table_name, primary_key, empty_col, &results);
   if (!s.ok()) {
     std::cout << "GetRow Error: " << s.ToString() << std::endl;
     return -1;
@@ -88,19 +90,18 @@ int main() {
 
   // DeleteRow, delete all columns
   printf("DeleteRow, delete all columns\n");
-  s = client->DeleteRow(primary_key, empty_col);
+  s = client->DeleteRow(table_name, primary_key, empty_col);
   if (!s.ok()) {
     std::cout << "DeleteRow Error: " << s.ToString() << std::endl;
     return -1;
   }
   results.clear();
-  s = client->GetRow(primary_key, empty_col, &results);
+  s = client->GetRow(table_name, primary_key, empty_col, &results);
   if (!s.ok()) {
     std::cout << "GetRow Error: " << s.ToString() << std::endl;
     return -1;
   }
   printf("results size: %d\n", results.size());
 
-  delete client;
   return 0;
 }
