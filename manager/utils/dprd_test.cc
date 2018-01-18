@@ -137,8 +137,8 @@ void DoOption(int op, DprdWrapper* dprd, int& total_buckets, int& added_weight,
       added_weight = 10 * 10;  
       break;
     case REMOVE_ONE_NODE:
-      //id 3 is a node
-      dprd->RemoveBucket(-3);
+      //id 1 is a node
+      dprd->RemoveBucket(1);
       added_weight = -1;
       break;
     case REMOVE_ONE_HOST:
