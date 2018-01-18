@@ -11,6 +11,10 @@ RawClient::RawClient(const std::string& ip, const int port)
     : cluster_(new Cluster(ip, port)) {
 }
 
+RawClient::~RawClient() {
+  delete cluster_;
+}
+
 Status RawClient::Set(const std::string& table_name,
                       const std::string& key,
                       const std::string& value,

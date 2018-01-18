@@ -101,11 +101,7 @@ int main(int argc, char* argv[]) {
   libzp::Client* client = new libzp::Client(argv[1], atoi(argv[2]), "parade");
   
   std::cout << "Connect cluster" << std::endl;
-  slash::Status s = client->Connect();
-  if (!s.ok()) {
-    std::cout << s.ToString() << std::endl;
-    return -1;
-  }
+  slash::Status s;
   
   int count_base = 1;
   if (argc == 4) {

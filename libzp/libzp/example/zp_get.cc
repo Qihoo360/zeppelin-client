@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
   // client handle io operation
   std::cout << "create client" << std::endl;
   libzp::Client* client = new libzp::Client(argv[1], atoi(argv[2]), argv[3]);
-  libzp::Status s = client->Connect();
+  libzp::Status s;
   
   std::string value;
   s = client->Get(argv[4], &value);

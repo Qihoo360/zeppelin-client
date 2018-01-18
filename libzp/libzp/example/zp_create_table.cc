@@ -48,7 +48,6 @@ int main(int argc, char* argv[]) {
       // client handle io operation
       //std::cout << "create client" << std::endl;
       libzp::Client* client = new libzp::Client(argv[1], atoi(argv[2]), table);
-      s = client->Connect();
       if (!s.ok()) {
         std::cout << "connect table failed, " << s.ToString() << std::endl;
         sleep(1);

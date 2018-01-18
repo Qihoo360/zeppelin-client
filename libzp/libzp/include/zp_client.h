@@ -5,7 +5,6 @@
 #define CLIENT_INCLUDE_ZP_CLIENT_H_
 
 #include <map>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,7 +22,7 @@ class RawClient {
   RawClient(const Options& options);
   RawClient(const std::string& ip, const int port);
 
-  virtual ~RawClient() {}
+  virtual ~RawClient();
 
   // data cmd
   Status Set(const std::string& table_name,
@@ -75,7 +74,7 @@ class RawClient {
                    const std::vector<std::string>& col_to_delete);
 
  private :
-  std::unique_ptr<Cluster> cluster_;
+  Cluster* cluster_;
 };
 
 class Client {

@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
   std::cout << "connect cluster" << std::endl;
   int cnt = atoi(argv[3]);
   // needs connect to cluster first
-  libzp::Status s = client->Connect();
+  libzp::Status s;
   /* operation
   s = cluster->CreateTable("test", 24);
   */
