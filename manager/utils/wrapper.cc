@@ -1,21 +1,31 @@
-/*
- * "Copyright [2016] qihoo"
- */
-
+// Copyright 2017 Qihoo
+// //
+// // Licensed under the Apache License, Version 2.0 (the "License");
+// // you may not use this file except in compliance with the License.
+// // You may obtain a copy of the License at
+// //
+// //     http:// www.apache.org/licenses/LICENSE-2.0
+// //
+// // Unless required by applicable law or agreed to in writing, software
+// // distributed under the License is distributed on an "AS IS" BASIS,
+// // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// // See the License for the specific language governing permissions and
+// // limitations under the License.
 #include "wrapper.h"
 
+#include <sys/time.h>   // gettimeofday
+#include <stdio.h>      // rename
 #include <fstream>      // ifstream ofstream
 #include <iostream>
-#include <algorithm>    // std::sort, std::shuffle
+#include <algorithm>    // std::sort
 #include <cassert>      // assert
-#include <random>       // std::default_random_engine
-#include <chrono>       // std::chrono::system_clock
-#include <stdio.h>      // rename
+#include <cstdlib>      // std::rand, std::srand
+#include <set>
 
 bool debug_op = false;
 
 DprdWrapper::DprdWrapper()
-  :changed_partition_counter_(0), map_(NULL){
+  :changed_partition_counter_(0), map_(NULL) {
 }
 
 DprdWrapper::~DprdWrapper() {
@@ -24,7 +34,7 @@ DprdWrapper::~DprdWrapper() {
   }
 }
 
-bool CompareFunction(std::pair<double,int> a, std::pair<double,int> b) {
+bool CompareFunction(std::pair<double, int> a, std::pair<double, int> b) {
   return a.first < b.first;
 }
 
@@ -49,7 +59,7 @@ bool DprdWrapper::AddBucket(int parent,
   DprdBucket* parent_bucket = map_->FindBucket(parent);
   assert(parent_bucket);
   parent_bucket->AddChild(id);
-  // if bucket type is BUCKET_TYPE_NODE type, update sum_weight 
+  // if bucket type is BUCKET_TYPE_NODE type, update sum_weight
   if (type == BUCKET_TYPE_NODE) {
     UpdateWeightToTop(id, weight);
     map_->set_sum_weight(map_->sum_weight() + weight);
@@ -61,7 +71,8 @@ bool DprdWrapper::AddBucket(int parent,
 }
 
 // just add bucket into map_
-bool DprdWrapper::AddBucket(int type, int id, const std::string& name, int weight) {
+bool DprdWrapper::AddBucket(int type, int id, const std::string& name,
+    int weight) {
   assert(map_);
   DprdBucket* dprd_bucket = new DprdBucket(id, type, weight, name);
   map_->InsertBucket(id, dprd_bucket);
@@ -69,11 +80,11 @@ bool DprdWrapper::AddBucket(int type, int id, const std::string& name, int weigh
   return true;
 }
 
-// Optimized shrink stategy  
-// Two conditions: 
+// Optimized shrink stategy
+// Two conditions:
 // 1. remove node id's level is bigger then choose_n rule level
-//   means one partition is under this node's ancestorA(node go up to 
-//   choose_n level), another two replicas is under same level other 
+//   means one partition is under this node's ancestorA(node go up to
+//   choose_n level), another two replicas is under same level other
 //   ancestors(ancestorB and ancestorC)
 //   1.1 remove this partition from this id node
 //   1.2 update weight
@@ -83,7 +94,7 @@ bool DprdWrapper::AddBucket(int type, int id, const std::string& name, int weigh
 //   one to distribute except ancestorB and ancestorC)
 // 2. remove node id's level is less then choose_n rule level
 //   means cut node will cut all replica partiitions
-//   just distribute from id's parent 
+//   just distribute from id's parent
 bool DprdWrapper::RemoveBucket(int id) {
   if (id == 0) {
     std::cout<< "Don't support remove root!" << std::endl;
@@ -92,7 +103,7 @@ bool DprdWrapper::RemoveBucket(int id) {
   DprdBucket* bucket = map_->FindBucket(id);
   assert(bucket);
   int bucket_level = FindBucketLevel(bucket);
-  
+
   int choose_n_level = 0;
   DprdRule* rule = map_->FindRule(0);
   const std::vector<DprdRuleStep*>& steps = rule->steps();
@@ -102,7 +113,7 @@ bool DprdWrapper::RemoveBucket(int id) {
       break;
     }
   }
- 
+
   // partition and one of the leaf node which under id subtree
   std::map<int, int> partition_leaf;
   int upper_level_id = bucket->parent();
@@ -111,9 +122,8 @@ bool DprdWrapper::RemoveBucket(int id) {
   std::map<int, std::vector<int> > partitions_ancestors;
   if (choose_n_level > bucket_level) {
     easy_distribute = true;
-  }
-  else {
-    //id goes up to choose_n_level to know which id is in this level
+  } else {
+    // id goes up to choose_n_level to know which id is in this level
     int level_diff = bucket_level - choose_n_level;
     int choose_n_level_id = id;
     for (int i = 0; i < level_diff; ++i) {
@@ -121,21 +131,21 @@ bool DprdWrapper::RemoveBucket(int id) {
       assert(cur);
       choose_n_level_id = cur->parent();
     }
-    
+
     // get choose_n_level's parent
     DprdBucket* choose_n_level_bucket = map_->FindBucket(choose_n_level_id);
     assert(choose_n_level_bucket);
     upper_level_id = choose_n_level_bucket->parent();
-   
+
     const std::set<int>& partitions = bucket->partitions();
     std::set<int>::const_iterator partitions_iter = partitions.begin();
     for (; partitions_iter != partitions.end(); ++partitions_iter) {
       int partition = *partitions_iter;
-      //std::cout<< "partition: " << partition<< std::endl;
-      std::map<int, std::vector<int> >::iterator par_map_iter 
-        = partitions_to_nodes_.find(partition); 
+      // std::cout<< "partition: " << partition<< std::endl;
+      std::map<int, std::vector<int> >::iterator par_map_iter
+        = partitions_to_nodes_.find(partition);
       if (par_map_iter == partitions_to_nodes_.end()) {
-        std::cout<< "partition: " << partition << 
+        std::cout<< "partition: " << partition <<
           "doesn't exist in partitions_to_nodes" << std::endl;
         return false;
       }
@@ -154,7 +164,7 @@ bool DprdWrapper::RemoveBucket(int id) {
           assert(tmp_bucket);
           tmp_id = tmp_bucket->parent();
         }
-        if (tmp_id == choose_n_level_id) { 
+        if (tmp_id == choose_n_level_id) {
           // find this leaf's ancestor in choose_n level
           partition_leaf[partition] = cur_bucket_id;
           continue;
@@ -173,18 +183,17 @@ bool DprdWrapper::RemoveBucket(int id) {
   for (; partitions_iter != partitions.end(); ++partitions_iter) {
     RemoveBucketPartition(bucket, *partitions_iter);
   }
-  
+
   // update weight
   int weight = -1 * bucket->weight();
   UpdateWeightToTop(id, weight);
- 
+
   // update child in parent
   DprdBucket* parent = map_->FindBucket(bucket->parent());
   assert(parent);
   parent->RemoveChild(id);
- 
-  // do delete subtree bucket
-  if(!LevelOrderTraversalRemove(bucket)) {
+
+  if (!LevelOrderTraversalRemove(bucket)) {
     return false;
   }
 
@@ -201,7 +210,8 @@ bool DprdWrapper::RemoveBucket(int id) {
     return true;
   }
 
-  std::map<int, std::vector<int> >::iterator distribute_iter = partitions_ancestors.begin();
+  std::map<int, std::vector<int> >::iterator distribute_iter
+    = partitions_ancestors.begin();
   // upper_level_id refers to choose_n_level parent
   DprdBucket* upper_bucket = map_->FindBucket(upper_level_id);
   for (; distribute_iter != partitions_ancestors.end(); ++distribute_iter) {
@@ -212,7 +222,7 @@ bool DprdWrapper::RemoveBucket(int id) {
     for (size_t i = 0; i < choose_n_level_buckets.size(); ++i) {
       int node_id = choose_n_level_buckets[i];
       bool blocked = false;
-      // if this ancestor is record in block_list choose other one 
+      // if this ancestor is record in block_list choose other one
       // record means this pg is already exist in this bucket
       for (size_t j = 0; j < block_list.size(); ++j) {
         if (block_list[j] == node_id) {
@@ -225,30 +235,33 @@ bool DprdWrapper::RemoveBucket(int id) {
       }
       processed_ids.push_back(choose_n_level_buckets[i]);
     }
-    
-    //calculate Factor shuffle it and sort it, then find the smallest one 
+
+    // calculate Factor shuffle it and sort it, then find the smallest one
     std::vector<double> factors = CalcFactor(processed_ids);
     std::vector<std::pair<double, int> > factors_children;
-    //build factors_children to sort it and choose first N 
+    // build factors_children to sort it and choose first N
     for (size_t j = 0; j < processed_ids.size() && j < factors.size(); ++j) {
-      factors_children.push_back(std::make_pair(factors[j], processed_ids[j])); 
+      factors_children.push_back(std::make_pair(factors[j], processed_ids[j]));
     }
 
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    shuffle (factors_children.begin(), factors_children.end(), 
-        std::default_random_engine(seed));
-    
-    std::sort(factors_children.begin(), factors_children.end(), CompareFunction);
-     
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    std::srand(tv.tv_usec);
+    std::random_shuffle(factors_children.begin(), factors_children.end());
 
-    //choose the smallest candidate of choose_n level bucket and do distribute
+    std::sort(factors_children.begin(), factors_children.end(),
+      CompareFunction);
+
+    // choose the smallest candidate of choose_n level bucket and do distribute
     if (!factors_children.empty()) {
       int id = factors_children.begin()->second;
       DprdBucket* bucket = map_->FindBucket(id);
       assert(bucket);
       int level = FindBucketLevel(bucket);
-      //std::cout<< "Distribute id: "<< id << " partition " << partition << " level " << level<< std::endl;
-      std::map<int, int>::iterator par_leaf_iter = partition_leaf.find(partition);
+      // std::cout<< "Distribute id: "<< id << " partition " << partition
+      // << " level " << level<< std::endl;
+      std::map<int, int>::iterator par_leaf_iter =
+        partition_leaf.find(partition);
       if (par_leaf_iter == partition_leaf.end()) {
         return false;
       }
@@ -302,27 +315,27 @@ bool DprdWrapper::AddStep(int rule_id, int step_id,
   return true;
 }
 
-//Remove this partition to target bucket and update info to all its ancestors
+// Remove this partition to target bucket and update info to all its ancestors
 bool DprdWrapper::RemoveBucketPartition(DprdBucket* target, int partition) {
   DprdBucket* cur = target;
   while (cur->type() != BUCKET_TYPE_ROOT) {
     const std::set<int>& partitions = cur->partitions();
     std::set<int>::const_iterator partitions_itr = partitions.find(partition);
     if (partitions_itr == partitions.end()) {
-      //should have this partition
+      // should have this partition
       return false;
     }
-    cur->RemovePartition(partition); 
+    cur->RemovePartition(partition);
     assert(map_);
     cur = map_->FindBucket(cur->parent());
-    assert(cur); 
+    assert(cur);
   }
   return true;
 }
 
 // Insert this partition to target bucket and update info to all its ancestors
 bool DprdWrapper::InsertBucketPartition(DprdBucket* target, int partition) {
-  //std::cout<< "Func: InsertBucketpartition " << std::endl;
+  // std::cout<< "Func: InsertBucketpartition " << std::endl;
   DprdBucket* cur = target;
   while (cur->type() != BUCKET_TYPE_ROOT) {
     bool res = cur->InsertPartition(partition);
@@ -337,38 +350,43 @@ bool DprdWrapper::InsertBucketPartition(DprdBucket* target, int partition) {
 }
 
 // choose the first N nodes who have the least factor
-void DprdWrapper::ChooseFirstN(const std::vector<DprdBucket*>& input, std::vector<DprdBucket*>& output, int n) {
-  //std::cout<< "Function: ChooseFirstN()" << std::endl;
+void DprdWrapper::ChooseFirstN(const std::vector<DprdBucket*>& input,
+    std::vector<DprdBucket*>* output, int n) {
+  // std::cout<< "Function: ChooseFirstN()" << std::endl;
   assert(map_);
   for (size_t i = 0; i < input.size(); ++i) {
     const DprdBucket* bucket = input[i];
     const std::vector<int>& children = bucket->children();
     std::vector<double> factors = CalcFactor(children);
     std::vector<std::pair<double, int> > factors_children;
-    //build factors_children to sort it and choose first N 
+    // build factors_children to sort it and choose first N
     for (size_t j = 0; j < children.size() && j < factors.size(); ++j) {
-      factors_children.push_back(std::make_pair(factors[j], children[j])); 
+      factors_children.push_back(std::make_pair(factors[j], children[j]));
     }
     // shuffle factors_children to make it uniform distributed
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-    shuffle (factors_children.begin(), factors_children.end(), 
-        std::default_random_engine(seed));
-    
-    std::sort(factors_children.begin(), factors_children.end(), CompareFunction);
-    //choose first N 
-    for (size_t j = 0; j < static_cast<size_t>(n) && j < factors_children.size(); ++j) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    std::srand(tv.tv_usec);
+    std::random_shuffle(factors_children.begin(), factors_children.end());
+
+    std::sort(factors_children.begin(), factors_children.end(),
+        CompareFunction);
+    // choose first N
+    for (size_t j = 0; j < static_cast<size_t>(n) &&
+        j < factors_children.size(); ++j) {
       DprdBucket* bucket = map_->FindBucket(factors_children[j].second);
       assert(bucket);
-      output.push_back(bucket);
+      (*output).push_back(bucket);
     }
   }
 }
 
 // old_belonging is the old node id of this partition
 // level describes which layer this partition will start distribution
-bool DprdWrapper::Distribute(int root_id, int partition, int level, int ruleno, int old_belonging) {
-  //std::cout<< "Function:Distribute():" << std::endl;
-  assert(map_); 
+bool DprdWrapper::Distribute(int root_id, int partition, int level,
+    int ruleno, int old_belonging) {
+  // std::cout<< "Function:Distribute():" << std::endl;
+  assert(map_);
   DprdBucket* root = map_->FindBucket(root_id);
   assert(root);
   std::vector<DprdBucket*> input;
@@ -384,12 +402,12 @@ bool DprdWrapper::Distribute(int root_id, int partition, int level, int ruleno, 
     DprdRuleStep* step = steps[i];
     int op = step->op();
     int arg1 = step->arg1();
-    switch(op) {
+    switch (op) {
       case DPRD_RULE_TAKE:
         input.push_back(root);
         break;
       case DPRD_RULE_CHOOSE_FIRSTN:
-        ChooseFirstN(input, output, arg1);
+        ChooseFirstN(input, &output, arg1);
         input = output;
         break;
       case DPRD_RULE_EMIT:
@@ -401,18 +419,20 @@ bool DprdWrapper::Distribute(int root_id, int partition, int level, int ruleno, 
           nodes.push_back(bucket->id());
           InsertBucketPartition(bucket, partition);
         }
-        //update partitions_to_nodes map
+        // update partitions_to_nodes map
         if (input.size() == REPLICA_NUM) {
-          std::map<int, std::vector<int> >::iterator iter = partitions_to_nodes_.find(partition);
+          std::map<int, std::vector<int> >::iterator iter
+            = partitions_to_nodes_.find(partition);
           if (iter != partitions_to_nodes_.end()) {
             changed_partition_counter_ += REPLICA_NUM;
           }
           partitions_to_nodes_[partition] = nodes;
         }
-        //the old_belong exist and now it changed, record this change 
+        // the old_belong exist and now it changed, record this change
         // and update partitions_to_nodes
         if (old_belonging != -1 && input.size() == 1) {
-          std::map<int, std::vector<int> >::iterator iter = partitions_to_nodes_.find(partition);
+          std::map<int, std::vector<int> >::iterator iter
+            = partitions_to_nodes_.find(partition);
           if (iter != partitions_to_nodes_.end()) {
             std::vector<int>& nodes = iter->second;
             for (size_t i = 0; i < nodes.size(); ++i) {
@@ -445,35 +465,35 @@ int DprdWrapper::FindBucketLevel(const DprdBucket* bucket) {
 }
 
 // Calling before removing partition from this bucket
-// if this bucket's level lower level rule need to choose 3, 
+// if this bucket's level lower level rule need to choose 3,
 // it needs to remove all its 3 partitions from other buckts
 bool DprdWrapper::CheckMoveAllReplicas(const DprdBucket* bucket) {
-  int level = FindBucketLevel(bucket); 
+  int level = FindBucketLevel(bucket);
   assert(map_);
   DprdRule* rule = map_->FindRule(0);
   const std::vector<DprdRuleStep*>& steps = rule->steps();
-  //To find child to bottom if corresponding step has chooseFirstN n > 1 case
+  // To find child to bottom if corresponding step has chooseFirstN n > 1 case
   for (size_t i = level + 1; i < steps.size(); ++i) {
     if (steps[i]->arg1() > 1) {
       return true;
-    } 
+    }
   }
   return false;
 }
 
 // To balance this bucekt's children
-// 1. get src pos (need to remove pg in this level) and dst (receive pg in this level)
-// 2. get one of the leaf's partition of src pos 
+// 1. get src pos (need to remove pg in this level)
+//   and dst (receive pg in this level)
+// 2. get one of the leaf's partition of src pos
 // 3. remove partition of leaf
 // 4. distribute this partition to dst
 void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
-  //std::cout<< "Function: BalanceChildren " << "ID: "<< bucket->id() << std::endl;
   const std::vector<int>& children = bucket->children();
   std::vector<int> src;
   std::vector<int> dst;
   std::set<std::pair<int, int> > history;
   assert(map_);
-  while (!Balanced(children, src, dst)) {
+  while (!Balanced(children, &src, &dst)) {
     int partition = -1;
     DprdBucket* partition_from = NULL;
     bool res = false;
@@ -481,15 +501,16 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
     int dst_pos = -1;
     DprdBucket* dst_bucket = NULL;
     DprdBucket* src_bucket = NULL;
-    //find one partition from all possible 
-    //src(over average bucket) and dst(below average bucket) 
+    // find one partition from all possible
+    // src(over average bucket) and dst(below average bucket)
     for (size_t i = 0; i < dst.size(); ++i) {
       dst_bucket = map_->FindBucket(dst[i]);
       assert(dst_bucket);
       for (size_t j = 0; j < src.size(); ++j) {
         src_bucket = map_->FindBucket(src[j]);
         assert(src_bucket);
-        res = ChooseNodeToRemove(src_bucket, dst_bucket, partition, partition_from);
+        res = ChooseNodeToRemove(src_bucket, dst_bucket, &partition,
+            &partition_from);
         if (res) {
           src_pos = src[j];
           dst_pos = dst[i];
@@ -503,12 +524,12 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
 
     if (!res)  {
       std::cout<< "Can't find partition to move!!!!" << std::endl;
-      if (debug_op){
+      if (debug_op) {
         std::cout<< "src "<< std::endl;
         for (size_t i = 0; i < src.size(); ++i) {
-          std::cout<< "id: "<<src[i];
+          std::cout << "id: " << src[i];
           DprdBucket* bucket = map_->FindBucket(src[i]);
-          std::cout<< " type: "<<bucket->type();
+          std::cout << " type: " << bucket->type();
           const std::vector<int>& children = bucket->children();
           std::vector<int>::const_iterator children_iter = children.begin();
           std::cout<< "children "<< std::endl;
@@ -519,19 +540,19 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
           const std::set<int>& partitions = bucket->partitions();
           std::set<int>::const_iterator partition_iter = partitions.begin();
           std::cout<< "partition "<< std::endl;
-          for (; partition_iter != partitions.end(); ++ partition_iter) {
+          for (; partition_iter != partitions.end(); ++partition_iter) {
             std::cout<< " "<< *partition_iter;
           }
           std::cout<< std::endl;
           std::cout<< "size: "<< partitions.size()<< std::endl;
           std::cout<< std::endl;
-        } 
+        }
         std::cout<< std::endl;
         std::cout<< "dst " << std::endl;
         for (size_t i = 0; i < dst.size(); ++i) {
           std::cout<< dst[i];
           DprdBucket* bucket = map_->FindBucket(dst[i]);
-          std::cout<< " type: "<<bucket->type();
+          std::cout << " type: " << bucket->type();
           const std::vector<int>& children = bucket->children();
           std::vector<int>::const_iterator children_iter = children.begin();
           std::cout<< "children "<< std::endl;
@@ -542,7 +563,7 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
           const std::set<int>& partitions = bucket->partitions();
           std::set<int>::const_iterator partition_iter = partitions.begin();
           std::cout<< "partition "<< std::endl;
-          for (; partition_iter != partitions.end(); ++ partition_iter) {
+          for (; partition_iter != partitions.end(); ++partition_iter) {
             std::cout<< " "<< *partition_iter;
           }
           std::cout<< std::endl;
@@ -556,30 +577,29 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
 
     src.erase(src.begin(), src.end());
     dst.erase(dst.begin(), dst.end());
-    
-    // check shacking like posA to posB then posB to posA agian 
+
+    // check shacking like posA to posB then posB to posA agian
     if (history.find(std::make_pair(dst_pos, src_pos)) != history.end()) {
       std::cout<< "Shaking!!!" << std::endl;
       return;
-    }
-    else {
+    } else {
       history.insert(std::make_pair(src_pos, dst_pos));
     }
-    
+
     // Remove choosen partition from src_bucket
     if (CheckMoveAllReplicas(src_bucket)) {
-      std::map<int, std::vector<int> >::iterator iter = partitions_to_nodes_.find(partition);
+      std::map<int, std::vector<int> >::iterator iter
+        = partitions_to_nodes_.find(partition);
       std::vector<int> nodes;
       if (iter != partitions_to_nodes_.end()) {
-        nodes = iter->second; 
+        nodes = iter->second;
       }
       for (size_t i = 0; i < nodes.size(); ++i) {
         DprdBucket* bucket = map_->FindBucket(nodes[i]);
         assert(bucket);
         RemoveBucketPartition(bucket, partition);
       }
-    }
-    else {
+    } else {
       RemoveBucketPartition(partition_from, partition);
     }
 
@@ -587,13 +607,16 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
     int level = FindBucketLevel(dst_bucket);
     Distribute(dst_pos, partition, level, 0, partition_from->id());
     if (debug_op) {
-      std::cout<< "From " << src_bucket->id() << " ===>" << " To " << dst_bucket->id() << std::endl;
-      std::cout<< "Get Down to get node" << partition_from->id() << " Partition: " << partition << std::endl;
+      std::cout<< "From " << src_bucket->id() << " ===>"
+        << " To " << dst_bucket->id() << std::endl;
+      std::cout<< "Get Down to get node" << partition_from->id()
+        << " Partition: " << partition << std::endl;
     }
   }
 }
 
-void DprdWrapper::BuildCandidate(const DprdBucket* root, std::vector<int>& candidate) {
+void DprdWrapper::BuildCandidate(const DprdBucket* root,
+    std::vector<int>* candidate) {
   const std::vector<int>& children = root->children();
   double average_factor = CalcAverageFactor(children);
   std::vector<double> factor = CalcFactor(children);
@@ -601,22 +624,23 @@ void DprdWrapper::BuildCandidate(const DprdBucket* root, std::vector<int>& candi
   if (children.size() != factor.size()) {
     return;
   }
-  //keep candidate from max to min according to the factor : (factor[i] - average_factor) / base[i]
+  // keep candidate from max to min according to the factor :
+  // (factor[i] - average_factor) / base[i]
   std::multimap<double, int> res;
   for (size_t i = 0; i < factor.size(); ++i) {
-    double distance = (double)(factor[i] - average_factor) / (double)base[i] ;
+    double distance = (factor[i] - average_factor) / base[i];
     res.insert(std::make_pair(distance, children[i]));
   }
   std::map<double, int>::reverse_iterator ritr;
   for (ritr = res.rbegin(); ritr != res.rend(); ++ritr) {
-    candidate.push_back(ritr->second);
+    (*candidate).push_back(ritr->second);
   }
 }
 
 
 // valid partition exist in root but not in dst
-bool DprdWrapper::ChoosePartitionToRemove(const DprdBucket* root, 
-    const DprdBucket* dst, int& partition) {
+bool DprdWrapper::ChoosePartitionToRemove(const DprdBucket* root,
+    const DprdBucket* dst, int* partition) {
   const std::set<int>& partitions = root->partitions();
   const std::set<int>& dst_partitions = dst->partitions();
   std::set<int>::const_iterator partitions_iter = partitions.begin();
@@ -624,9 +648,8 @@ bool DprdWrapper::ChoosePartitionToRemove(const DprdBucket* root,
     int cur_partition = *partitions_iter;
     if (dst_partitions.find(cur_partition) != dst_partitions.end()) {
       continue;
-    }
-    else {
-      partition = cur_partition;
+    } else {
+      (*partition) = cur_partition;
       return true;
     }
   }
@@ -635,21 +658,20 @@ bool DprdWrapper::ChoosePartitionToRemove(const DprdBucket* root,
 
 
 // do recursion to go throght all bucket of root subtree
-// if get any leaf partition which dst dont have, stop recurstion 
+// if get any leaf partition which dst dont have, stop recurstion
 // and take that partition and choosen_node back
-bool DprdWrapper::ChooseNodeToRemove(DprdBucket* root, const DprdBucket* dst, 
-    int& partition, DprdBucket*& choosen_node) {
+bool DprdWrapper::ChooseNodeToRemove(DprdBucket* root, const DprdBucket* dst,
+    int* partition, DprdBucket** choosen_node) {
   if (root->type() == BUCKET_TYPE_NODE) {
     if (ChoosePartitionToRemove(root, dst, partition)) {
-      choosen_node = root;
+      *choosen_node = root;
       return true;
-    }
-    else {
+    } else {
       return false;
     }
   }
   std::vector<int> candidate;
-  BuildCandidate(root, candidate);
+  BuildCandidate(root, &candidate);
   assert(map_);
   for (size_t i = 0; i < candidate.size(); ++i) {
     DprdBucket* child_bucket = map_->FindBucket(candidate[i]);
@@ -675,7 +697,8 @@ double DprdWrapper::CalcAverageFactor(const std::vector<int>& buckets) {
   if (sum_weights == 0) {
     return -1;
   }
-  return sum_partitions * (static_cast<double>(map_->sum_weight()) / sum_weights);
+  return sum_partitions * (static_cast<double>(map_->sum_weight())
+      / static_cast<double>(sum_weights));
 }
 
 std::vector<double> DprdWrapper::CalcFactor(const std::vector<int>& nodes) {
@@ -711,17 +734,17 @@ std::vector<double> DprdWrapper::CalcBaseFactor(const std::vector<int>& nodes) {
 
 // To check if children buckets are balanced
 // 1. get min and max factors' positions
-//    it is possible that sevral positions holds the same 
+//    it is possible that sevral positions holds the same
 //    min or max factor.
 // 2. get positions of factors which is over average factor too much
 //    get positions of factors which is below average factor too much
 // 3. if both of src_pos and dst_pos is empty return true
-//    that means all children is around average.  
-bool DprdWrapper::Balanced(const std::vector<int>& children, 
-    std::vector<int>& src_pos, std::vector<int>& dst_pos) {
+//    that means all children is around average.
+bool DprdWrapper::Balanced(const std::vector<int>& children,
+    std::vector<int>* src_pos, std::vector<int>* dst_pos) {
   std::vector<double> factors;
-  factors = CalcFactor(children); 
-  std::vector<double> base_factors;//sum_weight over weight
+  factors = CalcFactor(children);
+  std::vector<double> base_factors;  // sum_weight over weight
   base_factors = CalcBaseFactor(children);
   int max_factor = -1;
   int min_factor = -1;
@@ -737,9 +760,8 @@ bool DprdWrapper::Balanced(const std::vector<int>& children,
     }
     if (factors[i] >= max_factor) {
       if (factors[i] == max_factor) {
-        max_pos.push_back(children[i]); 
-      }
-      else {
+        max_pos.push_back(children[i]);
+      } else {
         max_pos.erase(max_pos.begin(), max_pos.end());
         max_pos.push_back(children[i]);
       }
@@ -748,31 +770,28 @@ bool DprdWrapper::Balanced(const std::vector<int>& children,
     if (factors[i] <= min_factor) {
       if (factors[i] == min_factor) {
         min_pos.push_back(children[i]);
-      }
-      else {
+      } else {
         min_pos.erase(min_pos.begin(), min_pos.end());
         min_pos.push_back(children[i]);
       }
       min_factor = factors[i];
     }
   }
-  for (size_t i = 0; i < factors.size() && i < base_factors.size() && 
+  for (size_t i = 0; i < factors.size() && i < base_factors.size() &&
       i < children.size(); ++i) {
     if (factors[i] - average_factor > base_factors[i]) {
-      src_pos.push_back(children[i]);
+      (*src_pos).push_back(children[i]);
     }
     if (average_factor - factors[i] > base_factors[i]) {
-      dst_pos.push_back(children[i]);
+      (*dst_pos).push_back(children[i]);
     }
   }
-  if (src_pos.empty() && dst_pos.empty()) {
+  if ((*src_pos).empty() && (*dst_pos).empty()) {
     return true;
-  }
-  else if (src_pos.empty()) {
-    src_pos = max_pos;
-  }
-  else if (dst_pos.empty()) {
-    dst_pos = min_pos;
+  } else if ((*src_pos).empty()) {
+    (*src_pos) = max_pos;
+  } else if ((*dst_pos).empty()) {
+    (*dst_pos) = min_pos;
   }
   return false;
 }
@@ -782,7 +801,7 @@ void DprdWrapper::Migrate() {
   assert(map_);
   DprdBucket* root = map_->FindBucket(0);
   assert(root);
-  LevelOrderTraversalBalance(root);    
+  LevelOrderTraversalBalance(root);
 }
 
 // level order traversal of bucket-tree to make sure this tree is balanced
@@ -808,7 +827,7 @@ void DprdWrapper::LevelOrderTraversalBalance(const DprdBucket* root) {
   }
 }
 
-// update weight to all "id"'s ancestors 
+// update weight to all "id"'s ancestors
 void DprdWrapper::UpdateWeightToTop(int id, int weight) {
   assert(map_);
   DprdBucket* cur_bucket = map_->FindBucket(id);
@@ -825,7 +844,8 @@ void DprdWrapper::UpdateWeightToTop(int id, int weight) {
 
 // print partition to nodes map into stdout
 void DprdWrapper::DumpPartitionNodeMap() {
-  std::map<int, std::vector<int> >::iterator iter = partitions_to_nodes_.begin();
+  std::map<int, std::vector<int> >::iterator iter
+    = partitions_to_nodes_.begin();
   for (; iter != partitions_to_nodes_.end(); ++iter) {
     int partition = iter->first;
     std::vector<int>& node = iter->second;
@@ -833,13 +853,14 @@ void DprdWrapper::DumpPartitionNodeMap() {
     for (size_t j = 0; j < node.size(); ++j) {
       std::cout<< node[j]<< " ";
     }
-    std::cout<< std::endl;
-  } 
+    std::cout << std::endl;
+  }
 }
-  
+
 // when adding node to map, upper level weight will be updated
 // map->SumWeight will be updated
-void DprdWrapper::BuildTree(int rack_size, const std::vector<int>& hosts_size, int node_size) { 
+void DprdWrapper::BuildTree(int rack_size, const std::vector<int>& hosts_size,
+    int node_size) {
   assert(map_);
   int root_id = 0;
   AddBucket(0, BUCKET_TYPE_ROOT, root_id);
@@ -879,14 +900,11 @@ bool DprdWrapper::AddStepFromFile(const std::string& rule) {
   int step = 0;
   if (rule.find("rack") != std::string::npos) {
     step = 1;
-  }
-  else if (rule.find("host") != std::string::npos) {
-    step = 2; 
-  }
-  else if (rule.find("node") != std::string::npos) {
-    step = 3; 
-  }
-  else {
+  } else if (rule.find("host") != std::string::npos) {
+    step = 2;
+  } else if (rule.find("node") != std::string::npos) {
+    step = 3;
+  } else {
     return false;
   }
   std::size_t found = rule.find_first_of("0123456789");
@@ -898,7 +916,7 @@ bool DprdWrapper::AddStepFromFile(const std::string& rule) {
   AddStep(0, step, DPRD_RULE_CHOOSE_FIRSTN, choose_num, 0);
   if (step == 3) {
     AddStep(0, 4, DPRD_RULE_EMIT, 0, 0);
-  } 
+  }
   return true;
 }
 
@@ -910,20 +928,18 @@ bool DprdWrapper::AddNodeFromFile(std::ifstream& in, const std::string& buf) {
   int counter = 0;
   while (!in.eof()) {
     std::getline(in, cur_buf);
-    RemoveHeadTailWhiteSpaces(cur_buf);
+    RemoveHeadTailWhiteSpaces(&cur_buf);
     if (cur_buf.find("id") != std::string::npos) {
       std::size_t id_pos = cur_buf.find_first_of("-0123456789");
       if (id_pos != std::string::npos) {
         id = std::stoi(cur_buf.substr(id_pos));
       }
-    }
-    else if (cur_buf.find("ip") != std::string::npos) {
+    } else if (cur_buf.find("ip") != std::string::npos) {
       std::size_t ip_pos = cur_buf.find_first_of("0123456789");
       if (ip_pos != std::string::npos) {
         ip = cur_buf.substr(ip_pos);
       }
-    }
-    else if (cur_buf.find("port") != std::string::npos) {
+    } else if (cur_buf.find("port") != std::string::npos) {
       std::size_t port_pos = cur_buf.find_first_of("0123456789");
       if (port_pos != std::string::npos) {
         port = std::stoi(cur_buf.substr(port_pos));
@@ -952,14 +968,11 @@ bool DprdWrapper::AddBucketFromFile(std::ifstream& in, const std::string& buf) {
   int type = 0;
   if (buf.find("host") != std::string::npos) {
     type = BUCKET_TYPE_HOST;
-  }
-  else if (buf.find("rack") != std::string::npos) {
+  } else if (buf.find("rack") != std::string::npos) {
     type = BUCKET_TYPE_RACK;
-  }
-  else if (buf.find("root") != std::string::npos) {
+  } else if (buf.find("root") != std::string::npos) {
     type = BUCKET_TYPE_ROOT;
-  }
-  else {
+  } else {
     return false;
   }
   std::string cur_buf;
@@ -967,13 +980,13 @@ bool DprdWrapper::AddBucketFromFile(std::ifstream& in, const std::string& buf) {
   std::vector<std::string> children;
   bool children_flag = false;
   // read from "in", until hit a blank line or "# bucket end"
-  // then 
+  // then
   // 1. create bucket with type id and name
-  // 2. add child to cur bucekt 
-  // 3. update cur bucket weight 
-  while(!in.eof()) {
+  // 2. add child to cur bucekt
+  // 3. update cur bucket weight
+  while (!in.eof()) {
     std::getline(in, cur_buf);
-    RemoveHeadTailWhiteSpaces(cur_buf);
+    RemoveHeadTailWhiteSpaces(&cur_buf);
     if (cur_buf.empty() || cur_buf.find("# bucket end") != std::string::npos) {
       AddBucket(type, id, name);
       DprdBucket* bucket = map_->FindBucket(id);
@@ -981,45 +994,45 @@ bool DprdWrapper::AddBucketFromFile(std::ifstream& in, const std::string& buf) {
       int weight = 0;
       for (size_t i = 0; i < children.size(); ++i) {
         int child_id;
-        if (map_->FindId(children[i], child_id)) {
+        if (map_->FindId(children[i], &child_id)) {
           bucket->AddChild(child_id);
         }
         DprdBucket* child = map_->FindBucket(child_id);
-        assert(child);
+        if (child == NULL) {
+          std::cout << "child id " << child_id << "is not initialized yet!"
+            << std::endl;
+          return false;
+        }
         weight += child->weight();
       }
       bucket->set_weight(weight);
       children_flag = false;
       return true;
-    }
-    else if (cur_buf.find("id") != std::string::npos) {
+    } else if (cur_buf.find("id") != std::string::npos) {
       std::size_t id_pos = cur_buf.find_first_of("-0123456789");
       if (id_pos != std::string::npos) {
         id = std::stoi(cur_buf.substr(id_pos));
       }
-    }
-    else if (children_flag) {
+    } else if (children_flag) {
       children.push_back(cur_buf);
-    }
-    else if (cur_buf.find("children") != std::string::npos) {
+    } else if (cur_buf.find("children") != std::string::npos) {
       children_flag = true;
     }
   }
   return true;
 }
 
-void DprdWrapper::RemoveHeadTailWhiteSpaces(std::string& buf) {
+void DprdWrapper::RemoveHeadTailWhiteSpaces(std::string* buf) {
   std::string white_spaces(" \t\f\v\n\r");
-  std::size_t found = buf.find_last_not_of(white_spaces); 
+  std::size_t found = buf->find_last_not_of(white_spaces);
   if (found != std::string::npos) {
-    buf.erase(found + 1);
+    buf->erase(found + 1);
   }
-  found = buf.find_first_not_of(white_spaces);
+  found = buf->find_first_not_of(white_spaces);
   if (found != std::string::npos) {
-    buf = buf.substr(found);
-  }
-  else {
-    buf.erase(buf.begin(), buf.end());
+    *buf = buf->substr(found);
+  } else {
+    buf->erase(buf->begin(), buf->end());
   }
 }
 
@@ -1037,7 +1050,7 @@ bool DprdWrapper::LoadTree(const std::string& file) {
   bool rule_flag = false;
   while (!in.eof()) {
     std::getline(in, buf);
-    RemoveHeadTailWhiteSpaces(buf);
+    RemoveHeadTailWhiteSpaces(&buf);
     if (buf.empty()) {
       continue;
     }
@@ -1045,51 +1058,43 @@ bool DprdWrapper::LoadTree(const std::string& file) {
       if (buf.find("rule") != std::string::npos) {
         if (buf.find("end") != std::string::npos) {
           rule_flag = false;
-        }
-        else {
+        } else {
           rule_flag = true;
         }
-      }
-      else if (buf.find("node") != std::string::npos) {
+      } else if (buf.find("node") != std::string::npos) {
         if (buf.find("end") != std::string::npos) {
           node_flag = false;
-        }
-        else {
+        } else {
           node_flag = true;
         }
-      }
-      else if (buf.find("bucket") != std::string::npos) {
+      } else if (buf.find("bucket") != std::string::npos) {
         if (buf.find("end") != std::string::npos) {
           bucket_flag = false;
-        }
-        else {
+        } else {
           bucket_flag = true;
         }
       }
-    }
-    else {
+    } else {
       if (rule_flag) {
-        if(!AddStepFromFile(buf)) {
+        if (!AddStepFromFile(buf)) {
           return false;
         }
-      }
-      else if (node_flag) {
+      } else if (node_flag) {
         if (buf.find("node") == std::string::npos) {
           return false;
         }
-        if(!AddNodeFromFile(in, buf)) {
+        if (!AddNodeFromFile(in, buf)) {
           return false;
         }
-      }
-      else if (bucket_flag) {
-        if (buf.find("rack") == std::string::npos && 
+      } else if (bucket_flag) {
+        if (buf.find("rack") == std::string::npos &&
             buf.find("host") == std::string::npos &&
             buf.find("root") == std::string::npos) {
           return false;
         }
         if (!AddBucketFromFile(in, buf)) {
           return false;
-        } 
+        }
       }
     }
   }
@@ -1108,19 +1113,17 @@ void DprdWrapper::DumpRule(std::ofstream& ofs) {
   for (; rule_iter != rules.end(); ++rule_iter) {
     DprdRule* rule = rule_iter->second;
     const std::vector<DprdRuleStep*>& steps = rule->steps();
-    ofs << "# rule" << std::endl; 
+    ofs << "# rule" << std::endl;
     for (size_t i = 0; i < steps.size(); ++i) {
       DprdRuleStep* step = steps[i];
       if (step->op() == DPRD_RULE_CHOOSE_FIRSTN) {
         if (layer_counter == 1) {
           ofs << "rack:choose " << step->arg1()<< std::endl;
           layer_counter++;
-        }
-        else if (layer_counter == 2) {
+        } else if (layer_counter == 2) {
           ofs << "host:choose " << step->arg1()<< std::endl;
           layer_counter++;
-        }
-        else if (layer_counter == 3) {
+        } else if (layer_counter == 3) {
           ofs << "node:choose " << step->arg1()<< std::endl;
           layer_counter++;
         }
@@ -1128,7 +1131,7 @@ void DprdWrapper::DumpRule(std::ofstream& ofs) {
     }
     ofs << "# rule end" << std::endl << std::endl;
   }
-} 
+}
 
 // Dump Node bucket info into ofs
 void DprdWrapper::DumpNode(std::ofstream& ofs) {
@@ -1154,7 +1157,8 @@ void DprdWrapper::DumpBucket(std::ofstream& ofs) {
   ofs << "# bucket" << std::endl;
   DprdBucket* root_bucket = NULL;
   const std::map<int, DprdBucket*>& buckets = map_->buckets();
-  std::map<int, DprdBucket*>::const_reverse_iterator bucket_iter = buckets.rbegin();
+  std::map<int, DprdBucket*>::const_reverse_iterator bucket_iter
+    = buckets.rbegin();
   // go through map dump host first then rack then root
   for (; bucket_iter != buckets.rend(); ++bucket_iter) {
     DprdBucket* bucket = bucket_iter->second;
@@ -1174,8 +1178,9 @@ void DprdWrapper::DumpBucket(std::ofstream& ofs) {
       ofs << std::endl;
     }
   }
-  
-  for (bucket_iter = buckets.rbegin(); bucket_iter != buckets.rend(); ++bucket_iter) {
+
+  for (bucket_iter = buckets.rbegin(); bucket_iter != buckets.rend();
+      ++bucket_iter) {
     DprdBucket* bucket = bucket_iter->second;
     if (bucket->name().find("rack") != std::string::npos) {
       ofs << bucket->name() << std::endl;
@@ -1185,7 +1190,7 @@ void DprdWrapper::DumpBucket(std::ofstream& ofs) {
       for (size_t i = 0; i < children.size(); ++i) {
          DprdBucket* child_bucket = map_->FindBucket(children[i]);
          assert(child_bucket);
-         ofs << "    "<< child_bucket->name() << std::endl;
+         ofs << "    " << child_bucket->name() << std::endl;
       }
       ofs << std::endl;
     }
@@ -1220,7 +1225,7 @@ bool DprdWrapper::DumpTree(const std::string& file) {
   }
   std::ofstream ofs(output_file);
   if (!ofs.is_open()) {
-    std::cout<< "Open file failed!" << std::endl; 
+    std::cout << "Open file failed!" << std::endl;
     return false;
   }
   DumpRule(ofs);
@@ -1234,14 +1239,14 @@ bool DprdWrapper::DumpTree(const std::string& file) {
   return true;
 }
 
-// Print map info on stdout 
+// Print map info on stdout
 // Includeing all bucket info and rule info
 void DprdWrapper::DumpMapInfo() {
   assert(map_);
   map_->PrintAll();
 }
 
-// @param max_bucket the maximum number of buckets in map 
+// @param max_bucket the maximum number of buckets in map
 int DprdWrapper::max_bucket() {
   assert(map_);
   return map_->max_bucket();

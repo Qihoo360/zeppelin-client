@@ -1,11 +1,25 @@
-#ifndef UTILS_DPRD_TYPE_H_
-#define UTILS_DPRD_TYPE_H_
+// Copyright 2017 Qihoo
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http:// www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#ifndef MANAGER_UTILS_DPRD_TYPE_H_
+#define MANAGER_UTILS_DPRD_TYPE_H_
 
 #include <iostream>
 #include <string>
 #include <map>
 #include <set>
 #include <vector>
+#include <utility>
 
 enum {
   BUCKET_TYPE_ROOT,
@@ -55,7 +69,7 @@ class DprdRule {
     return steps_;
   }
   int id() const {
-    return id_;  
+    return id_;
   }
  private:
   int id_;
@@ -66,9 +80,9 @@ class DprdBucket {
  public:
   explicit DprdBucket(const int id, const int type,
       const int weight, const int parent);
-  explicit DprdBucket(const int id, const int type, 
+  explicit DprdBucket(const int id, const int type,
       const int weight);
-  explicit DprdBucket(const int id, const int type, 
+  explicit DprdBucket(const int id, const int type,
       const int weight, const std::string& name);
   ~DprdBucket();
   void AddChild(int id);
@@ -120,7 +134,8 @@ class DprdBucket {
     return partitions_.size();
   }
   bool InsertPartition(int partition) {
-    std::pair<std::set<int>::iterator, bool> res = partitions_.insert(partition); 
+    std::pair<std::set<int>::iterator, bool>
+      res = partitions_.insert(partition);
     if (res.second == false) {
       return false;
     }
@@ -134,10 +149,11 @@ class DprdBucket {
     partitions_.erase(target);
     return true;
   }
+
  private:
-  int id_;      
-  int type_;      
-  int weight_;  
+  int id_;
+  int type_;
+  int weight_;
   int parent_;
   std::string ip_;
   int port_;
@@ -151,21 +167,21 @@ class DprdBucket {
  */
 class DprdMap {
  public:
-  explicit DprdMap();
+  DprdMap();
   ~DprdMap();
   bool InsertBucket(const int id, DprdBucket* bucket);
   bool RemoveBucket(int id);
   bool InsertRule(const int id, DprdRule* rule);
   DprdBucket* FindBucket(const int bucket_id);
   DprdRule* FindRule(const int rule_id);
-  bool FindId(const std::string& name, int& id);
+  bool FindId(const std::string& name, int* id);
   const std::map<int, DprdBucket*>& buckets() const {
     return buckets_;
   }
   const std::map<int, DprdRule*>& rules() const {
     return rules_;
   }
-  int max_bucket() const{
+  int max_bucket() const {
     return max_bucket_;
   }
   void IncMaxBucket() {
@@ -181,13 +197,14 @@ class DprdMap {
     return sum_weight_;
   }
   void PrintAll();
+
  private:
   std::map<int, DprdBucket*> buckets_;
   std::map<int, DprdRule*> rules_;
   std::map<std::string, int> name_id_;
-  
+
   int max_bucket_;
   int sum_weight_;
 };
 
-#endif
+#endif  // MANAGER_UTILS_DPRD_TYPE_H_

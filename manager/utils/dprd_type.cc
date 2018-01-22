@@ -1,8 +1,20 @@
+// Copyright 2017 Qihoo
+// //
+// // Licensed under the Apache License, Version 2.0 (the "License");
+// // you may not use this file except in compliance with the License.
+// // You may obtain a copy of the License at
+// //
+// //     http:// www.apache.org/licenses/LICENSE-2.0
+// //
+// // Unless required by applicable law or agreed to in writing, software
+// // distributed under the License is distributed on an "AS IS" BASIS,
+// // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// // See the License for the specific language governing permissions and
+// // limitations under the License.
 #include "dprd_type.h"
 
 DprdRuleStep::DprdRuleStep(const int op, const int arg1, const int arg2)
   : op_(op), arg1_(arg1), arg2_(arg2) {
-  
 }
 
 DprdRuleStep::~DprdRuleStep() {}
@@ -20,14 +32,14 @@ DprdRule::~DprdRule() {
 }
 
 DprdBucket::DprdBucket(const int id, const int type, const int weight,
-    const int parent) : id_(id), type_(type), weight_(weight), 
+    const int parent) : id_(id), type_(type), weight_(weight),
   parent_(parent), port_(0) {}
 
 DprdBucket::DprdBucket(const int id, const int type, const int weight)
   : id_(id), type_(type), weight_(weight), parent_(0), port_(0) {}
 
-DprdBucket::DprdBucket(const int id, const int type, const int weight, 
-    const std::string& name) : id_(id), type_(type), weight_(weight), 
+DprdBucket::DprdBucket(const int id, const int type, const int weight,
+    const std::string& name) : id_(id), type_(type), weight_(weight),
     parent_(0), port_(0), name_(name) {}
 
 DprdBucket::~DprdBucket() {
@@ -45,7 +57,7 @@ void DprdBucket::RemoveChild(int id) {
   }
 }
 
-DprdMap::DprdMap() : max_bucket_(0), sum_weight_(0) {  
+DprdMap::DprdMap() : max_bucket_(0), sum_weight_(0) {
 }
 
 DprdMap::~DprdMap() {
@@ -79,7 +91,7 @@ bool DprdMap::InsertBucket(const int id, DprdBucket* bucket) {
   if (!res_name.second) {
     return false;
   }
-  return true; 
+  return true;
 }
 
 bool DprdMap::RemoveBucket(int id) {
@@ -106,8 +118,7 @@ DprdBucket* DprdMap::FindBucket(const int bucket_id) {
   std::map<int, DprdBucket*>::iterator itr  = buckets_.find(bucket_id);
   if (itr != buckets_.end()) {
     return itr->second;
-  }
-  else {
+  } else {
     return NULL;
   }
 }
@@ -116,19 +127,17 @@ DprdRule* DprdMap::FindRule(const int rule_id) {
   std::map<int, DprdRule*>::iterator itr = rules_.find(rule_id);
   if (itr != rules_.end()) {
     return itr->second;
-  }
-  else {
+  } else {
     return NULL;
   }
 }
 
-bool DprdMap::FindId(const std::string& name, int& id) {
+bool DprdMap::FindId(const std::string& name, int* id) {
   std::map<std::string, int>::iterator iter = name_id_.find(name);
   if (iter != name_id_.end()) {
-    id = iter->second;
+    *id = iter->second;
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
@@ -138,9 +147,11 @@ void DprdMap::PrintAll() {
   for (; bucket_itr != buckets_.end(); bucket_itr++) {
     DprdBucket* bucket = bucket_itr->second;
     std::cout<< "id:" << bucket->id() << " type:" << bucket->type() <<
-      " weight:" << bucket->weight() << " parent:" <<bucket->parent() << std::endl;
+      " weight:" << bucket->weight() << " parent:" <<bucket->parent() <<
+      std::endl;
     if (bucket->type() == BUCKET_TYPE_NODE) {
-      std::cout<< "ip:" << bucket->ip() << " port:" << bucket->port() << std::endl;
+      std::cout<< "ip:" << bucket->ip() << " port:" << bucket->port() <<
+        std::endl;
     }
     const std::vector<int>& children = bucket->children();
     std::cout<< "Children: ";
@@ -154,8 +165,8 @@ void DprdMap::PrintAll() {
       std::cout<< " " << *partitions_iter;
     }
     std::cout<< std::endl;
-    std::cout<<"Partition size: " << partitions.size() << std::endl;
-    std::cout<< std::endl;
+    std::cout << "Partition size: " << partitions.size() << std::endl;
+    std::cout << std::endl;
   }
   std::map<int, DprdRule*>::iterator rule_itr = rules_.begin();
   for (; rule_itr != rules_.end(); rule_itr++) {
@@ -164,7 +175,8 @@ void DprdMap::PrintAll() {
     const std::vector<DprdRuleStep*>& steps = rule->steps();
     for (size_t i = 0; i != steps.size(); ++i) {
       DprdRuleStep* step = steps[i];
-      std::cout<< "op: " << step->op() << "arg1: "<< step->arg1() << "arg2: " << step->arg2() << std::endl;
+      std::cout<< "op: " << step->op() << "arg1: "<< step->arg1() << "arg2: "
+        << step->arg2() << std::endl;
     }
   }
 }
