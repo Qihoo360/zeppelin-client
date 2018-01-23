@@ -23,24 +23,16 @@ DprdRule::DprdRule(const int id): id_(id) {
 }
 
 DprdRule::~DprdRule() {
-  std::vector<DprdRuleStep*>::iterator step_itr = steps_.begin();
-  while (step_itr != steps_.end()) {
-    DprdRuleStep* to_delete = *step_itr;
-    delete(to_delete);
-    steps_.erase(step_itr);
+  for (size_t i = 0; i < steps_.size(); ++i) {
+    delete (steps_[i]);
   }
 }
 
 DprdBucket::DprdBucket(const int id, const int type, const int weight,
-    const int parent) : id_(id), type_(type), weight_(weight),
-  parent_(parent), port_(0) {}
-
-DprdBucket::DprdBucket(const int id, const int type, const int weight)
-  : id_(id), type_(type), weight_(weight), parent_(0), port_(0) {}
-
-DprdBucket::DprdBucket(const int id, const int type, const int weight,
-    const std::string& name) : id_(id), type_(type), weight_(weight),
-    parent_(0), port_(0), name_(name) {}
+    const int parent, const std::string& name, const std::string& ip,
+    const int port)
+  : id_(id), type_(type), weight_(weight), parent_(parent), ip_(ip), 
+  port_(port), name_(name) {}
 
 DprdBucket::~DprdBucket() {
 }
@@ -57,21 +49,37 @@ void DprdBucket::RemoveChild(int id) {
   }
 }
 
+bool DprdBucket::InsertPartition(int partition) {
+  std::pair<std::set<int>::iterator, bool>
+    res = partitions_.insert(partition);
+  if (res.second == false) {
+    return false;
+  }
+  return true;
+}
+
+bool DprdBucket::RemovePartition(int partition) {
+  std::set<int>::iterator target = partitions_.find(partition);
+  if (target == partitions_.end()) {
+    return false;
+  }
+  partitions_.erase(target);
+  return true;
+}
+
 DprdMap::DprdMap() : max_bucket_(0), sum_weight_(0) {
 }
 
 DprdMap::~DprdMap() {
-  std::map<int, DprdBucket*>::iterator bucket_itr = buckets_.begin();
-  while (bucket_itr != buckets_.end()) {
-    DprdBucket* to_delete = bucket_itr->second;
+  std::map<int, DprdBucket*>::iterator bucket_iter = buckets_.begin();
+  for (; bucket_iter != buckets_.end(); ++bucket_iter) {
+    DprdBucket* to_delete = bucket_iter->second;
     delete(to_delete);
-    buckets_.erase(bucket_itr++);
   }
-  std::map<int, DprdRule*>::iterator rule_itr = rules_.begin();
-  while (rule_itr != rules_.end()) {
-    DprdRule* to_delete = rule_itr->second;
+  std::map<int, DprdRule*>::iterator rule_iter = rules_.begin();
+  for (; rule_iter != rules_.end(); ++rule_iter) {
+    DprdRule* to_delete = rule_iter->second;
     delete(to_delete);
-    rules_.erase(rule_itr++);
   }
 }
 
@@ -81,7 +89,7 @@ bool DprdMap::InsertBucket(const int id, DprdBucket* bucket) {
   if (!res_buckets.second) {
     return false;
   }
-  const std::string& name = bucket->name();
+  const std::string& name = bucket->name_;
   // bucket dont have a name
   if (name.empty()) {
     return true;
@@ -99,7 +107,7 @@ bool DprdMap::RemoveBucket(int id) {
   if (target == NULL) {
     return false;
   }
-  const std::string name = target->name();
+  const std::string name = target->name_;
   std::map<std::string, int>::iterator iter = name_id_.find(name);
   if (iter != name_id_.end()) {
     name_id_.erase(iter);
@@ -146,19 +154,19 @@ void DprdMap::PrintAll() {
   std::map<int, DprdBucket*>::iterator bucket_itr = buckets_.begin();
   for (; bucket_itr != buckets_.end(); bucket_itr++) {
     DprdBucket* bucket = bucket_itr->second;
-    std::cout<< "id:" << bucket->id() << " type:" << bucket->type() <<
-      " weight:" << bucket->weight() << " parent:" <<bucket->parent() <<
+    std::cout<< "id:" << bucket->id_ << " type:" << bucket->type_ <<
+      " weight:" << bucket->weight_ << " parent:" <<bucket->parent_ <<
       std::endl;
-    if (bucket->type() == BUCKET_TYPE_NODE) {
-      std::cout<< "ip:" << bucket->ip() << " port:" << bucket->port() <<
+    if (bucket->type_ == kBucketTypeNode) {
+      std::cout<< "ip:" << bucket->ip_ << " port:" << bucket->port_ <<
         std::endl;
     }
-    const std::vector<int>& children = bucket->children();
+    const std::vector<int>& children = bucket->children_;
     std::cout<< "Children: ";
     for (size_t i = 0; i < children.size(); i++) {
       std::cout<< " " << children[i];
     }
-    const std::set<int>& partitions = bucket->partitions();
+    const std::set<int>& partitions = bucket->partitions_;
     std::cout<< std::endl << "partition: ";
     std::set<int>::const_iterator partitions_iter = partitions.begin();
     for (; partitions_iter != partitions.end(); ++partitions_iter) {
@@ -171,12 +179,12 @@ void DprdMap::PrintAll() {
   std::map<int, DprdRule*>::iterator rule_itr = rules_.begin();
   for (; rule_itr != rules_.end(); rule_itr++) {
     DprdRule* rule = rule_itr->second;
-    std::cout<< "id: " <<rule->id() << std::endl;
-    const std::vector<DprdRuleStep*>& steps = rule->steps();
+    std::cout<< "id: " <<rule->id_ << std::endl;
+    const std::vector<DprdRuleStep*>& steps = rule->steps_;
     for (size_t i = 0; i != steps.size(); ++i) {
       DprdRuleStep* step = steps[i];
-      std::cout<< "op: " << step->op() << "arg1: "<< step->arg1() << "arg2: "
-        << step->arg2() << std::endl;
+      std::cout<< "op: " << step->op_ << "arg1: "<< step->arg1_ << "arg2: "
+        << step->arg2_ << std::endl;
     }
   }
 }

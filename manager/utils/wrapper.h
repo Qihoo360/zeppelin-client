@@ -21,18 +21,13 @@
 
 #include "dprd_type.h"
 
-#define REPLICA_NUM 3
-
-bool CompareFunction(std::pair<double, int> a, std::pair<double, int> b);
 
 class DprdWrapper {
  public:
   DprdWrapper();
   ~DprdWrapper();
-  void CreateMap();
-  bool AddBucket(int parent, int type, int id, int weight = 0,
-    const std::string& ip = "", int port = 0);
-  bool AddBucket(int type, int id, const std::string& name, int weight = 0);
+  bool AddBucket(int type, int id, const std::string& name = "",
+      int weight = 0, int parent = 1,const std::string& ip = "", int port = 0);
   bool RemoveBucket(int id);
   bool AddRule(int id);
   bool AddStep(int rule_id, int step_id, int op, int arg1, int arg2);

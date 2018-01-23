@@ -20,36 +20,36 @@
 extern bool debug_op;
 
 enum TestOp{
-  ADD_NONE,
-  ADD_ONE_NODE,
-  ADD_ONE_HOST,
-  ADD_ONE_RACK,
-  REMOVE_ONE_NODE,
-  REMOVE_ONE_HOST,
-  REMOVE_ONE_RACK
+  kAddNone,
+  kAddOneNode,
+  kAddOneHost,
+  kAddOneRack,
+  kRemoveOneNode,
+  kRemoveOneHost,
+  kRemoveOneRack
 };
 
 void PrintOption(int op) {
   switch (op) {
-    case ADD_NONE:
+    case kAddNone:
       std::cout<< "Basic Partition Initial Distribution" << std::endl;
       break;
-    case ADD_ONE_NODE:
+    case kAddOneNode:
       std::cout<< "Add one Node"<< std::endl;
       break;
-    case ADD_ONE_HOST:
+    case kAddOneHost:
       std::cout<< "Add one Host"<< std::endl;
       break;
-    case ADD_ONE_RACK:
+    case kAddOneRack:
       std::cout<< "Add one Rack"<< std::endl;
       break;
-    case REMOVE_ONE_NODE:
+    case kRemoveOneNode:
       std::cout<< "Remove one Node" << std::endl;
       break;
-    case REMOVE_ONE_HOST:
+    case kRemoveOneHost:
       std::cout<< "Remove one Host" << std::endl;
       break;
-    case REMOVE_ONE_RACK:
+    case kRemoveOneRack:
       std::cout<< "Remove one Rack" << std::endl;
       break;
     default:
@@ -102,23 +102,23 @@ void CheckValidRes(DprdWrapper* dprd, int sum_weight, int added_weight,
 
 void AddRules(DprdWrapper* dprd) {
   dprd->AddRule(0);
-  dprd->AddStep(0, 0, DPRD_RULE_TAKE, 0, 0);
-  dprd->AddStep(0, 1, DPRD_RULE_CHOOSE_FIRSTN, 3, 0);
-  dprd->AddStep(0, 2, DPRD_RULE_CHOOSE_FIRSTN, 1, 0);
-  dprd->AddStep(0, 3, DPRD_RULE_CHOOSE_FIRSTN, 1, 0);
-  dprd->AddStep(0, 4, DPRD_RULE_EMIT, 0, 0);
+  dprd->AddStep(0, 0, kDprdRuleTake, 0, 0);
+  dprd->AddStep(0, 1, kDprdRuleChooseFirstN, 3, 0);
+  dprd->AddStep(0, 2, kDprdRuleChooseFirstN, 1, 0);
+  dprd->AddStep(0, 3, kDprdRuleChooseFirstN, 1, 0);
+  dprd->AddStep(0, 4, kDprdRuleEmit, 0, 0);
 }
 
 void AddOneNode(DprdWrapper* dprd, int parent, int* id, int weight) {
-  dprd->AddBucket(parent, BUCKET_TYPE_NODE, (*id)++, weight);
+  dprd->AddBucket(kBucketTypeNode, (*id)++, "", weight, parent);
 }
 
 void AddOneHost(DprdWrapper* dprd, int host_parent, int node_size,
     int* total_buckets) {
   int node_parent = *total_buckets;
-  dprd->AddBucket(host_parent, BUCKET_TYPE_HOST, (*total_buckets)++);
+  dprd->AddBucket(kBucketTypeHost, (*total_buckets)++, "", 0, host_parent);
   for (int i = 1; i <= node_size; ++i) {
-    dprd->AddBucket(node_parent, BUCKET_TYPE_NODE, (*total_buckets)++, 1);
+    dprd->AddBucket(kBucketTypeNode, (*total_buckets)++, "", 1, node_parent);
   }
 }
 
@@ -126,12 +126,12 @@ void AddOneRack(DprdWrapper* dprd, int host_size, int node_size,
     int* total_buckets) {
   int rack_id = *total_buckets;
   // rack's parent is 0
-  dprd->AddBucket(0, BUCKET_TYPE_RACK, (*total_buckets)++);
+  dprd->AddBucket(kBucketTypeRack, (*total_buckets)++, "", 0, 0);
   for (int host = 1; host <= host_size; ++host) {
     int host_id = *total_buckets;
-    dprd->AddBucket(rack_id, BUCKET_TYPE_HOST, (*total_buckets)++);
+    dprd->AddBucket(kBucketTypeHost, (*total_buckets)++, "", 0, rack_id);
     for (int node = 1; node <= node_size; ++node) {
-      dprd->AddBucket(host_id, BUCKET_TYPE_NODE, (*total_buckets)++, 1);
+      dprd->AddBucket(kBucketTypeNode, (*total_buckets)++, "", 1, host_id);
     }
   }
 }
@@ -139,29 +139,29 @@ void AddOneRack(DprdWrapper* dprd, int host_size, int node_size,
 void DoOption(int op, int node_size, const std::vector<int> hosts_size,
     DprdWrapper* dprd, int* total_buckets, int* added_weight) {
   switch (op) {
-    case ADD_ONE_NODE:
+    case kAddOneNode:
       AddOneNode(dprd, -2, total_buckets, 1);
       *added_weight = 1;
       break;
-    case ADD_ONE_HOST:
+    case kAddOneHost:
       AddOneHost(dprd, -1, node_size, total_buckets);
       *added_weight = node_size;
       break;
-    case ADD_ONE_RACK:
+    case kAddOneRack:
       AddOneRack(dprd, 10, 10, total_buckets);
       *added_weight = 10 * 10;
       break;
-    case REMOVE_ONE_NODE:
+    case kRemoveOneNode:
       // id 1 is a node
       dprd->RemoveBucket(1);
       *added_weight = -1;
       break;
-    case REMOVE_ONE_HOST:
+    case kRemoveOneHost:
       // id 2 is a host
       dprd->RemoveBucket(-2);
       *added_weight = -1 * node_size;
       break;
-    case REMOVE_ONE_RACK:
+    case kRemoveOneRack:
       // id 1 is a rack
       dprd->RemoveBucket(-1);
       *added_weight = -1 * hosts_size[0] * node_size;
@@ -177,7 +177,6 @@ void CommonTreeTest(int op, std::vector<int> hosts_size) {
   }
   std::cout<< std::endl;
   DprdWrapper* dprd = new DprdWrapper;
-  dprd->CreateMap();
 
   int rack_size = hosts_size.size();
   int node_size = 10;
@@ -219,7 +218,6 @@ void BalancedTreeTest(int op) {
   PrintOption(op);
 
   DprdWrapper* dprd = new DprdWrapper;
-  dprd->CreateMap();
 
   int rack_size = 4;
   int node_size = 10;
@@ -264,7 +262,6 @@ void UnbalancedTreeTest(int op) {
   std::cout<< "UnbalancedTreeTest ";
   PrintOption(op);
   DprdWrapper* dprd = new DprdWrapper;
-  dprd->CreateMap();
 
   int rack_size = 5;
   int node_size = 10;
@@ -312,7 +309,6 @@ void UnbalancedTreeBadPerformanceTest(int op) {
   std::cout<< "UnbalancedTreeBadPerformanceTest ";
   PrintOption(op);
   DprdWrapper* dprd = new DprdWrapper;
-  dprd->CreateMap();
 
   int rack_size = 4;
   int node_size = 10;
@@ -355,7 +351,6 @@ void UnbalancedTreeBadPerformanceTest(int op) {
 void LoadDumpTest() {
   std::cout<< "LoadDumpTest" << std::endl;
   DprdWrapper* dprd = new DprdWrapper;
-  dprd->CreateMap();
   AddRules(dprd);
 
   int rack_size = 4;
@@ -387,7 +382,6 @@ void LoadDumpTest() {
   delete dprd;
 
   dprd = new DprdWrapper;
-  dprd->CreateMap();
   AddRules(dprd);
   if (dprd->LoadTree(dump_file)) {
     std::cout<< "LoadTree success!" << std::endl;
@@ -395,35 +389,37 @@ void LoadDumpTest() {
   } else {
     std::cout<< "LoadTree failed!" << std::endl;
   }
+  delete dprd;
 }
 
 int main() {
   debug_op = false;
   // test initial partition distribute
-  BalancedTreeTest(ADD_NONE);
-  BalancedTreeTest(ADD_ONE_NODE);
-  BalancedTreeTest(ADD_ONE_HOST);
-  BalancedTreeTest(ADD_ONE_RACK);
-  BalancedTreeTest(REMOVE_ONE_NODE);
-  BalancedTreeTest(REMOVE_ONE_HOST);
-  BalancedTreeTest(REMOVE_ONE_RACK);
+  BalancedTreeTest(kAddNone);
+  BalancedTreeTest(kAddOneNode);
+  BalancedTreeTest(kAddOneHost);
+  BalancedTreeTest(kAddOneRack);
+  BalancedTreeTest(kRemoveOneNode);
+  BalancedTreeTest(kRemoveOneHost);
+  BalancedTreeTest(kRemoveOneRack);
 
-  UnbalancedTreeTest(ADD_NONE);
-  UnbalancedTreeTest(ADD_ONE_NODE);
-  UnbalancedTreeTest(ADD_ONE_HOST);
-  UnbalancedTreeTest(ADD_ONE_RACK);
-  UnbalancedTreeTest(REMOVE_ONE_NODE);
-  UnbalancedTreeTest(REMOVE_ONE_HOST);
-  UnbalancedTreeTest(REMOVE_ONE_RACK);
+  UnbalancedTreeTest(kAddNone);
+  UnbalancedTreeTest(kAddOneNode);
+  UnbalancedTreeTest(kAddOneHost);
+  UnbalancedTreeTest(kAddOneRack);
+  UnbalancedTreeTest(kRemoveOneNode);
+  UnbalancedTreeTest(kRemoveOneHost);
+  UnbalancedTreeTest(kRemoveOneRack);
 
-  UnbalancedTreeBadPerformanceTest(ADD_NONE);
-  UnbalancedTreeBadPerformanceTest(ADD_ONE_NODE);
-  UnbalancedTreeBadPerformanceTest(ADD_ONE_HOST);
-  UnbalancedTreeBadPerformanceTest(ADD_ONE_RACK);
-  UnbalancedTreeBadPerformanceTest(REMOVE_ONE_NODE);
-  UnbalancedTreeBadPerformanceTest(REMOVE_ONE_HOST);
-  UnbalancedTreeBadPerformanceTest(REMOVE_ONE_RACK);
+  UnbalancedTreeBadPerformanceTest(kAddNone);
+  UnbalancedTreeBadPerformanceTest(kAddOneNode);
+  UnbalancedTreeBadPerformanceTest(kAddOneHost);
+  UnbalancedTreeBadPerformanceTest(kAddOneRack);
+  UnbalancedTreeBadPerformanceTest(kRemoveOneNode);
+  UnbalancedTreeBadPerformanceTest(kRemoveOneHost);
+  UnbalancedTreeBadPerformanceTest(kRemoveOneRack);
 
   LoadDumpTest();
+  
   return 0;
 }
