@@ -382,7 +382,6 @@ void LoadDumpTest() {
   delete dprd;
 
   dprd = new DprdWrapper;
-  AddRules(dprd);
   if (dprd->LoadTree(dump_file)) {
     std::cout<< "LoadTree success!" << std::endl;
     std::cout<< "Total buckets: " << dprd->max_bucket() << std::endl;
@@ -420,6 +419,6 @@ int main() {
   UnbalancedTreeBadPerformanceTest(kRemoveOneRack);
 
   LoadDumpTest();
-  
+
   return 0;
 }
