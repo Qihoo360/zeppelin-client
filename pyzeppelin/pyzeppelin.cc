@@ -41,23 +41,6 @@ static PyObject *remove_client(PyObject *, PyObject* args)
     return NULL;
 }
 
-static PyObject *connect(PyObject *, PyObject* args)
-{
-    PyObject *pyb = NULL;
-    if (!PyArg_ParseTuple(args, "O", &pyb)) {
-        return Py_BuildValue("(is)", -1, "ParseTuple Failed");
-    }
-
-    void *vb = PyCObject_AsVoidPtr(pyb);
-    libzp::Client *b = static_cast<libzp::Client *>(vb);
-    libzp::Status s = b->Connect();
-    if (!s.ok()) {
-        return Py_BuildValue("(is#)", -2, s.ToString().data(), s.ToString().size());
-    }
-    
-    return Py_BuildValue("(is)", 0, "Connect OK");
-}
-
 static PyObject *set(PyObject *, PyObject* args)
 {
     PyObject *pyb = NULL;
@@ -124,7 +107,6 @@ static PyObject *zeppelin_delete(PyObject *, PyObject* args)
 
 static PyMethodDef pyzeppelin_methods[] = {
     {"create_client",       create_client,     METH_VARARGS},
-    {"connect",             connect,             METH_VARARGS},
     {"set",                 set,                 METH_VARARGS},
     {"get",                 get,                 METH_VARARGS},
     {"delete",              zeppelin_delete,              METH_VARARGS},

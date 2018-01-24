@@ -137,6 +137,7 @@ $(LIBRARY): $(PROTO_OBJS) $(LIBOBJECTS)
 clean:
 	$(AM_V_at)echo "Cleaning..."
 	$(AM_V_at)rm -f $(LIBRARY)
+	$(AM_V_at)rm -rf $(CURDIR)/output
 	$(AM_V_at)rm -rf $(CLEAN_FILES)
 	$(AM_V_at)rm -rf $(LIBOUTPUT)
 	$(AM_V_at)find . -name "*.[oda]" ! -path "./third/*" -exec rm -f {} \;

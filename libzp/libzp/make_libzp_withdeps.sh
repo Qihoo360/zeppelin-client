@@ -48,4 +48,13 @@ ar rs $LIBZP_A $TMPDIR/*.o
 g++ -o $LIBZP_SO -shared -fPIC $TMPDIR/*.o
 rm -rf $TMPDIR
 
+# make dist
+rm -rf $CURDIR/output
+mkdir $CURDIR/output
+mkdir -p $CURDIR/output/include/pink
+mkdir -p $CURDIR/output/include/slash
+cp -r $CURDIR/lib $CURDIR/output
+cp -r $PINK_PATH/pink/include $CURDIR/output/include/pink
+cp -r $SLASH_PATH/slash/include $CURDIR/output/include/slash
+
 echo "Done."
