@@ -705,10 +705,13 @@ Status Cluster::Shrink(
   for (auto& n : deleting) {
     auto iter = nodes_loads.find(n);
     if (iter == nodes_loads.end()) {
-      return Status::NotFound(n.ToString());
+      continue;
     }
     nodes_tobe_deleted.insert(*iter);
     nodes_loads.erase(iter);
+  }
+  if (nodes_tobe_deleted.empty()) {
+    return Status::OK();
   }
 
   // Calculate average load and restriction
@@ -865,6 +868,9 @@ void Cluster::DumpMigrateCmd(const MigrateCmd* cmd) {
 Status Cluster::SubmitMigrateCmd() {
   if (meta_cmd_->type() != ZPMeta::Type::MIGRATE) {
     return Status::Corruption("Unsupported command");
+  }
+  if (meta_cmd_->migrate().diff_size() == 0) {
+    return Status::OK();
   }
   Status s = SubmitMetaCmd(*meta_cmd_, meta_res_,
                     CalcDeadline(options_.op_timeout));
