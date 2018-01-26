@@ -47,6 +47,17 @@
 
 libzp::Cluster* cluster;
 std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
+
+std::map<libzp::Node, std::string> g_nodes;
+void UpdateNodeStatus(std::vector<libzp::Node>& nodes,
+    std::vector<std::string>& status) {
+  g_nodes.clear();
+  for (size_t i = 0; i < nodes.size(); i++) {
+    g_nodes.insert(std::map<libzp::Node, std::string>::
+        value_type(nodes[i], status[i]));
+  }
+}
+
 uint32_t master_filenum = UINT32_MAX;
 void InfoNode() {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "InfoNode");
@@ -212,6 +223,19 @@ void PartitionDetail(const std::string& table, int32_t id,
   if (it == view_map.end()) {
     std::map<int, libzp::PartitionView> view;
     libzp::Node node(ip, port);
+
+    // check if the node is down from g_nodes
+    auto iter = g_nodes.find(node);
+    if (iter != g_nodes.end()) {
+      if (iter->second == "down") {
+        printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port, "[DOWN]");
+        if (is_master) {
+          master_filenum = UINT32_MAX;
+        }
+        return;
+      }
+    }
+
     slash::Status s = cluster->InfoRepl(node, table, &view);
     if (!s.ok()) {
       printf("%15s:%5d" RED "%49s" NONE, ip.c_str(), port, "[Maybe DOWN]");
@@ -264,6 +288,17 @@ void InfoTable(const std::string& table, bool detail = false) {
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
     printf("  %s", (*iter).c_str());
   }
+
+  // update nodes status map
+  std::vector<libzp::Node> nodes;
+  std::vector<std::string> status;
+  s = cluster->ListNode(&nodes, &status);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    return;
+  }
+  UpdateNodeStatus(nodes, status);
+
   printf("\n");
   printf(L_PURPLE "Detail:\n" NONE);
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {

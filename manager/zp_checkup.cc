@@ -49,6 +49,17 @@ libzp::Cluster* cluster;
 std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
 bool health = true;
 
+std::map<libzp::Node, std::string> g_nodes;
+void UpdateNodeStatus(std::vector<libzp::Node>& nodes,
+    std::vector<std::string>& status) {
+  g_nodes.clear();
+  for (size_t i = 0; i < nodes.size(); i++) {
+    g_nodes.insert(std::map<libzp::Node, std::string>::
+        value_type(nodes[i], status[i]));
+  }
+}
+
+
 void CheckupMeta(mjson::Json* json) {
   printf(BLUE UNDERLINE "%-140s\n" NONE, "CheckupMeta");
   std::map<libzp::Node, std::string> meta_status;
@@ -217,6 +228,15 @@ void UpdateViewIfNeeded(const std::string& table,
   if (it == view_map.end()) {
     std::map<int, libzp::PartitionView> view;
     libzp::Node node(ip, port);
+
+    // check if the node is down from g_nodes
+    auto iter = g_nodes.find(node);
+    if (iter != g_nodes.end()) {
+      if (iter->second == "down") {
+        return;
+      }
+    }
+
     slash::Status s = cluster->InfoRepl(node, table, &view);
     if (!s.ok()) {
 //      printf("%s:%d" RED "[Maybe Down]" NONE, ip.c_str(), port);
@@ -248,6 +268,16 @@ void CheckupTable(mjson::Json* json) {
   }
   printf("Table Count: %lu\n", tables.size());
   json->AddInt("count", tables.size());
+
+  // update nodes status map
+  std::vector<libzp::Node> nodes;
+  std::vector<std::string> status;
+  s = cluster->ListNode(&nodes, &status);
+  if (!s.ok()) {
+    printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
+    return;
+  }
+  UpdateNodeStatus(nodes, status);
 
   // Pull every table to get its repl & offset info
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
