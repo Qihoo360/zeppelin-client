@@ -26,8 +26,8 @@ class DprdWrapper {
  public:
   DprdWrapper();
   ~DprdWrapper();
-  bool AddBucket(int type, int id, const std::string& name = "",
-      int weight = 0, int parent = 1,const std::string& ip = "", int port = 0);
+  bool AddBucket(int type, int id, const std::string& name,
+      int weight = 0, int parent = 1, const std::string& ip = "", int port = 0);
   bool RemoveBucket(int id);
   bool AddRule(int id);
   bool AddStep(int rule_id, int step_id, int op, int arg1, int arg2);
@@ -37,16 +37,23 @@ class DprdWrapper {
   void BuildTree(int rack_size, const std::vector<int>& hosts_size,
       int partition_size);
   bool LoadTree(const std::string& file);
+  bool LoadPartition(const std::map<int, std::vector<std::string> >&
+      distribution);
   bool DumpTree(const std::string& file);
   void DumpPartitionNodeMap();
   void DumpMapInfo();
-    void ResetCounter() {
+  void ResetCounter() {
     changed_partition_counter_ = 0;
   }
   int changed_partition_counter() {
     return changed_partition_counter_;
   }
+  bool BuildPartitionToNodesMap(std::map<int, std::vector<std::string> >*
+      partition_to_nodes);
   int max_bucket();
+  // For test use
+  int max_pos_id();
+  int min_neg_id();
 
  private:
   bool RemoveBucketPartition(DprdBucket* target, int partition);

@@ -92,7 +92,10 @@ struct DprdMap {
   std::map<int, DprdBucket*> buckets_;
   std::map<int, DprdRule*> rules_;
   std::map<std::string, int> name_id_;
+  std::map<std::string, int> ip_port_id_;
   int max_bucket_;
+  int max_pos_id_;
+  int min_neg_id_;
   int sum_weight_;
 };
 

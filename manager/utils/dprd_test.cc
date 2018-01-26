@@ -109,46 +109,59 @@ void AddRules(DprdWrapper* dprd) {
   dprd->AddStep(0, 4, kDprdRuleEmit, 0, 0);
 }
 
-void AddOneNode(DprdWrapper* dprd, int parent, int* id, int weight) {
-  dprd->AddBucket(kBucketTypeNode, (*id)++, "", weight, parent);
+void AddOneNode(DprdWrapper* dprd, int parent, int weight) {
+  int id = dprd->max_pos_id() + 1;
+  std::string node_name = "node" + std::to_string(id);
+  dprd->AddBucket(kBucketTypeNode, id, node_name, weight, parent);
 }
 
-void AddOneHost(DprdWrapper* dprd, int host_parent, int node_size,
-    int* total_buckets) {
-  int node_parent = *total_buckets;
-  dprd->AddBucket(kBucketTypeHost, (*total_buckets)++, "", 0, host_parent);
-  for (int i = 1; i <= node_size; ++i) {
-    dprd->AddBucket(kBucketTypeNode, (*total_buckets)++, "", 1, node_parent);
+void AddOneHost(DprdWrapper* dprd, int host_parent, int node_size) {
+  int host_id = dprd->min_neg_id() - 1;
+  std::string host_name = "host" + std::to_string(host_id);
+  dprd->AddBucket(kBucketTypeHost, host_id, host_name, 0, host_parent);
+  std::string ip = "1.1.1." + std::to_string(-host_id);
+  for (int node = 0; node < node_size; ++node) {
+    int node_id = dprd->max_pos_id() + 1;
+    std::string node_name = "node" + std::to_string(node_id);
+    int port = 1111 + node;
+    dprd->AddBucket(kBucketTypeNode, node_id, node_name, 1, host_id,
+        ip, port);
   }
 }
 
-void AddOneRack(DprdWrapper* dprd, int host_size, int node_size,
-    int* total_buckets) {
-  int rack_id = *total_buckets;
-  // rack's parent is 0
-  dprd->AddBucket(kBucketTypeRack, (*total_buckets)++, "", 0, 0);
-  for (int host = 1; host <= host_size; ++host) {
-    int host_id = *total_buckets;
-    dprd->AddBucket(kBucketTypeHost, (*total_buckets)++, "", 0, rack_id);
-    for (int node = 1; node <= node_size; ++node) {
-      dprd->AddBucket(kBucketTypeNode, (*total_buckets)++, "", 1, host_id);
+void AddOneRack(DprdWrapper* dprd, int host_size, int node_size) {
+  int root_id = 0;
+  int rack_id = dprd->min_neg_id() - 1;
+  std::string rack_name = "rack" + std::to_string(rack_id);
+  dprd->AddBucket(kBucketTypeRack, rack_id, rack_name, 0, root_id);
+  for (int host = 0; host < host_size; ++host) {
+    int host_id = dprd->min_neg_id() - 1;
+    std::string host_name = "host" + std::to_string(host_id);
+    dprd->AddBucket(kBucketTypeHost, host_id, host_name, 0, rack_id);
+    std::string ip = "1.1.1." + std::to_string(-host_id);
+    for (int node = 0; node < node_size; ++node) {
+      int node_id = dprd->max_pos_id() + 1;
+      std::string node_name = "node" + std::to_string(node_id);
+      int port = 1111 + node;
+      dprd->AddBucket(kBucketTypeNode, node_id, node_name, 1, host_id,
+          ip, port);
     }
   }
 }
 
 void DoOption(int op, int node_size, const std::vector<int> hosts_size,
-    DprdWrapper* dprd, int* total_buckets, int* added_weight) {
+    DprdWrapper* dprd, int* added_weight) {
   switch (op) {
     case kAddOneNode:
-      AddOneNode(dprd, -2, total_buckets, 1);
+      AddOneNode(dprd, -2, 1);
       *added_weight = 1;
       break;
     case kAddOneHost:
-      AddOneHost(dprd, -1, node_size, total_buckets);
+      AddOneHost(dprd, -1, node_size);
       *added_weight = node_size;
       break;
     case kAddOneRack:
-      AddOneRack(dprd, 10, 10, total_buckets);
+      AddOneRack(dprd, 10, 10);
       *added_weight = 10 * 10;
       break;
     case kRemoveOneNode:
@@ -184,8 +197,6 @@ void CommonTreeTest(int op, std::vector<int> hosts_size) {
   dprd->BuildTree(rack_size, hosts_size, node_size);
   AddRules(dprd);
 
-  int total_buckets = dprd->max_bucket();
-
   // Insert partition
   // Distribute(int root_id, int partition, int level, int ruleno);
   int partition_size = 1000;
@@ -195,7 +206,7 @@ void CommonTreeTest(int op, std::vector<int> hosts_size) {
 
   int added_weight = 0;
 
-  DoOption(op, node_size, hosts_size, dprd, &total_buckets, &added_weight);
+  DoOption(op, node_size, hosts_size, dprd, &added_weight);
 
   dprd->Migrate();
   // dprd->DumpPartitionNodeMap();
@@ -230,8 +241,6 @@ void BalancedTreeTest(int op) {
   dprd->BuildTree(rack_size, hosts_size, node_size);
   AddRules(dprd);
 
-  int total_buckets = dprd->max_bucket();
-
   // Insert partition
   // Distribute(int root_id, int partition, int level, int ruleno);
   int partition_size = 1000;
@@ -241,7 +250,7 @@ void BalancedTreeTest(int op) {
 
   int added_weight = 0;
 
-  DoOption(op, node_size, hosts_size, dprd, &total_buckets, &added_weight);
+  DoOption(op, node_size, hosts_size, dprd, &added_weight);
 
   dprd->Migrate();
   // dprd->DumpPartitionNodeMap();
@@ -276,8 +285,6 @@ void UnbalancedTreeTest(int op) {
   dprd->BuildTree(rack_size, hosts_size, node_size);
   AddRules(dprd);
 
-  int total_buckets = dprd->max_bucket();
-
   // Insert partition
   // Distribute(int root_id, int partition, int level, int ruleno);
   int partition_size = 1000;
@@ -287,7 +294,7 @@ void UnbalancedTreeTest(int op) {
 
   int added_weight = 0;
 
-  DoOption(op, node_size, hosts_size, dprd, &total_buckets, &added_weight);
+  DoOption(op, node_size, hosts_size, dprd, &added_weight);
 
   dprd->Migrate();
   // dprd->DumpPartitionNodeMap();
@@ -320,7 +327,6 @@ void UnbalancedTreeBadPerformanceTest(int op) {
 
   dprd->BuildTree(rack_size, hosts_size, node_size);
   AddRules(dprd);
-  int total_buckets = dprd->max_bucket();
 
   // Insert partition
   // Distribute(int root_id, int partition, int level, int ruleno);
@@ -331,7 +337,7 @@ void UnbalancedTreeBadPerformanceTest(int op) {
 
   int added_weight = 0;
 
-  DoOption(op, node_size, hosts_size, dprd, &total_buckets, &added_weight);
+  DoOption(op, node_size, hosts_size, dprd, &added_weight);
 
   dprd->Migrate();
   // dprd->DumpPartitionNodeMap();
@@ -385,9 +391,59 @@ void LoadDumpTest() {
   if (dprd->LoadTree(dump_file)) {
     std::cout<< "LoadTree success!" << std::endl;
     std::cout<< "Total buckets: " << dprd->max_bucket() << std::endl;
+    std::cout<< std::endl;
   } else {
     std::cout<< "LoadTree failed!" << std::endl;
   }
+  delete dprd;
+}
+
+void LoadPartitionTest(int op) {
+  std::cout<< "LoadPartitionTest ";
+  PrintOption(op);
+
+  DprdWrapper* dprd = new DprdWrapper;
+  std::string load_file = "dump_tree_test.example";
+  if (!dprd->LoadTree(load_file)) {
+    std::cout<< "LoadTree failed!" << std::endl;
+    return;
+  }
+  // Insert partition
+  // Distribute(int root_id, int partition, int level, int ruleno);
+  int partition_size = 1000;
+  for (int i = 0; i < partition_size; ++i) {
+    dprd->Distribute(0, i, 0, 0);
+  }
+  std::map<int, std::vector<std::string> > partition_to_node;
+  dprd->BuildPartitionToNodesMap(&partition_to_node);
+
+  delete dprd;
+
+  dprd = new DprdWrapper;
+  if (!dprd->LoadTree(load_file)) {
+    std::cout<< "LoadTree failed!" << std::endl;
+    return;
+  }
+  dprd->LoadPartition(partition_to_node);
+
+  int added_weight = 0;
+
+  int node_size = 10;
+  std::vector<int> hosts_size = {10, 10, 10, 10};
+  DoOption(op, node_size, hosts_size, dprd, &added_weight);
+
+  dprd->Migrate();
+  // dprd->DumpPartitionNodeMap();
+  // dprd->DumpMapInfo();
+
+  int sum_hosts_size = 0;
+  int sum_weight = 0;
+  for (size_t i = 0; i < hosts_size.size(); ++i) {
+    sum_hosts_size += hosts_size[i];
+  }
+  sum_weight = sum_hosts_size * node_size;
+  int pg_num = partition_size * 3;
+  PrintRes(dprd, sum_weight, added_weight, pg_num);
   delete dprd;
 }
 
@@ -419,6 +475,14 @@ int main() {
   UnbalancedTreeBadPerformanceTest(kRemoveOneRack);
 
   LoadDumpTest();
+
+  LoadPartitionTest(kAddNone);
+  LoadPartitionTest(kAddOneNode);
+  LoadPartitionTest(kAddOneHost);
+  LoadPartitionTest(kAddOneRack);
+  LoadPartitionTest(kRemoveOneNode);
+  LoadPartitionTest(kRemoveOneHost);
+  LoadPartitionTest(kRemoveOneRack);
 
   return 0;
 }
