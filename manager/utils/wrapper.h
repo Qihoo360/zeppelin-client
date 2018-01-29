@@ -31,8 +31,7 @@ class DprdWrapper {
   bool RemoveBucket(int id);
   bool AddRule(int id);
   bool AddStep(int rule_id, int step_id, int op, int arg1, int arg2);
-  bool Distribute(int root_id, int partition, int level, int ruleno,
-      int old_belonging = -1);
+  bool Distribute(int root_id, int partition, int old_belonging = -1);
   void Migrate();
   void BuildTree(int rack_size, const std::vector<int>& hosts_size,
       int partition_size);

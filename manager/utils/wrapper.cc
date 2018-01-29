@@ -204,12 +204,10 @@ bool DprdWrapper::RemoveBucket(int id) {
   // Find id bucekt's parent and do distribute
   if (easy_distribute) {
     std::cout<< "easy distribute" << std::endl;
-    DprdBucket* upper_level_bucket = map_->FindBucket(upper_level_id);
-    int level = FindBucketLevel(upper_level_bucket);
     std::set<int>::iterator partitions_iter = partitions.begin();
     for (; partitions_iter != partitions.end(); ++partitions_iter) {
       int partition = *partitions_iter;
-      Distribute(upper_level_id, partition, level, 0);
+      Distribute(upper_level_id, partition);
     }
     return true;
   }
@@ -259,17 +257,14 @@ bool DprdWrapper::RemoveBucket(int id) {
     // choose the smallest candidate of choose_n level bucket and do distribute
     if (!factors_children.empty()) {
       int id = factors_children.begin()->second;
-      DprdBucket* bucket = map_->FindBucket(id);
-      assert(bucket);
-      int level = FindBucketLevel(bucket);
       // std::cout<< "Distribute id: "<< id << " partition " << partition
-      // << " level " << level<< std::endl;
+      // << std::endl;
       std::map<int, int>::iterator par_leaf_iter =
         partition_leaf.find(partition);
       if (par_leaf_iter == partition_leaf.end()) {
         return false;
       }
-      Distribute(id, partition, level, 0, par_leaf_iter->second);
+      Distribute(id, partition, par_leaf_iter->second);
     }
   }
 
@@ -379,9 +374,7 @@ void DprdWrapper::ChooseFirstN(const std::vector<DprdBucket*>& input,
 }
 
 // old_belonging is the old node id of this partition
-// level describes which layer this partition will start distribution
-bool DprdWrapper::Distribute(int root_id, int partition, int level,
-    int ruleno, int old_belonging) {
+bool DprdWrapper::Distribute(int root_id, int partition, int old_belonging) {
   // std::cout<< "Function:Distribute():" << std::endl;
   DprdBucket* root = map_->FindBucket(root_id);
   if (!root) {
@@ -389,11 +382,14 @@ bool DprdWrapper::Distribute(int root_id, int partition, int level,
     return false;
   }
   std::vector<DprdBucket*> input;
+  int level = FindBucketLevel(root);
   // if level is not zero distribute starts in that root_id node
   if (level != 0) {
     input.push_back(root);
     level++;
   }
+  // use ruleno 0 by default
+  int ruleno = 0;
   DprdRule* rule = map_->FindRule(ruleno);
   const std::vector<DprdRuleStep*>& steps = rule->steps_;
   for (size_t i = level; i < steps.size(); ++i) {
@@ -600,8 +596,7 @@ void DprdWrapper::BalanceChildren(const DprdBucket* bucket) {
     }
 
     // distribute partition to dst_bucekt
-    int level = FindBucketLevel(dst_bucket);
-    Distribute(dst_pos, partition, level, 0, partition_from->id_);
+    Distribute(dst_pos, partition, partition_from->id_);
     if (debug_op) {
       std::cout<< "From " << src_bucket->id_ << " ===>"
         << " To " << dst_bucket->id_ << std::endl;

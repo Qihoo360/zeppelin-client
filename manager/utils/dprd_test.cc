@@ -198,10 +198,10 @@ void CommonTreeTest(int op, std::vector<int> hosts_size) {
   AddRules(dprd);
 
   // Insert partition
-  // Distribute(int root_id, int partition, int level, int ruleno);
+  // Distribute(int root_id, int partition);
   int partition_size = 1000;
   for (int i = 0; i < partition_size; ++i) {
-    dprd->Distribute(0, i, 0, 0);
+    dprd->Distribute(0, i);
   }
 
   int added_weight = 0;
@@ -242,10 +242,10 @@ void BalancedTreeTest(int op) {
   AddRules(dprd);
 
   // Insert partition
-  // Distribute(int root_id, int partition, int level, int ruleno);
+  // Distribute(int root_id, int partition);
   int partition_size = 1000;
   for (int i = 0; i < partition_size; ++i) {
-    dprd->Distribute(0, i, 0, 0);
+    dprd->Distribute(0, i);
   }
 
   int added_weight = 0;
@@ -286,10 +286,10 @@ void UnbalancedTreeTest(int op) {
   AddRules(dprd);
 
   // Insert partition
-  // Distribute(int root_id, int partition, int level, int ruleno);
+  // Distribute(int root_id, int partition);
   int partition_size = 1000;
   for (int i = 0; i < partition_size; ++i) {
-    dprd->Distribute(0, i, 0, 0);
+    dprd->Distribute(0, i);
   }
 
   int added_weight = 0;
@@ -329,10 +329,10 @@ void UnbalancedTreeBadPerformanceTest(int op) {
   AddRules(dprd);
 
   // Insert partition
-  // Distribute(int root_id, int partition, int level, int ruleno);
+  // Distribute(int root_id, int partition);
   int partition_size = 1000;
   for (int i = 0; i < partition_size; ++i) {
-    dprd->Distribute(0, i, 0, 0);
+    dprd->Distribute(0, i);
   }
 
   int added_weight = 0;
@@ -409,10 +409,10 @@ void LoadPartitionTest(int op) {
     return;
   }
   // Insert partition
-  // Distribute(int root_id, int partition, int level, int ruleno);
+  // Distribute(int root_id, int partition);
   int partition_size = 1000;
   for (int i = 0; i < partition_size; ++i) {
-    dprd->Distribute(0, i, 0, 0);
+    dprd->Distribute(0, i);
   }
   std::map<int, std::vector<std::string> > partition_to_node;
   dprd->BuildPartitionToNodesMap(&partition_to_node);
