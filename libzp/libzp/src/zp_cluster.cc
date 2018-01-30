@@ -922,7 +922,7 @@ int Cluster::LocateKey(const std::string& table,
   if (it == tables_.end()) {
     return -1;
   }
-  const Partition* part = it->second->GetPartition(key);
+  const Partition* part = it->second->GetPartition(TryBuildKeyWithHashtag(key));
   if (!part) {
     return -1;
   }
