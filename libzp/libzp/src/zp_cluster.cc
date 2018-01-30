@@ -157,7 +157,8 @@ static std::string TryBuildKeyWithHashtag(const std::string& key) {
     // key := ...{hash_tag}...
     size_t r_brace = key.find(kRBrace, l_brace + 1);
     if (r_brace != std::string::npos) {
-      hashtag_with_brace.assign(key.begin() + l_brace, key.begin() + r_brace + 1);
+      hashtag_with_brace.assign(key.begin() + l_brace,
+                                key.begin() + r_brace + kRBrace.size());
     }
   }
 
@@ -384,13 +385,13 @@ Status Cluster::Get(const std::string& table, const std::string& key,
 }
 
 static std::string TryTrimHashtag(const std::string& key) {
-  if (key.empty() || key.at(0) != '{') {
+  if (key.empty() || key.find(kLBrace) != 0) {
     return key;
   }
 
   size_t r_brace = key.find(kRBrace, 1);
   if (r_brace != std::string::npos) {
-    return key.substr(r_brace + 1);
+    return key.substr(r_brace + kRBrace.size());
   }
   return key;
 }

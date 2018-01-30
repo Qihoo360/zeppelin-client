@@ -8,8 +8,8 @@ namespace libzp {
 
 using slash::Status;
 
-const std::string kLBrace = "{";
-const std::string kRBrace = "}";
+const std::string kLBrace = "#ZPLBRACE%#";
+const std::string kRBrace = "#ZPRBRACE%#";
 
 struct Node {
   Node(const std::string& other_ip, int other_port)
