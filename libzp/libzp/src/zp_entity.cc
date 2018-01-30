@@ -119,7 +119,7 @@ const Partition* Table::GetPartition(const std::string& key) const {
   size_t l_brace = key.find(kLBrace);
   if (l_brace == 0) {
     // key := ...{hash_tag}...
-    size_t r_brace = key.find(kRBrace, l_brace + 1);
+    size_t r_brace = key.find(kRBrace, l_brace + kLBrace.size());
     if (r_brace != std::string::npos) {
       hash_tag.assign(key.begin() + kLBrace.size(), key.begin() + r_brace);
     }
