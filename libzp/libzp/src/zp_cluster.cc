@@ -155,7 +155,7 @@ static std::string TryBuildKeyWithHashtag(const std::string& key) {
   size_t l_brace = key.find(kLBrace);
   if (l_brace != std::string::npos) {
     // key := ...{hash_tag}...
-    size_t r_brace = key.find(kRBrace, l_brace + 1);
+    size_t r_brace = key.find(kRBrace, l_brace + kLBrace.size());
     if (r_brace != std::string::npos) {
       hashtag_with_brace.assign(key.begin() + l_brace,
                                 key.begin() + r_brace + kRBrace.size());
