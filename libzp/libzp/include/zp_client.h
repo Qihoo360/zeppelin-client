@@ -35,6 +35,8 @@ class RawClient {
   Status Mget(const std::string& table_name,
               const std::vector<std::string>& keys,
               std::map<std::string, std::string>* values);
+  Status Mset(const std::string& table_name,
+              const std::vector<std::pair<std::string, std::string>>& kvs);
   Status Delete(const std::string& table_name,
                 const std::string& key);
 
@@ -102,6 +104,9 @@ class Client {
   Status Mget(const std::vector<std::string>& keys,
               std::map<std::string, std::string>* values) {
     return raw_client_.Mget(table_, keys, values);
+  }
+  Status Mset(const std::vector<std::pair<std::string, std::string>>& kvs) {
+    return raw_client_.Mset(table_, kvs);
   }
   Status Delete(const std::string& key) {
     return raw_client_.Delete(table_, key);

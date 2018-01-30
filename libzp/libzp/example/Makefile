@@ -46,6 +46,9 @@ zp_get: zp_get.cc $(DEP_LIBS)
 zp_mget: zp_mget.cc $(DEP_LIBS)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
+zp_mset: zp_mset.cc $(DEP_LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
 # zp_create_table: zp_create_table.cc $(DEP_LIBS)
 # 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 

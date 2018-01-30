@@ -55,6 +55,8 @@ public:
       std::string* value);
   Status Mget(const std::string& table, const std::vector<std::string>& keys,
       std::map<std::string, std::string>* values);
+  Status Mset(const std::string& table,
+      const std::vector<std::pair<std::string, std::string>>& kvs);
   Status FlushTable(const std::string& table);
 
   // async data cmd
@@ -160,7 +162,10 @@ public:
   Status MetaStatusInternal(Node* leader, std::map<Node, std::string>* meta_status,
                             int32_t* version, std::string* consistency_stautus,
                             int64_t* migrate_begin_time, int32_t* complete_proportion);
+  /* TODO Delete me
   bool DeliverMget(CmdContext* context);
+  */
+  bool MultiDeliver(CmdContext* context);
   bool Deliver(CmdContext* context);
   void DeliverAndPull(CmdContext* context);
   static void DoAsyncTask(void* arg);

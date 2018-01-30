@@ -34,6 +34,11 @@ Status RawClient::Mget(const std::string& table_name,
   return cluster_->Mget(table_name, keys, values);
 }
 
+Status RawClient::Mset(const std::string& table_name,
+    const std::vector<std::pair<std::string, std::string>>& kvs) {
+  return cluster_->Mset(table_name, kvs);
+}
+
 Status RawClient::Delete(const std::string& table_name,
                          const std::string& key) {
   return cluster_->Delete(table_name, key);
