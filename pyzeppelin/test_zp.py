@@ -24,14 +24,21 @@ if s != 0:
 (s, msg) = pyzeppelin.get(b, test_key)
 if s == 0 or s== 1: # s==1 msg ==None; the key not found
     result = msg
-    print "get value:", result
+    print "get value: ", result
 else:
     print msg
     (s, msg) = pyzeppelin.remove_client(b)
 
-(s, msg) = pyzeppelin.mget(b, [test_key, test_key1])
-if (s == 0):
+kvs = [('h1', 'hello1'), ('h2', 'hello2'), ('h3', 'hello3')]
+(s, msg) = pyzeppelin.mset(b, kvs);
+if (s != 0):
     print msg
+    (s, msg) = pyzeppelin.remove_client(b)
+
+keys = [test_key, test_key1, 'h1', 'h2', 'h3']
+(s, msg) = pyzeppelin.mget(b, keys)
+if (s == 0):
+    print "mget value: ", msg
 else:
     print msg
     (s, msg) = pyzeppelin.remove_client(b)

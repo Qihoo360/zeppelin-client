@@ -88,7 +88,7 @@ static PyObject *mget(PyObject *, PyObject* args) {
     return Py_BuildValue("(is#)", -1, "ParseTuple Failed");
   }
   if (!PyList_Check(keylist)) {
-    return Py_BuildValue("(is#)", -1, "ParseTuple Failed");
+    return Py_BuildValue("(is#)", -1, "Parselist Failed");
   }
 
   std::vector<std::string> keys;
@@ -131,6 +131,42 @@ static PyObject *mget(PyObject *, PyObject* args) {
   return Py_BuildValue("(iO)", 0, res_list);
 }
 
+static PyObject *mset(PyObject *, PyObject* args) {
+  PyObject *pyb = NULL;
+  PyObject *kvlist = NULL;
+
+  if (!PyArg_ParseTuple(args, "OO", &pyb, &kvlist)) {
+    return Py_BuildValue("(is#)", -1, "ParseTuple Failed");
+  }
+  if (!PyList_Check(kvlist)) {
+    return Py_BuildValue("(is#)", -1, "Parselist Failed");
+  }
+
+  std::vector<std::pair<std::string, std::string>> kvs;
+
+  for(Py_ssize_t i = 0; i < PyList_Size(kvlist); i++) {
+    PyObject *k = PyList_GetItem(kvlist, i);
+    char *key, *val;
+    int key_len, val_len;
+    if (!PyArg_Parse(k, "(s#s#)", &key, &key_len, &val, &val_len)) {
+      return Py_BuildValue("(is#)", -1, "Parse kv Failed");
+    }
+    kvs.emplace_back(std::make_pair(
+                      std::move(std::string(key, key_len)),
+                      std::move(std::string(val, val_len))
+                      ));
+  }
+
+  void *vb = PyCObject_AsVoidPtr(pyb);
+  libzp::Client *b = static_cast<libzp::Client *>(vb);
+  libzp::Status s = b->Mset(kvs);
+  if (!s.ok()) {
+    return Py_BuildValue("(is#)", -2, s.ToString().data(), s.ToString().size());
+  }
+
+  return Py_BuildValue("(is)", 0, "Set OK");
+}
+
 static PyObject *zeppelin_delete(PyObject *, PyObject* args) {
   PyObject *pyb = NULL;
   char* key = NULL;
@@ -155,6 +191,7 @@ static PyMethodDef pyzeppelin_methods[] = {
   {"set",                 set,                 METH_VARARGS},
   {"get",                 get,                 METH_VARARGS},
   {"mget",                mget,                METH_VARARGS},
+  {"mset",                mset,                METH_VARARGS},
   {"delete",              zeppelin_delete,     METH_VARARGS},
   {"remove_client",       remove_client,       METH_VARARGS},
   {NULL, NULL}
