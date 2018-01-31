@@ -218,7 +218,7 @@ static void BuildMsetContext(Cluster* cluster, const std::string& table,
   for (const auto& kv : kvs) {
     client::CmdRequest_Set* set_cmd = mset_context->request->add_mset();
     set_cmd->set_table_name(table);
-    set_cmd->set_key(kv.first);
+    set_cmd->set_key(TryBuildKeyWithHashtag(kv.first));
     set_cmd->set_value(kv.second);
   }
 }
