@@ -1,0 +1,2673 @@
+# rule
+rack:choose 3
+host:choose 1
+node:choose 1
+# rule end
+
+# node
+node1
+  id 1
+  ip 1.1.1.1
+  port 1111
+node2
+  id 2
+  ip 1.1.1.1
+  port 1111
+node3
+  id 3
+  ip 1.1.1.1
+  port 1111
+node4
+  id 4
+  ip 1.1.1.1
+  port 1111
+node5
+  id 5
+  ip 1.1.1.1
+  port 1111
+node6
+  id 6
+  ip 1.1.1.1
+  port 1111
+node7
+  id 7
+  ip 1.1.1.1
+  port 1111
+node8
+  id 8
+  ip 1.1.1.1
+  port 1111
+node9
+  id 9
+  ip 1.1.1.1
+  port 1111
+node10
+  id 10
+  ip 1.1.1.1
+  port 1111
+node11
+  id 11
+  ip 1.1.1.1
+  port 1111
+node12
+  id 12
+  ip 1.1.1.1
+  port 1111
+node13
+  id 13
+  ip 1.1.1.1
+  port 1111
+node14
+  id 14
+  ip 1.1.1.1
+  port 1111
+node15
+  id 15
+  ip 1.1.1.1
+  port 1111
+node16
+  id 16
+  ip 1.1.1.1
+  port 1111
+node17
+  id 17
+  ip 1.1.1.1
+  port 1111
+node18
+  id 18
+  ip 1.1.1.1
+  port 1111
+node19
+  id 19
+  ip 1.1.1.1
+  port 1111
+node20
+  id 20
+  ip 1.1.1.1
+  port 1111
+node21
+  id 21
+  ip 1.1.1.1
+  port 1111
+node22
+  id 22
+  ip 1.1.1.1
+  port 1111
+node23
+  id 23
+  ip 1.1.1.1
+  port 1111
+node24
+  id 24
+  ip 1.1.1.1
+  port 1111
+node25
+  id 25
+  ip 1.1.1.1
+  port 1111
+node26
+  id 26
+  ip 1.1.1.1
+  port 1111
+node27
+  id 27
+  ip 1.1.1.1
+  port 1111
+node28
+  id 28
+  ip 1.1.1.1
+  port 1111
+node29
+  id 29
+  ip 1.1.1.1
+  port 1111
+node30
+  id 30
+  ip 1.1.1.1
+  port 1111
+node31
+  id 31
+  ip 1.1.1.1
+  port 1111
+node32
+  id 32
+  ip 1.1.1.1
+  port 1111
+node33
+  id 33
+  ip 1.1.1.1
+  port 1111
+node34
+  id 34
+  ip 1.1.1.1
+  port 1111
+node35
+  id 35
+  ip 1.1.1.1
+  port 1111
+node36
+  id 36
+  ip 1.1.1.1
+  port 1111
+node37
+  id 37
+  ip 1.1.1.1
+  port 1111
+node38
+  id 38
+  ip 1.1.1.1
+  port 1111
+node39
+  id 39
+  ip 1.1.1.1
+  port 1111
+node40
+  id 40
+  ip 1.1.1.1
+  port 1111
+node41
+  id 41
+  ip 1.1.1.1
+  port 1111
+node42
+  id 42
+  ip 1.1.1.1
+  port 1111
+node43
+  id 43
+  ip 1.1.1.1
+  port 1111
+node44
+  id 44
+  ip 1.1.1.1
+  port 1111
+node45
+  id 45
+  ip 1.1.1.1
+  port 1111
+node46
+  id 46
+  ip 1.1.1.1
+  port 1111
+node47
+  id 47
+  ip 1.1.1.1
+  port 1111
+node48
+  id 48
+  ip 1.1.1.1
+  port 1111
+node49
+  id 49
+  ip 1.1.1.1
+  port 1111
+node50
+  id 50
+  ip 1.1.1.1
+  port 1111
+node51
+  id 51
+  ip 1.1.1.1
+  port 1111
+node52
+  id 52
+  ip 1.1.1.1
+  port 1111
+node53
+  id 53
+  ip 1.1.1.1
+  port 1111
+node54
+  id 54
+  ip 1.1.1.1
+  port 1111
+node55
+  id 55
+  ip 1.1.1.1
+  port 1111
+node56
+  id 56
+  ip 1.1.1.1
+  port 1111
+node57
+  id 57
+  ip 1.1.1.1
+  port 1111
+node58
+  id 58
+  ip 1.1.1.1
+  port 1111
+node59
+  id 59
+  ip 1.1.1.1
+  port 1111
+node60
+  id 60
+  ip 1.1.1.1
+  port 1111
+node61
+  id 61
+  ip 1.1.1.1
+  port 1111
+node62
+  id 62
+  ip 1.1.1.1
+  port 1111
+node63
+  id 63
+  ip 1.1.1.1
+  port 1111
+node64
+  id 64
+  ip 1.1.1.1
+  port 1111
+node65
+  id 65
+  ip 1.1.1.1
+  port 1111
+node66
+  id 66
+  ip 1.1.1.1
+  port 1111
+node67
+  id 67
+  ip 1.1.1.1
+  port 1111
+node68
+  id 68
+  ip 1.1.1.1
+  port 1111
+node69
+  id 69
+  ip 1.1.1.1
+  port 1111
+node70
+  id 70
+  ip 1.1.1.1
+  port 1111
+node71
+  id 71
+  ip 1.1.1.1
+  port 1111
+node72
+  id 72
+  ip 1.1.1.1
+  port 1111
+node73
+  id 73
+  ip 1.1.1.1
+  port 1111
+node74
+  id 74
+  ip 1.1.1.1
+  port 1111
+node75
+  id 75
+  ip 1.1.1.1
+  port 1111
+node76
+  id 76
+  ip 1.1.1.1
+  port 1111
+node77
+  id 77
+  ip 1.1.1.1
+  port 1111
+node78
+  id 78
+  ip 1.1.1.1
+  port 1111
+node79
+  id 79
+  ip 1.1.1.1
+  port 1111
+node80
+  id 80
+  ip 1.1.1.1
+  port 1111
+node81
+  id 81
+  ip 1.1.1.1
+  port 1111
+node82
+  id 82
+  ip 1.1.1.1
+  port 1111
+node83
+  id 83
+  ip 1.1.1.1
+  port 1111
+node84
+  id 84
+  ip 1.1.1.1
+  port 1111
+node85
+  id 85
+  ip 1.1.1.1
+  port 1111
+node86
+  id 86
+  ip 1.1.1.1
+  port 1111
+node87
+  id 87
+  ip 1.1.1.1
+  port 1111
+node88
+  id 88
+  ip 1.1.1.1
+  port 1111
+node89
+  id 89
+  ip 1.1.1.1
+  port 1111
+node90
+  id 90
+  ip 1.1.1.1
+  port 1111
+node91
+  id 91
+  ip 1.1.1.1
+  port 1111
+node92
+  id 92
+  ip 1.1.1.1
+  port 1111
+node93
+  id 93
+  ip 1.1.1.1
+  port 1111
+node94
+  id 94
+  ip 1.1.1.1
+  port 1111
+node95
+  id 95
+  ip 1.1.1.1
+  port 1111
+node96
+  id 96
+  ip 1.1.1.1
+  port 1111
+node97
+  id 97
+  ip 1.1.1.1
+  port 1111
+node98
+  id 98
+  ip 1.1.1.1
+  port 1111
+node99
+  id 99
+  ip 1.1.1.1
+  port 1111
+node100
+  id 100
+  ip 1.1.1.1
+  port 1111
+node101
+  id 101
+  ip 1.1.1.1
+  port 1111
+node102
+  id 102
+  ip 1.1.1.1
+  port 1111
+node103
+  id 103
+  ip 1.1.1.1
+  port 1111
+node104
+  id 104
+  ip 1.1.1.1
+  port 1111
+node105
+  id 105
+  ip 1.1.1.1
+  port 1111
+node106
+  id 106
+  ip 1.1.1.1
+  port 1111
+node107
+  id 107
+  ip 1.1.1.1
+  port 1111
+node108
+  id 108
+  ip 1.1.1.1
+  port 1111
+node109
+  id 109
+  ip 1.1.1.1
+  port 1111
+node110
+  id 110
+  ip 1.1.1.1
+  port 1111
+node111
+  id 111
+  ip 1.1.1.1
+  port 1111
+node112
+  id 112
+  ip 1.1.1.1
+  port 1111
+node113
+  id 113
+  ip 1.1.1.1
+  port 1111
+node114
+  id 114
+  ip 1.1.1.1
+  port 1111
+node115
+  id 115
+  ip 1.1.1.1
+  port 1111
+node116
+  id 116
+  ip 1.1.1.1
+  port 1111
+node117
+  id 117
+  ip 1.1.1.1
+  port 1111
+node118
+  id 118
+  ip 1.1.1.1
+  port 1111
+node119
+  id 119
+  ip 1.1.1.1
+  port 1111
+node120
+  id 120
+  ip 1.1.1.1
+  port 1111
+node121
+  id 121
+  ip 1.1.1.1
+  port 1111
+node122
+  id 122
+  ip 1.1.1.1
+  port 1111
+node123
+  id 123
+  ip 1.1.1.1
+  port 1111
+node124
+  id 124
+  ip 1.1.1.1
+  port 1111
+node125
+  id 125
+  ip 1.1.1.1
+  port 1111
+node126
+  id 126
+  ip 1.1.1.1
+  port 1111
+node127
+  id 127
+  ip 1.1.1.1
+  port 1111
+node128
+  id 128
+  ip 1.1.1.1
+  port 1111
+node129
+  id 129
+  ip 1.1.1.1
+  port 1111
+node130
+  id 130
+  ip 1.1.1.1
+  port 1111
+node131
+  id 131
+  ip 1.1.1.1
+  port 1111
+node132
+  id 132
+  ip 1.1.1.1
+  port 1111
+node133
+  id 133
+  ip 1.1.1.1
+  port 1111
+node134
+  id 134
+  ip 1.1.1.1
+  port 1111
+node135
+  id 135
+  ip 1.1.1.1
+  port 1111
+node136
+  id 136
+  ip 1.1.1.1
+  port 1111
+node137
+  id 137
+  ip 1.1.1.1
+  port 1111
+node138
+  id 138
+  ip 1.1.1.1
+  port 1111
+node139
+  id 139
+  ip 1.1.1.1
+  port 1111
+node140
+  id 140
+  ip 1.1.1.1
+  port 1111
+node141
+  id 141
+  ip 1.1.1.1
+  port 1111
+node142
+  id 142
+  ip 1.1.1.1
+  port 1111
+node143
+  id 143
+  ip 1.1.1.1
+  port 1111
+node144
+  id 144
+  ip 1.1.1.1
+  port 1111
+node145
+  id 145
+  ip 1.1.1.1
+  port 1111
+node146
+  id 146
+  ip 1.1.1.1
+  port 1111
+node147
+  id 147
+  ip 1.1.1.1
+  port 1111
+node148
+  id 148
+  ip 1.1.1.1
+  port 1111
+node149
+  id 149
+  ip 1.1.1.1
+  port 1111
+node150
+  id 150
+  ip 1.1.1.1
+  port 1111
+node151
+  id 151
+  ip 1.1.1.1
+  port 1111
+node152
+  id 152
+  ip 1.1.1.1
+  port 1111
+node153
+  id 153
+  ip 1.1.1.1
+  port 1111
+node154
+  id 154
+  ip 1.1.1.1
+  port 1111
+node155
+  id 155
+  ip 1.1.1.1
+  port 1111
+node156
+  id 156
+  ip 1.1.1.1
+  port 1111
+node157
+  id 157
+  ip 1.1.1.1
+  port 1111
+node158
+  id 158
+  ip 1.1.1.1
+  port 1111
+node159
+  id 159
+  ip 1.1.1.1
+  port 1111
+node160
+  id 160
+  ip 1.1.1.1
+  port 1111
+node161
+  id 161
+  ip 1.1.1.1
+  port 1111
+node162
+  id 162
+  ip 1.1.1.1
+  port 1111
+node163
+  id 163
+  ip 1.1.1.1
+  port 1111
+node164
+  id 164
+  ip 1.1.1.1
+  port 1111
+node165
+  id 165
+  ip 1.1.1.1
+  port 1111
+node166
+  id 166
+  ip 1.1.1.1
+  port 1111
+node167
+  id 167
+  ip 1.1.1.1
+  port 1111
+node168
+  id 168
+  ip 1.1.1.1
+  port 1111
+node169
+  id 169
+  ip 1.1.1.1
+  port 1111
+node170
+  id 170
+  ip 1.1.1.1
+  port 1111
+node171
+  id 171
+  ip 1.1.1.1
+  port 1111
+node172
+  id 172
+  ip 1.1.1.1
+  port 1111
+node173
+  id 173
+  ip 1.1.1.1
+  port 1111
+node174
+  id 174
+  ip 1.1.1.1
+  port 1111
+node175
+  id 175
+  ip 1.1.1.1
+  port 1111
+node176
+  id 176
+  ip 1.1.1.1
+  port 1111
+node177
+  id 177
+  ip 1.1.1.1
+  port 1111
+node178
+  id 178
+  ip 1.1.1.1
+  port 1111
+node179
+  id 179
+  ip 1.1.1.1
+  port 1111
+node180
+  id 180
+  ip 1.1.1.1
+  port 1111
+node181
+  id 181
+  ip 1.1.1.1
+  port 1111
+node182
+  id 182
+  ip 1.1.1.1
+  port 1111
+node183
+  id 183
+  ip 1.1.1.1
+  port 1111
+node184
+  id 184
+  ip 1.1.1.1
+  port 1111
+node185
+  id 185
+  ip 1.1.1.1
+  port 1111
+node186
+  id 186
+  ip 1.1.1.1
+  port 1111
+node187
+  id 187
+  ip 1.1.1.1
+  port 1111
+node188
+  id 188
+  ip 1.1.1.1
+  port 1111
+node189
+  id 189
+  ip 1.1.1.1
+  port 1111
+node190
+  id 190
+  ip 1.1.1.1
+  port 1111
+node191
+  id 191
+  ip 1.1.1.1
+  port 1111
+node192
+  id 192
+  ip 1.1.1.1
+  port 1111
+node193
+  id 193
+  ip 1.1.1.1
+  port 1111
+node194
+  id 194
+  ip 1.1.1.1
+  port 1111
+node195
+  id 195
+  ip 1.1.1.1
+  port 1111
+node196
+  id 196
+  ip 1.1.1.1
+  port 1111
+node197
+  id 197
+  ip 1.1.1.1
+  port 1111
+node198
+  id 198
+  ip 1.1.1.1
+  port 1111
+node199
+  id 199
+  ip 1.1.1.1
+  port 1111
+node200
+  id 200
+  ip 1.1.1.1
+  port 1111
+node201
+  id 201
+  ip 1.1.1.1
+  port 1111
+node202
+  id 202
+  ip 1.1.1.1
+  port 1111
+node203
+  id 203
+  ip 1.1.1.1
+  port 1111
+node204
+  id 204
+  ip 1.1.1.1
+  port 1111
+node205
+  id 205
+  ip 1.1.1.1
+  port 1111
+node206
+  id 206
+  ip 1.1.1.1
+  port 1111
+node207
+  id 207
+  ip 1.1.1.1
+  port 1111
+node208
+  id 208
+  ip 1.1.1.1
+  port 1111
+node209
+  id 209
+  ip 1.1.1.1
+  port 1111
+node210
+  id 210
+  ip 1.1.1.1
+  port 1111
+node211
+  id 211
+  ip 1.1.1.1
+  port 1111
+node212
+  id 212
+  ip 1.1.1.1
+  port 1111
+node213
+  id 213
+  ip 1.1.1.1
+  port 1111
+node214
+  id 214
+  ip 1.1.1.1
+  port 1111
+node215
+  id 215
+  ip 1.1.1.1
+  port 1111
+node216
+  id 216
+  ip 1.1.1.1
+  port 1111
+node217
+  id 217
+  ip 1.1.1.1
+  port 1111
+node218
+  id 218
+  ip 1.1.1.1
+  port 1111
+node219
+  id 219
+  ip 1.1.1.1
+  port 1111
+node220
+  id 220
+  ip 1.1.1.1
+  port 1111
+node221
+  id 221
+  ip 1.1.1.1
+  port 1111
+node222
+  id 222
+  ip 1.1.1.1
+  port 1111
+node223
+  id 223
+  ip 1.1.1.1
+  port 1111
+node224
+  id 224
+  ip 1.1.1.1
+  port 1111
+node225
+  id 225
+  ip 1.1.1.1
+  port 1111
+node226
+  id 226
+  ip 1.1.1.1
+  port 1111
+node227
+  id 227
+  ip 1.1.1.1
+  port 1111
+node228
+  id 228
+  ip 1.1.1.1
+  port 1111
+node229
+  id 229
+  ip 1.1.1.1
+  port 1111
+node230
+  id 230
+  ip 1.1.1.1
+  port 1111
+node231
+  id 231
+  ip 1.1.1.1
+  port 1111
+node232
+  id 232
+  ip 1.1.1.1
+  port 1111
+node233
+  id 233
+  ip 1.1.1.1
+  port 1111
+node234
+  id 234
+  ip 1.1.1.1
+  port 1111
+node235
+  id 235
+  ip 1.1.1.1
+  port 1111
+node236
+  id 236
+  ip 1.1.1.1
+  port 1111
+node237
+  id 237
+  ip 1.1.1.1
+  port 1111
+node238
+  id 238
+  ip 1.1.1.1
+  port 1111
+node239
+  id 239
+  ip 1.1.1.1
+  port 1111
+node240
+  id 240
+  ip 1.1.1.1
+  port 1111
+node241
+  id 241
+  ip 1.1.1.1
+  port 1111
+node242
+  id 242
+  ip 1.1.1.1
+  port 1111
+node243
+  id 243
+  ip 1.1.1.1
+  port 1111
+node244
+  id 244
+  ip 1.1.1.1
+  port 1111
+node245
+  id 245
+  ip 1.1.1.1
+  port 1111
+node246
+  id 246
+  ip 1.1.1.1
+  port 1111
+node247
+  id 247
+  ip 1.1.1.1
+  port 1111
+node248
+  id 248
+  ip 1.1.1.1
+  port 1111
+node249
+  id 249
+  ip 1.1.1.1
+  port 1111
+node250
+  id 250
+  ip 1.1.1.1
+  port 1111
+node251
+  id 251
+  ip 1.1.1.1
+  port 1111
+node252
+  id 252
+  ip 1.1.1.1
+  port 1111
+node253
+  id 253
+  ip 1.1.1.1
+  port 1111
+node254
+  id 254
+  ip 1.1.1.1
+  port 1111
+node255
+  id 255
+  ip 1.1.1.1
+  port 1111
+node256
+  id 256
+  ip 1.1.1.1
+  port 1111
+node257
+  id 257
+  ip 1.1.1.1
+  port 1111
+node258
+  id 258
+  ip 1.1.1.1
+  port 1111
+node259
+  id 259
+  ip 1.1.1.1
+  port 1111
+node260
+  id 260
+  ip 1.1.1.1
+  port 1111
+node261
+  id 261
+  ip 1.1.1.1
+  port 1111
+node262
+  id 262
+  ip 1.1.1.1
+  port 1111
+node263
+  id 263
+  ip 1.1.1.1
+  port 1111
+node264
+  id 264
+  ip 1.1.1.1
+  port 1111
+node265
+  id 265
+  ip 1.1.1.1
+  port 1111
+node266
+  id 266
+  ip 1.1.1.1
+  port 1111
+node267
+  id 267
+  ip 1.1.1.1
+  port 1111
+node268
+  id 268
+  ip 1.1.1.1
+  port 1111
+node269
+  id 269
+  ip 1.1.1.1
+  port 1111
+node270
+  id 270
+  ip 1.1.1.1
+  port 1111
+node271
+  id 271
+  ip 1.1.1.1
+  port 1111
+node272
+  id 272
+  ip 1.1.1.1
+  port 1111
+node273
+  id 273
+  ip 1.1.1.1
+  port 1111
+node274
+  id 274
+  ip 1.1.1.1
+  port 1111
+node275
+  id 275
+  ip 1.1.1.1
+  port 1111
+node276
+  id 276
+  ip 1.1.1.1
+  port 1111
+node277
+  id 277
+  ip 1.1.1.1
+  port 1111
+node278
+  id 278
+  ip 1.1.1.1
+  port 1111
+node279
+  id 279
+  ip 1.1.1.1
+  port 1111
+node280
+  id 280
+  ip 1.1.1.1
+  port 1111
+node281
+  id 281
+  ip 1.1.1.1
+  port 1111
+node282
+  id 282
+  ip 1.1.1.1
+  port 1111
+node283
+  id 283
+  ip 1.1.1.1
+  port 1111
+node284
+  id 284
+  ip 1.1.1.1
+  port 1111
+node285
+  id 285
+  ip 1.1.1.1
+  port 1111
+node286
+  id 286
+  ip 1.1.1.1
+  port 1111
+node287
+  id 287
+  ip 1.1.1.1
+  port 1111
+node288
+  id 288
+  ip 1.1.1.1
+  port 1111
+node289
+  id 289
+  ip 1.1.1.1
+  port 1111
+node290
+  id 290
+  ip 1.1.1.1
+  port 1111
+node291
+  id 291
+  ip 1.1.1.1
+  port 1111
+node292
+  id 292
+  ip 1.1.1.1
+  port 1111
+node293
+  id 293
+  ip 1.1.1.1
+  port 1111
+node294
+  id 294
+  ip 1.1.1.1
+  port 1111
+node295
+  id 295
+  ip 1.1.1.1
+  port 1111
+node296
+  id 296
+  ip 1.1.1.1
+  port 1111
+node297
+  id 297
+  ip 1.1.1.1
+  port 1111
+node298
+  id 298
+  ip 1.1.1.1
+  port 1111
+node299
+  id 299
+  ip 1.1.1.1
+  port 1111
+node300
+  id 300
+  ip 1.1.1.1
+  port 1111
+node301
+  id 301
+  ip 1.1.1.1
+  port 1111
+node302
+  id 302
+  ip 1.1.1.1
+  port 1111
+node303
+  id 303
+  ip 1.1.1.1
+  port 1111
+node304
+  id 304
+  ip 1.1.1.1
+  port 1111
+node305
+  id 305
+  ip 1.1.1.1
+  port 1111
+node306
+  id 306
+  ip 1.1.1.1
+  port 1111
+node307
+  id 307
+  ip 1.1.1.1
+  port 1111
+node308
+  id 308
+  ip 1.1.1.1
+  port 1111
+node309
+  id 309
+  ip 1.1.1.1
+  port 1111
+node310
+  id 310
+  ip 1.1.1.1
+  port 1111
+node311
+  id 311
+  ip 1.1.1.1
+  port 1111
+node312
+  id 312
+  ip 1.1.1.1
+  port 1111
+node313
+  id 313
+  ip 1.1.1.1
+  port 1111
+node314
+  id 314
+  ip 1.1.1.1
+  port 1111
+node315
+  id 315
+  ip 1.1.1.1
+  port 1111
+node316
+  id 316
+  ip 1.1.1.1
+  port 1111
+node317
+  id 317
+  ip 1.1.1.1
+  port 1111
+node318
+  id 318
+  ip 1.1.1.1
+  port 1111
+node319
+  id 319
+  ip 1.1.1.1
+  port 1111
+node320
+  id 320
+  ip 1.1.1.1
+  port 1111
+node321
+  id 321
+  ip 1.1.1.1
+  port 1111
+node322
+  id 322
+  ip 1.1.1.1
+  port 1111
+node323
+  id 323
+  ip 1.1.1.1
+  port 1111
+node324
+  id 324
+  ip 1.1.1.1
+  port 1111
+node325
+  id 325
+  ip 1.1.1.1
+  port 1111
+node326
+  id 326
+  ip 1.1.1.1
+  port 1111
+node327
+  id 327
+  ip 1.1.1.1
+  port 1111
+node328
+  id 328
+  ip 1.1.1.1
+  port 1111
+node329
+  id 329
+  ip 1.1.1.1
+  port 1111
+node330
+  id 330
+  ip 1.1.1.1
+  port 1111
+node331
+  id 331
+  ip 1.1.1.1
+  port 1111
+node332
+  id 332
+  ip 1.1.1.1
+  port 1111
+node333
+  id 333
+  ip 1.1.1.1
+  port 1111
+node334
+  id 334
+  ip 1.1.1.1
+  port 1111
+node335
+  id 335
+  ip 1.1.1.1
+  port 1111
+node336
+  id 336
+  ip 1.1.1.1
+  port 1111
+node337
+  id 337
+  ip 1.1.1.1
+  port 1111
+node338
+  id 338
+  ip 1.1.1.1
+  port 1111
+node339
+  id 339
+  ip 1.1.1.1
+  port 1111
+node340
+  id 340
+  ip 1.1.1.1
+  port 1111
+node341
+  id 341
+  ip 1.1.1.1
+  port 1111
+node342
+  id 342
+  ip 1.1.1.1
+  port 1111
+node343
+  id 343
+  ip 1.1.1.1
+  port 1111
+node344
+  id 344
+  ip 1.1.1.1
+  port 1111
+node345
+  id 345
+  ip 1.1.1.1
+  port 1111
+node346
+  id 346
+  ip 1.1.1.1
+  port 1111
+node347
+  id 347
+  ip 1.1.1.1
+  port 1111
+node348
+  id 348
+  ip 1.1.1.1
+  port 1111
+node349
+  id 349
+  ip 1.1.1.1
+  port 1111
+node350
+  id 350
+  ip 1.1.1.1
+  port 1111
+node351
+  id 351
+  ip 1.1.1.1
+  port 1111
+node352
+  id 352
+  ip 1.1.1.1
+  port 1111
+node353
+  id 353
+  ip 1.1.1.1
+  port 1111
+node354
+  id 354
+  ip 1.1.1.1
+  port 1111
+node355
+  id 355
+  ip 1.1.1.1
+  port 1111
+node356
+  id 356
+  ip 1.1.1.1
+  port 1111
+node357
+  id 357
+  ip 1.1.1.1
+  port 1111
+node358
+  id 358
+  ip 1.1.1.1
+  port 1111
+node359
+  id 359
+  ip 1.1.1.1
+  port 1111
+node360
+  id 360
+  ip 1.1.1.1
+  port 1111
+node361
+  id 361
+  ip 1.1.1.1
+  port 1111
+node362
+  id 362
+  ip 1.1.1.1
+  port 1111
+node363
+  id 363
+  ip 1.1.1.1
+  port 1111
+node364
+  id 364
+  ip 1.1.1.1
+  port 1111
+node365
+  id 365
+  ip 1.1.1.1
+  port 1111
+node366
+  id 366
+  ip 1.1.1.1
+  port 1111
+node367
+  id 367
+  ip 1.1.1.1
+  port 1111
+node368
+  id 368
+  ip 1.1.1.1
+  port 1111
+node369
+  id 369
+  ip 1.1.1.1
+  port 1111
+node370
+  id 370
+  ip 1.1.1.1
+  port 1111
+node371
+  id 371
+  ip 1.1.1.1
+  port 1111
+node372
+  id 372
+  ip 1.1.1.1
+  port 1111
+node373
+  id 373
+  ip 1.1.1.1
+  port 1111
+node374
+  id 374
+  ip 1.1.1.1
+  port 1111
+node375
+  id 375
+  ip 1.1.1.1
+  port 1111
+node376
+  id 376
+  ip 1.1.1.1
+  port 1111
+node377
+  id 377
+  ip 1.1.1.1
+  port 1111
+node378
+  id 378
+  ip 1.1.1.1
+  port 1111
+node379
+  id 379
+  ip 1.1.1.1
+  port 1111
+node380
+  id 380
+  ip 1.1.1.1
+  port 1111
+node381
+  id 381
+  ip 1.1.1.1
+  port 1111
+node382
+  id 382
+  ip 1.1.1.1
+  port 1111
+node383
+  id 383
+  ip 1.1.1.1
+  port 1111
+node384
+  id 384
+  ip 1.1.1.1
+  port 1111
+node385
+  id 385
+  ip 1.1.1.1
+  port 1111
+node386
+  id 386
+  ip 1.1.1.1
+  port 1111
+node387
+  id 387
+  ip 1.1.1.1
+  port 1111
+node388
+  id 388
+  ip 1.1.1.1
+  port 1111
+node389
+  id 389
+  ip 1.1.1.1
+  port 1111
+node390
+  id 390
+  ip 1.1.1.1
+  port 1111
+node391
+  id 391
+  ip 1.1.1.1
+  port 1111
+node392
+  id 392
+  ip 1.1.1.1
+  port 1111
+node393
+  id 393
+  ip 1.1.1.1
+  port 1111
+node394
+  id 394
+  ip 1.1.1.1
+  port 1111
+node395
+  id 395
+  ip 1.1.1.1
+  port 1111
+node396
+  id 396
+  ip 1.1.1.1
+  port 1111
+node397
+  id 397
+  ip 1.1.1.1
+  port 1111
+node398
+  id 398
+  ip 1.1.1.1
+  port 1111
+node399
+  id 399
+  ip 1.1.1.1
+  port 1111
+node400
+  id 400
+  ip 1.1.1.1
+  port 1111
+node401
+  id 401
+  ip 1.1.1.1
+  port 1111
+node402
+  id 402
+  ip 1.1.1.1
+  port 1111
+node403
+  id 403
+  ip 1.1.1.1
+  port 1111
+node404
+  id 404
+  ip 1.1.1.1
+  port 1111
+node405
+  id 405
+  ip 1.1.1.1
+  port 1111
+node406
+  id 406
+  ip 1.1.1.1
+  port 1111
+node407
+  id 407
+  ip 1.1.1.1
+  port 1111
+node408
+  id 408
+  ip 1.1.1.1
+  port 1111
+node409
+  id 409
+  ip 1.1.1.1
+  port 1111
+node410
+  id 410
+  ip 1.1.1.1
+  port 1111
+node411
+  id 411
+  ip 1.1.1.1
+  port 1111
+node412
+  id 412
+  ip 1.1.1.1
+  port 1111
+node413
+  id 413
+  ip 1.1.1.1
+  port 1111
+node414
+  id 414
+  ip 1.1.1.1
+  port 1111
+node415
+  id 415
+  ip 1.1.1.1
+  port 1111
+node416
+  id 416
+  ip 1.1.1.1
+  port 1111
+node417
+  id 417
+  ip 1.1.1.1
+  port 1111
+node418
+  id 418
+  ip 1.1.1.1
+  port 1111
+node419
+  id 419
+  ip 1.1.1.1
+  port 1111
+node420
+  id 420
+  ip 1.1.1.1
+  port 1111
+node421
+  id 421
+  ip 1.1.1.1
+  port 1111
+node422
+  id 422
+  ip 1.1.1.1
+  port 1111
+node423
+  id 423
+  ip 1.1.1.1
+  port 1111
+node424
+  id 424
+  ip 1.1.1.1
+  port 1111
+node425
+  id 425
+  ip 1.1.1.1
+  port 1111
+node426
+  id 426
+  ip 1.1.1.1
+  port 1111
+node427
+  id 427
+  ip 1.1.1.1
+  port 1111
+node428
+  id 428
+  ip 1.1.1.1
+  port 1111
+node429
+  id 429
+  ip 1.1.1.1
+  port 1111
+node430
+  id 430
+  ip 1.1.1.1
+  port 1111
+node431
+  id 431
+  ip 1.1.1.1
+  port 1111
+node432
+  id 432
+  ip 1.1.1.1
+  port 1111
+node433
+  id 433
+  ip 1.1.1.1
+  port 1111
+node434
+  id 434
+  ip 1.1.1.1
+  port 1111
+node435
+  id 435
+  ip 1.1.1.1
+  port 1111
+node436
+  id 436
+  ip 1.1.1.1
+  port 1111
+node437
+  id 437
+  ip 1.1.1.1
+  port 1111
+node438
+  id 438
+  ip 1.1.1.1
+  port 1111
+node439
+  id 439
+  ip 1.1.1.1
+  port 1111
+node440
+  id 440
+  ip 1.1.1.1
+  port 1111
+node441
+  id 441
+  ip 1.1.1.1
+  port 1111
+node442
+  id 442
+  ip 1.1.1.1
+  port 1111
+node443
+  id 443
+  ip 1.1.1.1
+  port 1111
+node444
+  id 444
+  ip 1.1.1.1
+  port 1111
+node445
+  id 445
+  ip 1.1.1.1
+  port 1111
+node446
+  id 446
+  ip 1.1.1.1
+  port 1111
+node447
+  id 447
+  ip 1.1.1.1
+  port 1111
+node448
+  id 448
+  ip 1.1.1.1
+  port 1111
+node449
+  id 449
+  ip 1.1.1.1
+  port 1111
+node450
+  id 450
+  ip 1.1.1.1
+  port 1111
+node451
+  id 451
+  ip 1.1.1.1
+  port 1111
+node452
+  id 452
+  ip 1.1.1.1
+  port 1111
+node453
+  id 453
+  ip 1.1.1.1
+  port 1111
+node454
+  id 454
+  ip 1.1.1.1
+  port 1111
+node455
+  id 455
+  ip 1.1.1.1
+  port 1111
+node456
+  id 456
+  ip 1.1.1.1
+  port 1111
+node457
+  id 457
+  ip 1.1.1.1
+  port 1111
+node458
+  id 458
+  ip 1.1.1.1
+  port 1111
+node459
+  id 459
+  ip 1.1.1.1
+  port 1111
+node460
+  id 460
+  ip 1.1.1.1
+  port 1111
+node461
+  id 461
+  ip 1.1.1.1
+  port 1111
+node462
+  id 462
+  ip 1.1.1.1
+  port 1111
+node463
+  id 463
+  ip 1.1.1.1
+  port 1111
+node464
+  id 464
+  ip 1.1.1.1
+  port 1111
+node465
+  id 465
+  ip 1.1.1.1
+  port 1111
+node466
+  id 466
+  ip 1.1.1.1
+  port 1111
+node467
+  id 467
+  ip 1.1.1.1
+  port 1111
+node468
+  id 468
+  ip 1.1.1.1
+  port 1111
+node469
+  id 469
+  ip 1.1.1.1
+  port 1111
+node470
+  id 470
+  ip 1.1.1.1
+  port 1111
+node471
+  id 471
+  ip 1.1.1.1
+  port 1111
+node472
+  id 472
+  ip 1.1.1.1
+  port 1111
+node473
+  id 473
+  ip 1.1.1.1
+  port 1111
+node474
+  id 474
+  ip 1.1.1.1
+  port 1111
+node475
+  id 475
+  ip 1.1.1.1
+  port 1111
+node476
+  id 476
+  ip 1.1.1.1
+  port 1111
+node477
+  id 477
+  ip 1.1.1.1
+  port 1111
+node478
+  id 478
+  ip 1.1.1.1
+  port 1111
+node479
+  id 479
+  ip 1.1.1.1
+  port 1111
+node480
+  id 480
+  ip 1.1.1.1
+  port 1111
+# node end
+# bucket
+host-2
+  id -2
+  children
+    node1
+    node2
+    node3
+    node4
+    node5
+    node6
+    node7
+    node8
+    node9
+    node10
+
+host-3
+  id -3
+  children
+    node11
+    node12
+    node13
+    node14
+    node15
+    node16
+    node17
+    node18
+    node19
+    node20
+
+host-4
+  id -4
+  children
+    node21
+    node22
+    node23
+    node24
+    node25
+    node26
+    node27
+    node28
+    node29
+    node30
+
+host-5
+  id -5
+  children
+    node31
+    node32
+    node33
+    node34
+    node35
+    node36
+    node37
+    node38
+    node39
+    node40
+
+host-6
+  id -6
+  children
+    node41
+    node42
+    node43
+    node44
+    node45
+    node46
+    node47
+    node48
+    node49
+    node50
+
+host-7
+  id -7
+  children
+    node51
+    node52
+    node53
+    node54
+    node55
+    node56
+    node57
+    node58
+    node59
+    node60
+
+host-8
+  id -8
+  children
+    node61
+    node62
+    node63
+    node64
+    node65
+    node66
+    node67
+    node68
+    node69
+    node70
+
+host-9
+  id -9
+  children
+    node71
+    node72
+    node73
+    node74
+    node75
+    node76
+    node77
+    node78
+    node79
+    node80
+
+host-10
+  id -10
+  children
+    node81
+    node82
+    node83
+    node84
+    node85
+    node86
+    node87
+    node88
+    node89
+    node90
+
+host-11
+  id -11
+  children
+    node91
+    node92
+    node93
+    node94
+    node95
+    node96
+    node97
+    node98
+    node99
+    node100
+
+host-12
+  id -12
+  children
+    node101
+    node102
+    node103
+    node104
+    node105
+    node106
+    node107
+    node108
+    node109
+    node110
+
+host-13
+  id -13
+  children
+    node111
+    node112
+    node113
+    node114
+    node115
+    node116
+    node117
+    node118
+    node119
+    node120
+
+host-15
+  id -15
+  children
+    node121
+    node122
+    node123
+    node124
+    node125
+    node126
+    node127
+    node128
+    node129
+    node130
+
+host-16
+  id -16
+  children
+    node131
+    node132
+    node133
+    node134
+    node135
+    node136
+    node137
+    node138
+    node139
+    node140
+
+host-17
+  id -17
+  children
+    node141
+    node142
+    node143
+    node144
+    node145
+    node146
+    node147
+    node148
+    node149
+    node150
+
+host-18
+  id -18
+  children
+    node151
+    node152
+    node153
+    node154
+    node155
+    node156
+    node157
+    node158
+    node159
+    node160
+
+host-19
+  id -19
+  children
+    node161
+    node162
+    node163
+    node164
+    node165
+    node166
+    node167
+    node168
+    node169
+    node170
+
+host-20
+  id -20
+  children
+    node171
+    node172
+    node173
+    node174
+    node175
+    node176
+    node177
+    node178
+    node179
+    node180
+
+host-21
+  id -21
+  children
+    node181
+    node182
+    node183
+    node184
+    node185
+    node186
+    node187
+    node188
+    node189
+    node190
+
+host-22
+  id -22
+  children
+    node191
+    node192
+    node193
+    node194
+    node195
+    node196
+    node197
+    node198
+    node199
+    node200
+
+host-23
+  id -23
+  children
+    node201
+    node202
+    node203
+    node204
+    node205
+    node206
+    node207
+    node208
+    node209
+    node210
+
+host-24
+  id -24
+  children
+    node211
+    node212
+    node213
+    node214
+    node215
+    node216
+    node217
+    node218
+    node219
+    node220
+
+host-25
+  id -25
+  children
+    node221
+    node222
+    node223
+    node224
+    node225
+    node226
+    node227
+    node228
+    node229
+    node230
+
+host-26
+  id -26
+  children
+    node231
+    node232
+    node233
+    node234
+    node235
+    node236
+    node237
+    node238
+    node239
+    node240
+
+host-28
+  id -28
+  children
+    node241
+    node242
+    node243
+    node244
+    node245
+    node246
+    node247
+    node248
+    node249
+    node250
+
+host-29
+  id -29
+  children
+    node251
+    node252
+    node253
+    node254
+    node255
+    node256
+    node257
+    node258
+    node259
+    node260
+
+host-30
+  id -30
+  children
+    node261
+    node262
+    node263
+    node264
+    node265
+    node266
+    node267
+    node268
+    node269
+    node270
+
+host-31
+  id -31
+  children
+    node271
+    node272
+    node273
+    node274
+    node275
+    node276
+    node277
+    node278
+    node279
+    node280
+
+host-32
+  id -32
+  children
+    node281
+    node282
+    node283
+    node284
+    node285
+    node286
+    node287
+    node288
+    node289
+    node290
+
+host-33
+  id -33
+  children
+    node291
+    node292
+    node293
+    node294
+    node295
+    node296
+    node297
+    node298
+    node299
+    node300
+
+host-34
+  id -34
+  children
+    node301
+    node302
+    node303
+    node304
+    node305
+    node306
+    node307
+    node308
+    node309
+    node310
+
+host-35
+  id -35
+  children
+    node311
+    node312
+    node313
+    node314
+    node315
+    node316
+    node317
+    node318
+    node319
+    node320
+
+host-36
+  id -36
+  children
+    node321
+    node322
+    node323
+    node324
+    node325
+    node326
+    node327
+    node328
+    node329
+    node330
+
+host-37
+  id -37
+  children
+    node331
+    node332
+    node333
+    node334
+    node335
+    node336
+    node337
+    node338
+    node339
+    node340
+
+host-38
+  id -38
+  children
+    node341
+    node342
+    node343
+    node344
+    node345
+    node346
+    node347
+    node348
+    node349
+    node350
+
+host-39
+  id -39
+  children
+    node351
+    node352
+    node353
+    node354
+    node355
+    node356
+    node357
+    node358
+    node359
+    node360
+
+host-41
+  id -41
+  children
+    node361
+    node362
+    node363
+    node364
+    node365
+    node366
+    node367
+    node368
+    node369
+    node370
+
+host-42
+  id -42
+  children
+    node371
+    node372
+    node373
+    node374
+    node375
+    node376
+    node377
+    node378
+    node379
+    node380
+
+host-43
+  id -43
+  children
+    node381
+    node382
+    node383
+    node384
+    node385
+    node386
+    node387
+    node388
+    node389
+    node390
+
+host-44
+  id -44
+  children
+    node391
+    node392
+    node393
+    node394
+    node395
+    node396
+    node397
+    node398
+    node399
+    node400
+
+host-45
+  id -45
+  children
+    node401
+    node402
+    node403
+    node404
+    node405
+    node406
+    node407
+    node408
+    node409
+    node410
+
+host-46
+  id -46
+  children
+    node411
+    node412
+    node413
+    node414
+    node415
+    node416
+    node417
+    node418
+    node419
+    node420
+
+host-47
+  id -47
+  children
+    node421
+    node422
+    node423
+    node424
+    node425
+    node426
+    node427
+    node428
+    node429
+    node430
+
+host-48
+  id -48
+  children
+    node431
+    node432
+    node433
+    node434
+    node435
+    node436
+    node437
+    node438
+    node439
+    node440
+
+host-49
+  id -49
+  children
+    node441
+    node442
+    node443
+    node444
+    node445
+    node446
+    node447
+    node448
+    node449
+    node450
+
+host-50
+  id -50
+  children
+    node451
+    node452
+    node453
+    node454
+    node455
+    node456
+    node457
+    node458
+    node459
+    node460
+
+host-51
+  id -51
+  children
+    node461
+    node462
+    node463
+    node464
+    node465
+    node466
+    node467
+    node468
+    node469
+    node470
+
+host-52
+  id -52
+  children
+    node471
+    node472
+    node473
+    node474
+    node475
+    node476
+    node477
+    node478
+    node479
+    node480
+
+rack-1
+  id -1
+  children
+    host-2
+    host-3
+    host-4
+    host-5
+    host-6
+    host-7
+    host-8
+    host-9
+    host-10
+    host-11
+    host-12
+    host-13
+
+rack-14
+  id -14
+  children
+    host-15
+    host-16
+    host-17
+    host-18
+    host-19
+    host-20
+    host-21
+    host-22
+    host-23
+    host-24
+    host-25
+    host-26
+
+rack-27
+  id -27
+  children
+    host-28
+    host-29
+    host-30
+    host-31
+    host-32
+    host-33
+    host-34
+    host-35
+    host-36
+    host-37
+    host-38
+    host-39
+
+rack-40
+  id -40
+  children
+    host-41
+    host-42
+    host-43
+    host-44
+    host-45
+    host-46
+    host-47
+    host-48
+    host-49
+    host-50
+    host-51
+    host-52
+
+root
+  id 0
+  children
+    rack-1
+    rack-14
+    rack-27
+    rack-40
+# bucket end

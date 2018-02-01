@@ -20,6 +20,7 @@ manager/zp_manager
 manager/rocksdb_to_zp
 manager/checkup_json_result
 manager/info_json_result
+manager/zp_dprd_test
 
 tags
 

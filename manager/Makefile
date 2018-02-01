@@ -88,9 +88,9 @@ CFLAGS += $(WARNING_FLAGS) $(OPT)
 
 .PHONY: clean distclean dbg all deps
 
-all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
+all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade zp_dprd_test
 
-dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
+dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade zp_dprd_test
 
 $(DEP_LIBS):
 	$(AM_V_at)make -C $(SLASH_PATH)/slash DEBUG_LEVEL=$(DEBUG_LEVEL)
@@ -112,10 +112,19 @@ zp_info: zp_info.cc utils/json.cc utils/json.h $(DEP_LIBS)
 zp_manager: zp_manager.cc utils/linenoise.o utils/distribution.o $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
+zp_dprd_test: utils/dprd_test.cc utils/wrapper.o utils/dprd_type.o $(DEP_LIBS)
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
+
 utils/linenoise.o: utils/linenoise.c utils/linenoise.h
 	$(AM_V_CC)$(CC) $(CFLAGS) -c $< -o $@
 
 utils/distribution.o: utils/distribution.cc
+	$(AM_V_CC)$(CXX) $(CXXFLAGS) -c $< -o $@
+
+utils/dprd_type.o: utils/dprd_type.cc
+	$(AM_V_CC)$(CXX) $(CXXFLAGS) -c $< -o $@
+
+utils/wrapper.o: utils/wrapper.cc
 	$(AM_V_CC)$(CXX) $(CXXFLAGS) -c $< -o $@
 
 zp_parade: zp_parade.cc $(DEP_LIBS)
@@ -125,7 +134,7 @@ rocksdb_to_zp: rocksdb_to_zp.cc $(DEP_LIBS) $(ROCKSDB_LIBRARY)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) -I$(ROCKSDB_INCLUDE_DIR) $(LDFLAGS)
 
 clean:
-	rm -f zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp
+	rm -f zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp zp_dprd_test
 	find . -name "*.[oda]*" ! -exec rm -f {} \;
 	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
 
