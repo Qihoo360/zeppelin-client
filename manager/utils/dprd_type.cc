@@ -37,36 +37,6 @@ DprdBucket::DprdBucket(const int id, const int type, const int weight,
 DprdBucket::~DprdBucket() {
 }
 
-void DprdBucket::AddChild(int id) {
-  children_.push_back(id);
-}
-
-void DprdBucket::RemoveChild(int id) {
-  for (size_t i = 0; i < children_.size(); ++i) {
-    if (children_[i] == id) {
-      children_.erase(children_.begin() + i);
-    }
-  }
-}
-
-bool DprdBucket::InsertPartition(int partition) {
-  std::pair<std::set<int>::iterator, bool>
-    res = partitions_.insert(partition);
-  if (res.second == false) {
-    return false;
-  }
-  return true;
-}
-
-bool DprdBucket::RemovePartition(int partition) {
-  std::set<int>::iterator target = partitions_.find(partition);
-  if (target == partitions_.end()) {
-    return false;
-  }
-  partitions_.erase(target);
-  return true;
-}
-
 DprdMap::DprdMap() : max_bucket_(0), max_pos_id_(0), min_neg_id_(0),
   sum_weight_(0) {
 }
@@ -133,12 +103,6 @@ bool DprdMap::RemoveBucket(int id) {
 
   delete target;
   return true;
-}
-
-bool DprdMap::InsertRule(const int id, DprdRule* rule) {
-  std::pair<std::map<int, DprdRule*>::iterator, bool> res;
-  res = rules_.insert(std::make_pair(id, rule));
-  return res.second;
 }
 
 DprdBucket* DprdMap::FindBucket(const int bucket_id) {

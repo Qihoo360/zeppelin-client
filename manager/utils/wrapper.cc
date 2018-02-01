@@ -71,7 +71,7 @@ bool DprdWrapper::AddBucket(int type, int id, const std::string& name,
   }
   // add bucket to parent's child
   if (parent_bucket) {
-    parent_bucket->AddChild(id);
+    parent_bucket->children_.push_back(id);
   }
   // if bucket type is BUCKET_TYPE_NODE type, update sum_weight
   if (type == kBucketTypeNode) {
@@ -195,7 +195,11 @@ bool DprdWrapper::RemoveBucket(int id) {
   // update child in parent
   DprdBucket* parent = map_->FindBucket(bucket->parent_);
   assert(parent);
-  parent->RemoveChild(id);
+  for (size_t i = 0; i < parent->children_.size(); ++i) {
+    if (parent->children_[i] == id) {
+      parent->children_.erase(parent->children_.begin() + i);
+    }
+  }
 
   if (!LevelOrderTraversalRemove(bucket)) {
     return false;
@@ -294,8 +298,8 @@ bool DprdWrapper::LevelOrderTraversalRemove(const DprdBucket* root) {
 }
 
 bool DprdWrapper::AddRule(int id) {
-  DprdRule* Dprd_rule = new DprdRule(id);
-  map_->InsertRule(id, Dprd_rule);
+  DprdRule* rule = new DprdRule(id);
+  map_->rules_.insert(std::make_pair(id, rule));
   return true;
 }
 
@@ -314,13 +318,13 @@ bool DprdWrapper::AddStep(int rule_id, int step_id,
 bool DprdWrapper::RemoveBucketPartition(DprdBucket* target, int partition) {
   DprdBucket* cur = target;
   while (cur->type_ != kBucketTypeRoot) {
-    const std::set<int>& partitions = cur->partitions_;
-    std::set<int>::const_iterator partitions_itr = partitions.find(partition);
+    std::set<int>& partitions = cur->partitions_;
+    std::set<int>::iterator partitions_itr = partitions.find(partition);
     if (partitions_itr == partitions.end()) {
       // should have this partition
       return false;
     }
-    cur->RemovePartition(partition);
+    partitions.erase(partitions_itr);
     cur = map_->FindBucket(cur->parent_);
     assert(cur);
   }
@@ -332,10 +336,7 @@ bool DprdWrapper::InsertBucketPartition(DprdBucket* target, int partition) {
   // std::cout<< "Func: InsertBucketpartition " << std::endl;
   DprdBucket* cur = target;
   while (cur->type_ != kBucketTypeRoot) {
-    bool res = cur->InsertPartition(partition);
-    if (!res) {
-      return false;
-    }
+    cur->partitions_.insert(partition);
     cur = map_->FindBucket(cur->parent_);
     assert(cur);
   }
@@ -978,7 +979,7 @@ bool DprdWrapper::AddBucketFromFile(std::ifstream& in, const std::string& buf) {
       for (size_t i = 0; i < children.size(); ++i) {
         int child_id;
         if (map_->FindId(children[i], &child_id)) {
-          bucket->AddChild(child_id);
+          bucket->children_.push_back(child_id);
         }
         DprdBucket* child = map_->FindBucket(child_id);
         if (child == NULL) {

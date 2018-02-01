@@ -59,11 +59,6 @@ struct DprdBucket {
   DprdBucket(const int id, const int type, const int weight, const int parent,
       const std::string& name, const std::string& ip, const int port);
   ~DprdBucket();
-  void AddChild(int id);
-  void RemoveChild(int id);
-  bool InsertPartition(int partition);
-  bool RemovePartition(int partition);
-
   int id_;
   int type_;
   int weight_;
@@ -83,7 +78,6 @@ struct DprdMap {
   ~DprdMap();
   bool InsertBucket(const int id, DprdBucket* bucket);
   bool RemoveBucket(int id);
-  bool InsertRule(const int id, DprdRule* rule);
   DprdBucket* FindBucket(const int bucket_id);
   DprdRule* FindRule(const int rule_id);
   bool FindId(const std::string& name, int* id);
