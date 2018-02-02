@@ -9,6 +9,7 @@ libzp/libzp/example/zp_simple
 libzp/libzp/example/zp_timeout
 libzp/libzp/example/zp_hashtag
 libzp/libzp/example/zp_table
+libzp/libzp/example/zp_mset
 
 manager/zp_benchmark
 manager/zp_checkup
@@ -20,6 +21,8 @@ manager/zp_manager
 manager/rocksdb_to_zp
 manager/checkup_json_result
 manager/info_json_result
+
+pyzeppelin/build/
 
 tags
 

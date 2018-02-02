@@ -211,6 +211,19 @@ static void BuildMgetContext(Cluster* cluster, const std::string& table,
   }
 }
 
+static void BuildMsetContext(Cluster* cluster, const std::string& table,
+    const std::vector<std::pair<std::string, std::string>>& kvs,
+    CmdContext* mset_context) {
+  mset_context->Init(cluster, table);
+  mset_context->request->set_type(client::Type::MSET);
+  for (const auto& kv : kvs) {
+    client::CmdRequest_Set* set_cmd = mset_context->request->add_mset();
+    set_cmd->set_table_name(table);
+    set_cmd->set_key(TryBuildKeyWithHashtag(kv.first));
+    set_cmd->set_value(kv.second);
+  }
+}
+
 static void BuildFlushTableContext(Cluster*cluster, const std::string& table,
     int partition_id, CmdContext* flush_context) {
   flush_context->Init(cluster, table, partition_id);
@@ -266,11 +279,13 @@ static void BuildInfoContext(Cluster* cluster, const std::string& table,
   }
 }
 
+/* TODO Delete me
 static void ClearDistributeMap(std::map<Node, CmdContext*>* key_distribute) {
   for (auto& kd : *key_distribute) {
     delete kd.second;
   }
 }
+*/
 
 Cluster::Cluster(const Options& options)
   : epoch_(-1) {
@@ -420,6 +435,21 @@ Status Cluster::Mget(const std::string& table,
   }
 }
 
+Status Cluster::Mset(const std::string& table_name,
+    const std::vector<std::pair<std::string, std::string>>& kvs) {
+  BuildMsetContext(this, table_name, kvs, context_);
+  DeliverAndPull(context_);
+
+  if (!context_->result.ok()) {
+    return context_->result;
+  }
+  if (context_->response->code() == client::StatusCode::kOk) {
+    return Status::OK();
+  } else {
+    return Status::Corruption(context_->response->msg());
+  }
+}
+
 Status Cluster::Aset(const std::string& table, const std::string& key,
     const std::string& value, zp_completion_t complietion, void* data,
     int32_t ttl) {
@@ -456,6 +486,7 @@ Status Cluster::Amget(const std::string& table, const std::vector<std::string>& 
   return Status::OK();
 }
 
+/* TODO Delete me
 bool Cluster::DeliverMget(CmdContext* context) {
   // Prepare Request
   Node master;
@@ -514,10 +545,105 @@ bool Cluster::DeliverMget(CmdContext* context) {
   ClearDistributeMap(&key_distribute);
   return true;
 }
+*/
+
+bool Cluster::MultiDeliver(CmdContext* context) {
+  // Prepare Request
+  Node master;
+  std::map<Node, std::unique_ptr<CmdContext>> key_distribute;
+  client::Type type = context->request->type();
+  if (type == client::Type::MGET) {
+    for (const auto& k : context->request->mget().keys()) {
+      context->result = GetDataMaster(context->table, k, &master);
+      if (!context->result.ok()) {
+        return false;
+      }
+
+      if (key_distribute.find(master) == key_distribute.end()) {
+        std::unique_ptr<CmdContext> sub_context(new CmdContext());
+        sub_context->Init(this, context->table, k);
+        sub_context->deadline = context->deadline;
+        sub_context->request->set_type(type);
+
+        client::CmdRequest_Mget* new_mget_cmd =
+          sub_context->request->mutable_mget();
+        new_mget_cmd->set_table_name(context->table);
+        key_distribute.insert(std::make_pair(master, std::move(sub_context)));
+      }
+      key_distribute[master]->request->mutable_mget()->add_keys(k);
+    }
+  } else if (type == client::Type::MSET) {
+    for (const auto& set_cmd : context->request->mset()) {
+      const std::string& k = set_cmd.key();
+      context->result = GetDataMaster(context->table, k, &master);
+      if (!context->result.ok()) {
+        return false;
+      }
+
+      std::map<Node, std::unique_ptr<CmdContext>>::iterator iter =
+        key_distribute.find(master);
+
+      CmdContext* sub_ctx_ptr;
+      client::CmdRequest_Set* sub_set_cmd;
+
+      if (iter == key_distribute.end()) {
+        std::unique_ptr<CmdContext> sub_context(new CmdContext());
+        sub_ctx_ptr = sub_context.get();
+
+        sub_context->Init(this, context->table, k);
+        sub_context->deadline = context->deadline;
+        sub_context->request->set_type(type);
+
+        key_distribute.insert(std::make_pair(master, std::move(sub_context)));
+      } else {
+        sub_ctx_ptr = iter->second.get();
+      }
+
+      sub_set_cmd = sub_ctx_ptr->request->add_mset();
+      sub_set_cmd->CopyFrom(set_cmd);
+    }
+  }
+
+  // Dispatch
+  for (auto& kd : key_distribute) {
+    AddNodeTask(kd.first, kd.second.get());
+  }
+
+  for (auto& kd : key_distribute) {
+    kd.second->WaitRpcDone();
+  }
+
+  // Wait peer_workers process and merge result
+  context->response->set_type(type);
+  for (const auto& kd : key_distribute) {
+    const std::unique_ptr<CmdContext>& sub_ctx = kd.second;
+    context->key = sub_ctx->key;
+    context->result = sub_ctx->result;
+    context->response->set_code(sub_ctx->response->code());
+    context->response->set_msg(sub_ctx->response->msg());
+    if (sub_ctx->response->has_redirect()) {
+      client::Node* node =  context->response->mutable_redirect();
+      *node = sub_ctx->response->redirect();
+    }
+    if (!context->result.ok() ||
+        context->response->code() != client::StatusCode::kOk) { // no NOTFOUND in mget response
+      return false;
+    }
+    if (type == client::Type::MGET) {
+      for (auto& kv : kd.second->response->mget()) {
+        client::CmdResponse_Mget* res_mget= context->response->add_mget();
+        res_mget->set_key(kv.key());
+        res_mget->set_value(kv.value());
+      }
+    }
+  }
+  return true;
+}
 
 bool Cluster::Deliver(CmdContext* context) {
-  if (context->request->type() == client::Type::MGET) {
-    return DeliverMget(context);
+  if (context->request->type() == client::Type::MGET ||
+      context->request->type() == client::Type::MSET) {
+    return MultiDeliver(context);
   }
 
   // Prepare Request
