@@ -389,7 +389,7 @@ static std::string TryTrimHashtag(const std::string& key) {
     return key;
   }
 
-  size_t r_brace = key.find(kRBrace, 1);
+  size_t r_brace = key.find(kRBrace, 0 + kLBrace.size());
   if (r_brace != std::string::npos) {
     return key.substr(r_brace + kRBrace.size());
   }
