@@ -88,9 +88,9 @@ CFLAGS += $(WARNING_FLAGS) $(OPT)
 
 .PHONY: clean distclean dbg all deps
 
-all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
+all: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade zp_loopset
 
-dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade
+dbg: zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade zp_loopset
 
 $(DEP_LIBS):
 	$(AM_V_at)make -C $(SLASH_PATH)/slash DEBUG_LEVEL=$(DEBUG_LEVEL)
@@ -98,6 +98,9 @@ $(DEP_LIBS):
 	$(AM_V_at)make -C $(ZP_PATH)/libzp DEBUG_LEVEL=$(DEBUG_LEVEL) SLASH_PATH=$(SLASH_PATH) PINK_PATH=$(PINK_PATH)
 
 zp_benchmark: zp_benchmark.cc $(DEP_LIBS)
+	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
+
+zp_loopset: zp_loopset.cc $(DEP_LIBS)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) $(LDFLAGS)
 
 zp_checkup: zp_checkup.cc utils/json.cc utils/json.h $(DEP_LIBS)
@@ -125,7 +128,7 @@ rocksdb_to_zp: rocksdb_to_zp.cc $(DEP_LIBS) $(ROCKSDB_LIBRARY)
 	$(AM_V_LD)$(CXX) $^ -o $@ $(CXXFLAGS) -I$(ROCKSDB_INCLUDE_DIR) $(LDFLAGS)
 
 clean:
-	rm -f zp_benchmark zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp
+	rm -f zp_benchmark zp_loopset zp_checkup zp_expansion zp_info zp_manager zp_parade rocksdb_to_zp
 	find . -name "*.[oda]*" ! -exec rm -f {} \;
 	find . -type f -regex ".*\.\(\(gcda\)\|\(gcno\)\)" -exec rm {} \;
 

@@ -79,6 +79,7 @@ void Run(const libzp::Options &option,
   }
   std::cout << "client " << std::this_thread::get_id() << " is done! "
     << "Processed " <<rnum << "Set and " << rnum << "Get"  << rnum << "Mget"<< std::endl;
+  delete cluster;
 } 
 
 int main(int argc, char* argv[]) {
