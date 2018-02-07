@@ -14,7 +14,7 @@
 
 void usage() {
   std::cout << "usage:\n"
-            << "      ./zp_loopset host port table key value_len requrestnum\n";
+            << "      ./zp_loopset host port table partition value_len requrestnum\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -25,9 +25,10 @@ int main(int argc, char* argv[]) {
   std::string host = argv[1];
   int port = atoi(argv[2]);
   std::string table = argv[3];
-  std::string key = argv[4];
+  int pid = atoi(argv[4]);
   int value_len = atoi(argv[5]);
   int rnum = atoi(argv[6]);
+
 
   libzp::Options option;
   libzp::Node node(host, port);
@@ -49,12 +50,33 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
+  std::string key;
+  for (int i = 0; i < 10000000; ++i) {
+    key = std::to_string(i);
+    if (cluster->LocateKey(table, key) == pid) {
+      break;
+    }
+  }
+  if (key.empty()) {
+    std::cout << "failed to find a key on " << pid;
+    return -1;
+  }
+
   // Set
   std::string* value = new std::string(value_len, 'a');
   for (int i = 0; i < rnum; i++) {
     s= cluster->Set(table, key, *value);
     if (!s.ok()) {
-      std::cout << "client " << std::this_thread::get_id() << " set key "
+      std::cout << "client set key "
+        << key << " failed: " << s.ToString() << std::endl;
+      delete value;
+      delete cluster;
+      return -1;
+    }
+
+    s= cluster->Delete(table, key);
+    if (!s.ok()) {
+      std::cout << "client delete key "
         << key << " failed: " << s.ToString() << std::endl;
       delete value;
       delete cluster;
