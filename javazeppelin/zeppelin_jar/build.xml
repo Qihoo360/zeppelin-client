@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project name="zeppelin-client" default="doc" basedir=".">
+    <property name="src.dir" value="src" />
+    <property name="dest.dir" value="classes" />
+    <property name="doc.dir" value="doc" />
+    <property name="zeppelin.jar" value="zeppelin.jar" />
+    <target name="init">
+        <mkdir dir="${dest.dir}" />
+        <mkdir dir="${doc.dir}" />
+        <copy file="../libzeppelin.so" todir="${dest.dir}" />
+    </target>
+    <target name="compile" depends="init">
+      <javac srcdir="${src.dir}" destdir="${dest.dir}" includeantruntime="false" />
+    </target>
+    <target name="build" depends="compile">
+        <jar jarfile="${zeppelin.jar}" basedir="${dest.dir}" />
+    </target>
+    <target name="doc" depends="build">
+        <javadoc destdir="${doc.dir}">
+            <packageset dir="${src.dir}">
+            </packageset>
+        </javadoc>
+    </target>
+</project>
