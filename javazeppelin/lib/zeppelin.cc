@@ -62,9 +62,9 @@ JNIEXPORT void JNICALL Java_net_qihoo_zeppelin_Zeppelin_createZeppelin(
     print_error_message(env, obj, INVALID_PARAM);
     return;
   }
-  jlong ptr = env->GetLongField(cls, fid_ptr);
+  jlong ptr = env->GetLongField(obj, fid_ptr);
   ptr = (jlong)client;
-  env->SetLongField(cls, fid_ptr, ptr);
+  env->SetLongField(obj, fid_ptr, ptr);
 }
 
 JNIEXPORT void JNICALL Java_net_qihoo_zeppelin_Zeppelin_removeZeppelin(
@@ -84,7 +84,7 @@ JNIEXPORT void JNICALL Java_net_qihoo_zeppelin_Zeppelin_removeZeppelin(
     return;
   }
   jlong ptr = 0;
-  env->SetLongField(cls, fid_ptr, ptr);
+  env->SetLongField(obj, fid_ptr, ptr);
 }
 
 JNIEXPORT jboolean JNICALL Java_net_qihoo_zeppelin_Zeppelin_set(JNIEnv * env,
@@ -213,7 +213,7 @@ static libzp::Client* get_client(JNIEnv *env, jobject obj) {
     print_error_message(env, obj, INVALID_PARAM);
     return NULL;
   }
-  jlong ptr = env->GetLongField(cls, fid_ptr);
+  jlong ptr = env->GetLongField(obj, fid_ptr);
   return (libzp::Client*)ptr; 
 }
 
