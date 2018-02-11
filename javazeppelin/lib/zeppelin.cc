@@ -58,6 +58,7 @@ JNIEXPORT void JNICALL Java_net_qihoo_zeppelin_Zeppelin_createZeppelin(
 
   jclass cls = env->GetObjectClass(obj);
   jfieldID fid_ptr = env->GetFieldID(cls, "ptr", "J");
+  env->DeleteLocalRef(cls);
   if (NULL == fid_ptr) {
     print_error_message(env, obj, INVALID_PARAM);
     return;
@@ -79,6 +80,7 @@ JNIEXPORT void JNICALL Java_net_qihoo_zeppelin_Zeppelin_removeZeppelin(
 
   jclass cls = env->GetObjectClass(obj);
   jfieldID fid_ptr = env->GetFieldID(cls, "ptr", "J");
+  env->DeleteLocalRef(cls);
   if (NULL == fid_ptr) {
     print_error_message(env, obj, INVALID_PARAM);
     return;
@@ -158,6 +160,7 @@ JNIEXPORT jobject JNICALL Java_net_qihoo_zeppelin_Zeppelin_mget(JNIEnv *env,
     const char *key_c_str = env->GetStringUTFChars(key, NULL);
     std::string key_str(key_c_str);
     env->ReleaseStringUTFChars(key, key_c_str);
+    env->DeleteLocalRef(key);
     keys.push_back(key_str);
   }
   
@@ -195,20 +198,23 @@ JNIEXPORT jboolean JNICALL Java_net_qihoo_zeppelin_Zeppelin_delete(JNIEnv *env,
 
 static void print_error_message(JNIEnv *env, jobject obj,
     const std::string& msg) {
-  jclass jc = env->GetObjectClass(obj);
-  jmethodID mid = env->GetStaticMethodID(jc, "exceptionCallback",
+  jclass cls = env->GetObjectClass(obj);
+  jmethodID mid = env->GetStaticMethodID(cls, "exceptionCallback",
       "(Ljava/lang/String;)V");
   if (NULL == mid) {
+    env->DeleteLocalRef(cls);
     return;
   }
   jstring msg_j = env->NewStringUTF(msg.c_str());
-  env->CallStaticVoidMethod(jc, mid, msg_j);
+  env->CallStaticVoidMethod(cls, mid, msg_j);
   env->DeleteLocalRef(msg_j);
+  env->DeleteLocalRef(cls);
 }
 
 static libzp::Client* get_client(JNIEnv *env, jobject obj) {
   jclass cls = env->GetObjectClass(obj);
   jfieldID fid_ptr = env->GetFieldID(cls, "ptr", "J");
+  env->DeleteLocalRef(cls);
   if (NULL == fid_ptr) {
     print_error_message(env, obj, INVALID_PARAM);
     return NULL;
