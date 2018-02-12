@@ -10,11 +10,13 @@
 //
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>       // fabs
 #include <ctime>
 
 #include <fstream>
 #include <vector>
 #include <chrono>
+#include <algorithm>    // std::sort
 
 #include "libzp/include/zp_cluster.h"
 #include "utils/json.h"
@@ -45,8 +47,58 @@
 #define CLEAR                "\e[2J"
 #define CLRLINE              "\r\e[K"  // or "\e[1K\r"
 
+static int kReplicaNum = 3;
+
 libzp::Cluster* cluster;
 std::map<std::string, std::map<int, libzp::PartitionView>> view_map;
+
+const int64_t KB = 1024;
+const int64_t MB = KB << 10;
+const int64_t GB = MB << 10;
+const int64_t TB = GB << 10;
+const int64_t PB = TB << 10;
+
+static std::string ToHuman(int64_t bytes) {
+  char buf[100];
+  if (bytes < KB) {
+    sprintf(buf, "%ld bytes", bytes);
+  } else if (bytes < MB) {
+    sprintf(buf, "%0.3f KB", (double)bytes / KB);
+  } else if (bytes < GB) {
+    sprintf(buf, "%0.3f MB", (double)bytes / MB);
+  } else if (bytes < TB) {
+    sprintf(buf, "%0.3f GB", (double)bytes / GB);
+  } else if (bytes < PB) {
+    sprintf(buf, "%0.3f TB", (double)bytes / TB);
+  } else {
+    sprintf(buf, "%0.3f PB", (double)bytes / PB);
+  }
+  return std::string(buf);
+}
+
+struct CompDevFunc {
+  CompDevFunc(double average) {
+    average_ = average;
+  }
+  bool operator() (const std::pair<libzp::Node,
+    std::vector<const libzp::Partition*>>& i, const std::pair<libzp::Node,
+    std::vector<const libzp::Partition*>>& j) {
+    int node_par_i = (int)i.second.size();
+    int node_par_j = (int)j.second.size();
+    double dev_i = (double)(node_par_i - average_) / average_;
+    double dev_j = (double)(node_par_j - average_) / average_;
+    return fabs(dev_i) > fabs(dev_j);
+  }
+  double average_;
+};
+
+
+static bool CompPercFunc(const std::pair<libzp::Node, libzp::SpaceInfo>& i,
+    const std::pair<libzp::Node, libzp::SpaceInfo>& j) {
+  double percentage_i = (double)i.second.used / (i.second.used + i.second.remain);
+  double percentage_j = (double)j.second.used / (j.second.used + j.second.remain);
+  return percentage_i > percentage_j;
+}
 
 std::map<libzp::Node, std::string> g_nodes;
 void UpdateNodeStatus(std::vector<libzp::Node>& nodes,
@@ -72,33 +124,38 @@ void InfoNode() {
     printf(RED "No Nodes" NONE "\n");
     return;
   }
+  std::map<std::string, std::vector<std::pair<int, bool>>> ip_nodes;
+  for (size_t i = 0; i < nodes.size() && i < status.size(); ++i) {
+    libzp::Node& node = nodes[i];
+    std::string& ip = node.ip;
+    bool node_status = status[i] == "up" ? true : false;
+    int port = node.port;
+    std::map<std::string, std::vector<std::pair<int, bool>>>::iterator iter =
+        ip_nodes.find(ip);
+    if (iter != ip_nodes.end()) {
+      ip_nodes[ip].push_back(std::make_pair(port, node_status));
+    } else {
+      std::vector<std::pair<int, bool>> ports;
+      ports.push_back(std::make_pair(port, node_status));
+      ip_nodes[ip] = ports;
+    }
+  }
+  printf(L_PURPLE "Hosts Count:\n" NONE);
+  printf("  %lu\n", ip_nodes.size());
   printf(L_PURPLE "Nodes Count:\n" NONE);
   printf("  %lu\n", nodes.size());
-  printf(L_PURPLE "Detail:\n" NONE);
-  for (size_t i = 0; i < nodes.size();) {
-    printf(REVERSE "%15s:%5d" NONE" ", nodes[i].ip.c_str(), nodes[i].port);
-    if (i + 1 < nodes.size()) {
-      printf(REVERSE "%15s:%5d" NONE" ",
-          nodes[i + 1].ip.c_str(), nodes[i + 1].port);
-    }
-    if (i + 2 < nodes.size()) {
-      printf(REVERSE "%15s:%5d" NONE" ",
-          nodes[i + 2].ip.c_str(), nodes[i + 2].port);
-    }
-
-    printf("\n");
-
-    int num = 0;
-    while (num < 3 && i < nodes.size()) {
-      if (status[i] == "up") {
-        printf(GREEN "%21s " NONE, "UP");
-      } else {
-        printf(RED "%21s " NONE, "DOWN");
+  printf(L_PURPLE "Down Nodes:\n" NONE);
+  std::map<std::string, std::vector<std::pair<int, bool>>>::iterator iter
+    = ip_nodes.begin();
+  for (; iter != ip_nodes.end(); ++iter) {
+    const std::string& ip = iter->first;
+    std::vector<std::pair<int, bool>>& ports = iter->second;
+    for (size_t i = 0; i < ports.size(); ++i) {
+      if (!ports[i].second){
+        printf("%15s  %-5d", ip.c_str(), ports[i].first);
+        printf(RED " [%s]" NONE "\n", "DOWN");
       }
-      i++;
-      num++;
     }
-    printf("\n");
   }
 }
 
@@ -312,19 +369,25 @@ void InfoTable(const std::string& table, bool detail = false) {
       printf(RED "Failed: %s Not Found" NONE "\n", (*iter).c_str());
       continue;
     }
-    printf("\e[0;35m%s [%d]\e[0m\n", it->second->table_name().c_str(),
+    printf(PURPLE "%s [%d]" NONE "\n", it->second->table_name().c_str(),
         it->second->partition_num());
-    printf("\e[7m%-5s\e[0m \e[7m%-10s\e[0m \e[7m%-70s\e[0m \e[7m%-140s\e[0m\n",
+    if (!detail) {
+      printf(PURPLE "NON-active noodes details:" NONE "\n");
+    }
+    printf("%-5s %-10s %-70s %-140s\n",
         "Id", "State", "Master", "Slaves");
     std::map<int, libzp::Partition> partitions = it->second->partitions();
     for (auto& par : partitions) {
-      printf("%5d ", par.second.id());
+      if (!detail && par.second.state() == libzp::Partition::kActive) {
+        continue;
+      }
+      printf("%-5d ", par.second.id());
       if (par.second.state() == libzp::Partition::kActive) {
-        printf(GREEN "%10s " NONE, "Active");
+        printf(GREEN "%-10s " NONE, "Active");
       } else if (par.second.state() == libzp::Partition::kStuck) {
-        printf(RED "%10s " NONE, "Stuck");
+        printf(RED "%-10s " NONE, "Stuck");
       } else if (par.second.state() == libzp::Partition::kSlowDown) {
-        printf(YELLOW "%10s " NONE, "SlowDown");
+        printf(YELLOW "%-10s " NONE, "SlowDown");
       }
       if (detail) {
         PartitionDetail(*iter, par.second.id(),
@@ -336,11 +399,11 @@ void InfoTable(const std::string& table, bool detail = false) {
               s.port, false);
         }
       } else {
-        printf("%64s:%5d", par.second.master().ip.c_str(),
-            par.second.master().port);
+        printf("%-15s:%-5d" "%49s", par.second.master().ip.c_str(),
+            par.second.master().port, " ");
         printf(BLUE " |" NONE);
         for (auto& s : par.second.slaves()) {
-          printf("%15s:%5d", s.ip.c_str(), s.port);
+          printf("%-15s:%-5d", s.ip.c_str(), s.port);
           printf(BLUE " |" NONE);
         }
       }
@@ -348,8 +411,34 @@ void InfoTable(const std::string& table, bool detail = false) {
     }
     std::map<libzp::Node, std::vector<const libzp::Partition*>> nodes_loads;
     it->second->GetNodesLoads(&nodes_loads);
+    int node_size = nodes_loads.size();
+    int partition_size = it->second->partition_num() * kReplicaNum;
+    double ave_par_per_node = (double) partition_size / node_size;
+
+    int counter = 0;
+    if (!detail) {
+      printf(PURPLE "Top Deviation of Average Partitions[%f]"
+          "Per Node based on [%d] nodes:\n" NONE, ave_par_per_node, node_size);
+      counter = 10;
+    }
+
+    std::vector<std::pair<libzp::Node, std::vector<const libzp::Partition*>>>
+      nodes_loads_sort;
     for (auto& node : nodes_loads) {
-      std::cout << node.first << ": [";
+      nodes_loads_sort.push_back(node);
+    }
+    sort(nodes_loads_sort.begin(), nodes_loads_sort.end(),
+        CompDevFunc(ave_par_per_node));
+    for (auto& node : nodes_loads_sort) {
+      if (!detail && counter <= 0) {
+        break;
+      }
+      printf("%s: ", node.first.ToString().c_str());
+      int node_par_size = (int)node.second.size();
+      double deviation = (double)(node_par_size - ave_par_per_node) /
+        ave_par_per_node;
+      printf("[%d] [%f] ", node_par_size, deviation);
+      printf("[");
       const std::vector<const libzp::Partition*>& p_vec = node.second;
       const libzp::Partition* p;
       size_t i = 0;
@@ -367,6 +456,7 @@ void InfoTable(const std::string& table, bool detail = false) {
       } else {
         printf("%d]\n", p->id());
       }
+      counter--;
     }
   }
 }
@@ -383,6 +473,7 @@ void InfoQuery(const std::string& table, mjson::Json* json) {
   printf(REVERSE "%35s" NONE" " REVERSE "%10s" NONE" " REVERSE "%15s" NONE"\n",
       "Table", "QPS", "TotalQuery");
   mjson::Json query_json(mjson::JsonType::kArray);
+  int64_t all_table_query = 0;
   for (auto iter = tables.begin(); iter != tables.end(); iter++) {
     mjson::Json tmp_json(mjson::JsonType::kSingle);
     tmp_json.AddStr("name", *iter);
@@ -395,6 +486,7 @@ void InfoQuery(const std::string& table, mjson::Json* json) {
       printf(RED "Failed: %s" NONE "\n", s.ToString().c_str());
       tmp_json.AddStr("error", "true");
     }
+    all_table_query += total_query;
     printf(PURPLE "%35s" NONE " %10d %15ld\n",
         (*iter).c_str(), qps, total_query);
     tmp_json.AddInt("qps", qps);
@@ -402,6 +494,7 @@ void InfoQuery(const std::string& table, mjson::Json* json) {
 
     query_json.PushJson(tmp_json);
   }
+  printf(PURPLE "Accumulated QPS: %-20ld\n" NONE, all_table_query);
   json->AddJson("detail", query_json);
 }
 
@@ -429,19 +522,30 @@ void InfoSpace(const std::string& table, mjson::Json* json) {
       std::cout << "Failed: " << s.ToString() << std::endl;
       tmp_json_1.AddStr("error", "true");
     }
-    printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE" "
-        REVERSE "%15s" NONE"\n",
-      "Node", "Used", "Remain");
+    // sort by percnetage
+    std::sort(nodes.begin(), nodes.end(), CompPercFunc);
+    printf(PURPLE "Top Percentage Used Details:\n" NONE);
+    printf(REVERSE "%21s" NONE" " REVERSE "%15s" NONE " " REVERSE "%15s" NONE" "
+        REVERSE "%15s" NONE REVERSE "%10s" NONE"\n",
+      "Node", "Total","Used", "Remain", "Used %");
 
     mjson::Json node_json(mjson::JsonType::kArray);
-    for (auto it = nodes.begin(); it != nodes.end(); it++) {
+    int counter = 10;
+    for (auto it = nodes.begin(); it != nodes.end() && counter > 0; it++, counter--) {
       mjson::Json tmp_json_2(mjson::JsonType::kSingle);
-      printf("%15s:%5d %15ld %15ld\n", it->first.ip.c_str(), it->first.port,
-          it->second.used, it->second.remain);
+      printf("%15s:%5d ", it->first.ip.c_str(), it->first.port);
+      int64_t used = it->second.used;
+      int64_t remain = it->second.remain;
+      int64_t total = used + remain;
+      double percentage = (double) used / total;
+      printf("%15s %15s %15s %10f\n", ToHuman(total).c_str() ,ToHuman(used).c_str(),
+        ToHuman(remain).c_str(), percentage);
       tmp_json_2.AddStr("node", it->first.ip + ":" +
                           std::to_string(it->first.port));
-      tmp_json_2.AddInt("used", it->second.used);
-      tmp_json_2.AddInt("remain", it->second.remain);
+      tmp_json_2.AddStr("total", ToHuman(total));
+      tmp_json_2.AddStr("used", ToHuman(used));
+      tmp_json_2.AddStr("remain", ToHuman(remain));
+      tmp_json_2.AddStr("percentage", std::to_string(percentage));
       node_json.PushJson(tmp_json_2);
     }
     tmp_json_1.AddJson("detail", node_json);
