@@ -104,7 +104,7 @@ JNIEXPORT jboolean JNICALL Java_net_qihoo_zeppelin_Zeppelin_set(JNIEnv * env,
   }
   const char *value_c_str = env->GetStringUTFChars(value, NULL);
   if (NULL == value_c_str) {
-    env->ReleaseStringUTFChars(value, value_c_str);
+    env->ReleaseStringUTFChars(key, key_c_str);
     print_error_message(env, obj, INVALID_PARAM);
     return false;
   }
@@ -142,7 +142,7 @@ JNIEXPORT jstring JNICALL Java_net_qihoo_zeppelin_Zeppelin_get(JNIEnv *env,
     print_error_message(env, obj, s.ToString()); 
     return NULL;
   }
-  return env->NewStringUTF(value_str.c_str()); 
+  return env->NewStringUTF(value_str.c_str());
 }
 
 JNIEXPORT jobject JNICALL Java_net_qihoo_zeppelin_Zeppelin_mget(JNIEnv *env,
@@ -152,7 +152,7 @@ JNIEXPORT jobject JNICALL Java_net_qihoo_zeppelin_Zeppelin_mget(JNIEnv *env,
     print_error_message(env, obj, INVALID_PARAM);
     return NULL;
   }
-  
+
   std::vector<std::string> keys;
   jsize length = env->GetArrayLength(string_array);
   for (int i = 0; i < length; ++i) {
