@@ -6,12 +6,16 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <iomanip>      // std::setw
 #include <algorithm>
 
 #include "slash/include/slash_string.h"
 #include "libzp/include/zp_cluster.h"
 #include "utils/linenoise.h"
 #include "utils/distribution.h"
+
+static bool kOneCommand = 0;
+static std::string kOneCommandStr;
 
 struct CommandHelp {
   std::string name;
@@ -174,7 +178,7 @@ CommandHelp commandHelp[] = {
   { "DUMP",
     "table",
     1,
-    "Get space info for a table"},
+    "Dump info for a table"},
 
   { "LOCATE",
     "table key",
@@ -317,7 +321,7 @@ static std::string to_human(int64_t bytes) {
 const char* history_file = "/tmp/zp_manager_history.txt";
 
 void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
-  char *line;
+  char *line = NULL;
   linenoiseSetMultiLine(1);
   linenoiseSetCompletionCallback(completion);
   linenoiseSetHintsCallback(hints_callback);
@@ -325,8 +329,16 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
 
   libzp::Status s;
   char prompt[100];
+  bool one_command_breaker = false;
   snprintf(prompt, 100, "Zeppelin(%s:%d)>> ", ip, port);
-  while ((line = linenoise(prompt)) != nullptr) {
+  while (kOneCommand || (line = linenoise(prompt)) != nullptr) {
+    if (one_command_breaker) {
+      break;
+    }
+    if (kOneCommand) {
+      one_command_breaker = true;
+      line = strdup(kOneCommandStr.c_str());
+    }
     linenoiseHistoryAdd(line); /* Add to the history. */
     linenoiseHistorySave(history_file); /* Save the history on disk. */
     /* Do something with the string. */
@@ -1055,13 +1067,18 @@ void StartRepl(libzp::Cluster* cluster, const char* ip, int port) {
         continue;
       }
       std::cout << "space info for " << table_name << std::endl;
-      for (size_t i = 0; i < nodes.size(); i++) {
-        std::cout << "node: " << nodes[i].first.ip << " " <<
-          nodes[i].first.port << std::endl;
+      std::cout << std::setw(23) << "Node" << std::setw(17) << "Total"
+        << std::setw(17) << "Used" << std::setw(17) << "Remain"
+        << std::setw(10) << "Used %" << std::endl;
+      for (size_t i = 0; i < nodes.size(); ++i) {
         int64_t used = nodes[i].second.used;
         int64_t remain = nodes[i].second.remain;
-        printf("  used: %ld bytes(%s)\n", used, to_human(used).c_str());
-        printf("  remain: %ld bytes(%s)\n", remain, to_human(remain).c_str());
+        int64_t total = used + remain;
+        double percentage = (double) used / total;
+        std::cout << std::setw(23) <<nodes[i].first.ip + " "
+          + std::to_string(nodes[i].first.port) << std::setw(17) << to_human(total) <<
+          std::setw(17) << to_human(used) << std::setw(17) << to_human(remain) <<
+          std::setprecision (2) << std::setw(10) << percentage << std::endl;
       }
     } else if (!strncasecmp(line, "NODESTATE", 9)) {
       if (line_args.size() != 2) {
@@ -1112,14 +1129,25 @@ void usage() {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 3) {
+  if (argc < 3 && argc != 1) {
     usage();
     return -1;
   }
-
+  // if this is a one command line request
+  // extract command in to kOneCommandStr
+  if (argc > 3) {
+    kOneCommand = true;
+    for (int i = 3; i < argc; ++i) {
+      std::string argv_str = argv[i];
+      kOneCommandStr = kOneCommandStr + " " + argv_str;
+    }
+    if (!kOneCommandStr.empty() && *(kOneCommandStr.begin()) == ' ') {
+      kOneCommandStr.erase(kOneCommandStr.begin());
+    }
+  }
   libzp::Options option;
-  const char* ip = argv[1];
-  int port = std::atoi(argv[2]);
+  const char* ip = (argc == 1) ? "127.0.0.1" : argv[1];
+  int port = (argc == 1) ? 9221 : std::atoi(argv[2]);
   option.meta_addr.push_back(libzp::Node(ip, port));
   option.op_timeout = 5000;
 
